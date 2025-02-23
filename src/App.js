@@ -1,117 +1,115 @@
-import React, { useState, useEffect } from 'react';
-import { useTable } from 'react-table';
-import './App.css'; // Якщо додали стилі раніше
+import React from 'react';
+import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import GalleryItem from './components/GalleryItem';
+import TradeJournal from './components/TradeJournal';
+import TradeDetail from './components/TradeDetail';
+import Placeholder from './components/Placeholder';
+import CreateTrade from './components/CreateTrade';
+import './App.css';
 
 function App() {
-  const [trades, setTrades] = useState([]);
-  const [newTrade, setNewTrade] = useState({ asset: '', entryPrice: '' });
+  const location = useLocation(); // Отримуємо поточний маршрут
+  const isHome = location.pathname === '/'; // Перевірка, чи це головна сторінка
+  const navigate = useNavigate(); // Для навігації
 
-  // Завантажуємо угоди при старті
-  useEffect(() => {
-    const loadTrades = async () => {
-      const loadedTrades = await window.electronAPI.getTrades();
-      setTrades(loadedTrades);
-    };
-    loadTrades();
+  // Логіка привітання (англійською)
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 11) return 'Good Morning!';
+    if (hour >= 11 && hour < 17) return 'Good Afternoon!';
+    return 'Good Evening!';
+  };
+
+  // Додаємо лог для перевірки шрифту
+  const checkFont = () => {
+    console.log('Перевірка шрифту Noto Sans:', document.fonts && document.fonts.check('16px Noto Sans'));
+    if (document.fonts) {
+      document.fonts.ready.then(() => {
+        console.log('Шрифти завантажено:', Array.from(document.fonts).map(f => f.family));
+      });
+    }
+  };
+
+  // Викликаємо перевірку при монтуванні компонента
+  React.useEffect(() => {
+    checkFont();
   }, []);
 
-  // Обробка введення в поля форми
-  const handleChange = (e) => {
-    const { name, value } = e.target;
-    setNewTrade({ ...newTrade, [name]: value });
+  // Елементи галереї
+  const galleryItems = [
+    { title: 'TRADE JOURNAL', path: '/trade-journal' },
+    { title: 'DAILY ROUTINE', path: '/daily-routine' },
+    { title: 'PERFORMANCE ANALYSIS', path: '/performance-analysis' },
+    { title: 'STATISTICS', path: '/statistics' },
+    { title: 'RISK MANAGEMENT', path: '/risk-management' },
+    { title: 'LEARNING SECTION', path: '/learning-section' },
+    { title: 'REPORTING SYSTEM', path: '/reporting-system' },
+    { title: 'SETTINGS', path: '/settings' },
+  ];
+
+  // Логіка для кнопок "Back" і "Forward" (стрілочки через CSS)
+  const handleBack = () => {
+    navigate(-1); // Перехід на попередню сторінку
   };
 
-  // Додавання нової угоди
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    const trade = {
-      id: Date.now().toString(),
-      asset: newTrade.asset,
-      entryPrice: parseFloat(newTrade.entryPrice),
-      date: new Date().toISOString().split('T')[0],
-    };
-    await window.electronAPI.saveTrade(trade);
-    setTrades([...trades, trade]);
-    setNewTrade({ asset: '', entryPrice: '' });
+  const handleForward = () => {
+    navigate(1); // Перехід на наступну сторінку
   };
 
-  // Визначення колонок для таблиці
-  const columns = React.useMemo(
-    () => [
-      {
-        Header: 'Date',
-        accessor: 'date', // Ключ із даних
-      },
-      {
-        Header: 'Asset',
-        accessor: 'asset',
-      },
-      {
-        Header: 'Entry Price',
-        accessor: 'entryPrice',
-      },
-    ],
-    []
-  );
-
-  // Налаштування таблиці
-  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
-    useTable({ columns, data: trades });
+  // Отримуємо назву поточного розділу для заголовка
+  const getSectionTitle = () => {
+    const path = location.pathname;
+    if (path === '/trade-journal') return 'TRADE JOURNAL';
+    if (path === '/daily-routine') return 'DAILY ROUTINE';
+    if (path === '/performance-analysis') return 'PERFORMANCE ANALYSIS';
+    if (path === '/statistics') return 'STATISTICS';
+    if (path === '/risk-management') return 'RISK MANAGEMENT';
+    if (path === '/learning-section') return 'LEARNING SECTION';
+    if (path === '/reporting-system') return 'REPORTING SYSTEM';
+    if (path === '/settings') return 'SETTINGS';
+    if (path === '/trade/:id') return 'TRADE DETAIL'; // Для сторінки трейду
+    if (path === '/create-trade') return 'CREATE TRADE';
+    return '';
+  };
 
   return (
-    <div>
-      <h1>Trade Journal</h1>
-
-      {/* Форма для введення угод */}
-      <form onSubmit={handleSubmit}>
-        <input
-          type="text"
-          name="asset"
-          value={newTrade.asset}
-          onChange={handleChange}
-          placeholder="Asset (e.g., BTC/USD)"
-          required
-        />
-        <input
-          type="number"
-          name="entryPrice"
-          value={newTrade.entryPrice}
-          onChange={handleChange}
-          placeholder="Entry Price"
-          required
-        />
-        <button type="submit">Add Trade</button>
-      </form>
-
-      {/* Таблиця угод */}
-      <h2>Trades</h2>
-      {trades.length === 0 ? (
-        <p>No trades yet</p>
-      ) : (
-        <table {...getTableProps()}>
-          <thead>
-            {headerGroups.map((headerGroup) => (
-              <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map((column) => (
-                  <th {...column.getHeaderProps()}>{column.render('Header')}</th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody {...getTableBodyProps()}>
-            {rows.map((row) => {
-              prepareRow(row);
-              return (
-                <tr {...row.getRowProps()}>
-                  {row.cells.map((cell) => (
-                    <td {...cell.getCellProps()}>{cell.render('Cell')}</td>
-                  ))}
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
+    <div className="app">
+      {!isHome && <h2 className="section-title">{getSectionTitle()}</h2>} {/* Назва розділу зверху */}
+      <div className={`navigation-buttons ${isHome ? 'hidden' : ''}`}>
+        <button onClick={handleBack} className="nav-button back" aria-label="Back"></button>
+        <button onClick={handleForward} className="nav-button forward" aria-label="Forward"></button>
+      </div>
+      {isHome && (
+        <div className="greeting-container">
+          <h1 className="greeting">{getGreeting()}</h1>
+          <p className="work-phrase">Let's get to work!</p>
+        </div>
       )}
+      <Routes>
+        <Route
+          path="/"
+          element={
+            <div className="gallery">
+              {galleryItems.map((item) => (
+                <GalleryItem key={item.path} title={item.title} path={item.path} />
+              ))}
+            </div>
+          }
+        />
+        <Route path="/trade-journal" element={<TradeJournal />} />
+        <Route path="/trade/:id" element={<TradeDetail />} /> {/* Сторінка деталі трейду */}
+        <Route path="/create-trade" element={<CreateTrade />} /> {/* Нова сторінка створення трейду */}
+        <Route path="/daily-routine" element={<Placeholder title="Daily Routine" />} />
+        <Route
+          path="/performance-analysis"
+          element={<Placeholder title="Performance Analysis" />}
+        />
+        <Route path="/statistics" element={<Placeholder title="Statistics" />} />
+        <Route path="/risk-management" element={<Placeholder title="Risk Management" />} />
+        <Route path="/learning-section" element={<Placeholder title="Learning Section" />} />
+        <Route path="/reporting-system" element={<Placeholder title="Reporting System" />} />
+        <Route path="/settings" element={<Placeholder title="Settings" />} />
+      </Routes>
     </div>
   );
 }
