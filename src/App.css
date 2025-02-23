@@ -1,21 +1,217 @@
 body {
-  font-family: Arial, sans-serif;
+  font-family: 'Noto Sans', Arial, sans-serif;
   padding: 20px;
+  background-color: #1a1a1a; /* Темний фон, схожий на Obsidian */
+  color: #fff; /* Текст білий для контрасту */
+  margin: 0; /* Знімаємо стандартні відступи */
 }
-form {
-  margin-bottom: 20px;
+
+.app {
+  text-align: center;
+  position: relative; /* Для позиціонування кнопок */
 }
-input {
-  margin-right: 10px;
-  padding: 5px;
+
+.section-title {
+  color: #5e2ca5; /* Фіолетовий колір для назви розділу */
+  margin-top: 20px; /* Відступ зверху для назви */
+  margin-bottom: 40px; /* Збільшений відступ знизу */
 }
-button {
-  padding: 5px 10px;
+
+.navigation-buttons {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  display: flex;
+  align-items: center;
 }
-ul {
-  list-style: none;
-  padding: 0;
+
+.navigation-buttons.hidden {
+  display: none; /* Приховуємо кнопки в головному меню */
 }
-li {
-  margin: 5px 0;
+
+.nav-button {
+  background-color: #5e2ca5; /* Фіолетовий фон для стрілок */
+  color: #fff; /* Текст білий для видимості */
+  border: none;
+  padding: 5px 8px; /* Менший розмір для стрілок */
+  margin: 0; /* Без відступів */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px; /* Менший розмір шрифту */
+  width: 30px; /* Фіксована ширина для стрілок */
+  height: 30px; /* Фіксована висота для стрілок */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, background-color 0.2s ease; /* Анімація */
+}
+
+.nav-button.back {
+  border-right: 2px solid #4a1a8d; /* Тонка межа праворуч для поділу */
+}
+
+.nav-button.forward {
+  margin-left: -2px; /* Зсуваємо вперед, щоб прибрати відступ */
+}
+
+.nav-button::before {
+  font-size: 16px; /* Збільшуємо розмір для кращої видимості */
+}
+
+.nav-button.back::before {
+  content: '\2190'; /* Стрілка вліво (Unicode) */
+}
+
+.nav-button.forward::before {
+  content: '\2192'; /* Стрілка вправо (Unicode) */
+}
+
+.nav-button:hover {
+  background-color: #4a1a8d; /* Темніший фіолетовий при наведенні */
+  transform: scale(1.1); /* Збільшення при наведенні */
+}
+
+.nav-button:active {
+  transform: scale(0.95); /* Зменшення при натисканні */
+}
+
+.greeting-container {
+  margin-top: 20px; /* Відступ для привітання */
+}
+
+.greeting {
+  color: #5e2ca5; /* Фіолетовий колір для привітання */
+  margin: 0; /* Знімаємо стандартні відступи */
+}
+
+.work-phrase {
+  color: #fff; /* Білий колір для фрази */
+  margin-top: 10px; /* Відступ зверху */
+  font-size: 16px; /* Збільшуємо розмір тексту */
+}
+
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+  margin-top: 20px; /* Відступ для галереї */
+}
+
+.gallery-item {
+  width: 22%; /* 4 в ряд із відступами */
+  height: 100px;
+  background-color: #2e2e2e; /* Темний фон для елементів галереї */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  color: #fff;
+  border: 2px solid #5e2ca5; /* Фіолетова обводка для кнопок меню */
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, transform 0.2s ease; /* Анімація */
+}
+
+.gallery-item:hover {
+  background-color: #3e3e3e; /* Темніший фон при наведенні */
+  transform: scale(1.05); /* Збільшення при наведенні */
+}
+
+.gallery-item:active {
+  transform: scale(0.95); /* Зменшення при натисканні */
+}
+
+.trade-journal {
+  max-width: 1200px; /* Фіксована ширина для стабільного положення */
+  margin: 20px auto; /* Відступ зверху для таблиці */
+}
+
+.journal-header {
+  display: flex;
+  justify-content: space-between; /* Кнопки фільтрів зліва, Add Trade справа */
+  margin-bottom: 20px; /* Відступ знизу */
+  align-items: center;
+}
+
+.filter-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.filter-buttons button {
+  background-color: #5e2ca5;
+  color: #fff;
+  border: none;
+  padding: 10px 20px; /* Більший розмір для кнопок фільтрів */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px; /* Більший шрифт */
+  transition: background-color 0.2s ease, transform 0.2s ease; /* Анімація */
+}
+
+.filter-buttons button.active {
+  background-color: #4a1a8d; /* Темніший фіолетовий для активної кнопки */
+}
+
+.filter-buttons button:hover {
+  background-color: #6e3cb5; /* Світліший фіолетовий при наведенні */
+  transform: scale(1.05); /* Збільшення при наведенні */
+}
+
+.filter-buttons button:active {
+  transform: scale(0.95); /* Зменшення при натисканні */
+}
+
+.add-trade-button {
+  background-color: #5e2ca5;
+  color: #fff;
+  border: none;
+  padding: 10px 20px; /* Більший розмір для кнопки Add Trade */
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 16px; /* Більший шрифт */
+  transition: background-color 0.2s ease, transform 0.2s ease; /* Анімація */
+}
+
+.add-trade-button:hover {
+  background-color: #4a1a8d; /* Темніший фіолетовий при наведенні */
+  transform: scale(1.05); /* Збільшення при наведенні */
+}
+
+.add-trade-button:active {
+  transform: scale(0.95); /* Зменшення при натисканні */
+}
+
+.trade-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 10px;
+  background-color: #2e2e2e; /* Темний фон для таблиці */
+  border: 2px solid #5e2ca5; /* Зовнішня обводка таблиці */
+}
+
+.trade-table th,
+.trade-table td {
+  border: 1px solid #fff; /* Внутрішні межі таблиці — білий колір */
+  padding: 8px;
+  text-align: left;
+  color: #fff;
+}
+
+.trade-table th {
+  background-color: #3e3e3e; /* Темніший фон для заголовків */
+}
+
+.trade-table tr:nth-child(even) {
+  background-color: #2e2e2e; /* Темний фон для парних рядків */
+}
+
+.trade-table tr:nth-child(odd) {
+  background-color: #3e3e3e; /* Темніший фон для непарних рядків */
+}
+
+.trade-table td[colSpan] {
+  text-align: center;
+  background-color: #2e2e2e; /* Темний фон для порожньої таблиці */
 }

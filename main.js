@@ -7,12 +7,22 @@ function createWindow() {
     width: 800,
     height: 600,
     webPreferences: {
-      nodeIntegration: false, // Вимикаємо nodeIntegration для безпеки
-      contextIsolation: true, // Вмикаємо ізоляцію
-      preload: path.join(__dirname, 'preload.js'), // Додаємо preload-скрипт
+      nodeIntegration: false,
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js'),
     },
   });
+
+  // Лог про завантаження
+  console.log('Завантаження index.html:', path.join(__dirname, 'index.html'));
   win.loadFile('index.html');
+  console.log('Платформа:', process.platform, 'Версія Node.js:', process.version);
+
+  // Видаляємо лог CSP, оскільки getContentSecurityPolicy не підтримується
+  // win.webContents.on('did-finish-load', () => {
+  //   const csp = win.webContents.getContentSecurityPolicy();
+  //   console.log('Поточна CSP:', csp);
+  // });
 }
 
 app.whenReady().then(createWindow);
@@ -25,7 +35,7 @@ app.on('activate', () => {
   if (BrowserWindow.getAllWindows().length === 0) createWindow();
 });
 
-// Обробники IPC
+// IPC для зберігання
 ipcMain.handle('save-trade', async (event, trade) => {
   return await saveTrade(trade);
 });
