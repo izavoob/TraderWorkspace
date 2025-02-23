@@ -8,5 +8,11 @@
     "id": "1",
     "asset": "BTC/USD",
     "entryPrice": 65000
+  },
+  {
+    "id": "1740340863592",
+    "asset": "EURUSD",
+    "entryPrice": 1.01221,
+    "date": "2025-02-23"
   }
 ]
