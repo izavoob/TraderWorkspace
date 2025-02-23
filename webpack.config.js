@@ -17,4 +17,5 @@ module.exports = {
       },
     ],
   },
+  target: 'electron-renderer', // Додаємо це
 };
