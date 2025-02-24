@@ -1,0 +1,80 @@
+import React from 'react';
+import GalleryItem from './GalleryItem.jsx';
+import styled from 'styled-components';
+
+const Header = styled.header`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  padding: 20px;
+  border-radius: 0 0 10px 10px; /* Заокруглення тільки нижніх кутів */
+  color: #fff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: 128px; /* Фіксована висота для екрану 1920x1080 */
+  min-height: 6.67vh; /* Адаптивність для менших екранів */
+  max-height: 128px; /* Обмеження максимальної висоти */
+`;
+
+const Greeting = styled.h1`
+  margin: 0;
+  font-size: 2.5em;
+  color: #fff;
+`;
+
+const WorkPhrase = styled.p`
+  color: #ff8c00;
+  margin-top: 10px;
+  font-size: 1.2em;
+`;
+
+const Gallery = styled.div`
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 4 елементи в ряд, адаптивно */
+  grid-template-rows: repeat(2, auto); /* 2 рядки, автоматична висота */
+  gap: 20px;
+  margin-top: 168px; /* Зсув вниз, враховуючи висоту Header (128px) + padding 20px */
+  padding: 20px;
+  max-width: 1200px; /* Обмеження максимальної ширини для великих екранів */
+  margin-left: auto;
+  margin-right: auto; /* Центрування контейнера */
+  justify-content: center; /* Центрування по ширині */
+  align-items: center; /* Центрування по висоті */
+`;
+
+function Home() {
+  const galleryItems = [
+    { title: 'Trading Journal', path: '/trade-journal', description: 'Analyze your future trades in one place using our advanced tools and indicators.' },
+    { title: 'Daily Routine', path: '/daily-routine', description: 'Add your daily thoughts and plans.' },
+    { title: 'Performance Analysis', path: '/performance-analysis', description: 'Explore and improve your skills.' },
+    { title: 'Statistics', path: '/statistics', description: 'All information about your trading.' },
+    { title: 'Risk Management', path: '/risk-management', description: 'Save your deposit.' },
+    { title: 'Reporting System', path: '/reporting-system', description: 'Get detailed reports.' },
+    { title: 'Learning Section', path: '/learning-section', description: 'Learn new skills.' },
+    { title: 'Settings', path: '/settings', description: 'Make using app comfortable.' },
+  ];
+
+  const getGreeting = () => {
+    const hour = new Date().getHours();
+    if (hour >= 4 && hour < 11) return 'Good Morning!';
+    if (hour >= 11 && hour < 17) return 'Good Afternoon!';
+    return 'Good Evening!';
+  };
+
+  return (
+    <>
+      <Header>
+        <Greeting>{getGreeting()}</Greeting>
+        <WorkPhrase>Let's get to work!</WorkPhrase>
+      </Header>
+      <Gallery>
+        {galleryItems.map((item) => (
+          <GalleryItem key={item.path} title={item.title} path={item.path} description={item.description} />
+        ))}
+      </Gallery>
+    </>
+  );
+}
+
+export default Home;
