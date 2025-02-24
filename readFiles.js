@@ -4,13 +4,14 @@ const path = require('path');
 async function readFiles() {
   const projectDir = ''; // Оновіть шлях, якщо інший
   const filesToRead = [
-    'src/App.js',
-    'src/components/CreateTrade.js',
-    'src/components/GalleryItem.js',
-    'src/components/Placeholder.js',
-    'src/components/TradeDetail.js',
-    'src/components/TradeJournal.js',
-    'src/index.js',
+    'src/App.jsx', // Оновлено з .js на .jsx, як ми перейменували
+    'src/components/CreateTrade.jsx', // Оновлено з .js на .jsx
+    'src/components/GalleryItem.jsx', // Оновлено з .js на .jsx
+    'src/components/Placeholder.jsx', // Оновлено з .js на .jsx
+    'src/components/TradeDetail.jsx', // Оновлено з .js на .jsx
+    'src/components/TradeJournal.jsx', // Оновлено з .js на .jsx
+    'src/index.jsx', // Оновлено з .js на .jsx
+    'src/components/Home.jsx', // Новий файл, який ми створили
     'index.html',
     'main.js',
     'preload.js',
