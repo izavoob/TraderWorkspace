@@ -30,17 +30,15 @@ const WorkPhrase = styled.p`
 `;
 
 const Gallery = styled.div`
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr)); /* 4 елементи в ряд, адаптивно */
-  grid-template-rows: repeat(2, auto); /* 2 рядки, автоматична висота */
-  gap: 20px;
-  margin-top: 168px; /* Зсув вниз, враховуючи висоту Header (128px) + padding 20px */
-  padding: 20px;
-  max-width: 1200px; /* Обмеження максимальної ширини для великих екранів */
-  margin-left: auto;
-  margin-right: auto; /* Центрування контейнера */
+  display: flex;
   justify-content: center; /* Центрування по ширині */
   align-items: center; /* Центрування по висоті */
+  flex-wrap: wrap; /* Дозволяє елементи переноситися, якщо екран малий */
+  gap: 30px; /* Збільшено відступ між кнопками для кращого вигляду */
+  margin-top: 168px; /* Зсув вниз, враховуючи висоту Header (128px) + padding 20px */
+  padding: 20px;
+  min-height: calc(100vh - 168px); /* Займає весь доступний простір під Header */
+  width: 100%; /* Займає всю ширину екрана */
 `;
 
 function Home() {
