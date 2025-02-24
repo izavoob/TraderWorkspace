@@ -1,64 +1,125 @@
 import React, { useState, useEffect } from 'react';
 import { useTable, usePagination } from 'react-table'; // Додаємо usePagination для пагінації
 import { Link, useNavigate } from 'react-router-dom'; // Для переходу на сторінку трейду
-import styled from 'styled-components';
+import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
+
+const GlobalStyle = createGlobalStyle`
+  body, html {
+    margin: 0;
+    padding: 0;
+    height: 100%;
+    width: 100%;
+    background-color: #1a1a1a;
+    overflow: hidden;
+  }
+`;
 
 const TradeJournalContainer = styled.div`
   max-width: 1200px;
   margin: 20px auto;
-  min-height: 100vh; /* Розтягуємо фон на всю висоту */
-  background-color: #1a1a1a; /* Гарантуємо темний фон */
+  min-height: 100vh;
+  background-color: #1a1a1a; /* Темний фон, як на фото */
+  padding: 20px;
+`;
+
+const Header = styled.header`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  padding: 20px 0; /* Змінено padding, щоб кнопка займала всю висоту */
+  border-radius: 10px 10px 0 0; /* Заокруглення верхніх кутів, як на фото */
+  color: #fff;
+  position: fixed; /* Фіксуємо заголовок зверху, як у Home */
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000; /* Щоб був поверх інших елементів */
+  height: 128px; /* Фіксована висота, як у Home */
+  min-height: 6.67vh; /* Адаптивність для менших екранів */
+  max-height: 128px; /* Обмеження максимальної висоти */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center; /* Вирівнювання контенту по вертикалі */
+`;
+
+const BackButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Той самий градієнт, що й у Header, для злиття */
+  border: none;
+  padding: 0;
+  width: 200px; /* Збільшено ширину в 2 рази (з 100px до 200px) */
+  height: 100%; /* Висота на всю висоту Header */
+  border-radius: 0; /* Без заокруглень, щоб злитися з фоном */
+  cursor: pointer;
+  position: absolute; /* Фіксуємо кнопку в лівому краї */
+  left: 0;
+  top: 0;
+  opacity: 0; /* Початкова прозорість для кнопки (невидима) */
+  transition: all 0.3s ease; /* Анімація для плавного переходу */
+
+  &:hover {
+    opacity: 1; /* Повна видимість при наведенні */
+    transform: scale(1.1); /* Збільшення кнопки при наведенні */
+  }
+
+  &:active {
+    transform: scale(0.98); /* Легке стиснення при кліку */
+  }
+
+  &:before {
+    content: 'Back'; /* Текст "Back" як псевдоелемент */
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2em;
+    color: rgba(255, 255, 255, 0); /* Початкова невидимість тексту */
+    transition: color 0.3s ease; /* Анімація для тексту */
+  }
+
+  &:hover:before {
+    color: #fff; /* Висвітлення тексту при наведенні */
+  }
+`;
+
+const Title = styled.h1` /* Змінено на h1 для відповідності розміру "Good Evening!" */
+  margin: 0 auto; /* Центрування тексту посередині, незалежно від кнопки */
+  font-size: 2.5em; /* Той самий розмір, як у Greeting у Home */
+  color: #fff;
+  text-align: center; /* Центрування тексту заголовка */
+  z-index: 1; /* Щоб текст був поверх кнопки */
+`;
+
+const JournalContent = styled.div`
+  margin-top: 168px; /* Зсув вниз, враховуючи висоту Header (128px) + padding 20px, як у Home */
+  padding-top: 20px; /* Додатковий відступ для контенту під заголовком */
 `;
 
 const JournalHeader = styled.div`
   display: flex;
   justify-content: space-between;
-  margin-bottom: 20px;
   align-items: center;
+  margin-bottom: 20px;
 `;
 
-const FilterButtons = styled.div`
+const ButtonGroup = styled.div`
   display: flex;
   gap: 10px;
+  align-items: center; /* Вирівнювання по центру вертикально */
 `;
 
-const FilterButton = styled.button`
-  background-color: #5e2ca5;
+const ActionButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
   padding: 10px 20px;
-  border-radius: 4px;
+  border-radius: 15px; /* Заокруглені кнопки, як на фото */
   cursor: pointer;
   font-size: 16px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-
-  &.active {
-    background-color: #4a1a8d;
-  }
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 
   &:hover {
-    background-color: #6e3cb5;
     transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-const AddTradeButton = styled.button`
-  background-color: #5e2ca5;
-  color: #fff;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
-
-  &:hover {
-    background-color: #4a1a8d;
-    transform: scale(1.05);
+    opacity: 0.9;
   }
 
   &:active {
@@ -69,24 +130,26 @@ const AddTradeButton = styled.button`
 const TradeTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  margin-top: 10px;
-  background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
+  background-color: #2e2e2e; /* Темний фон таблиці */
+  border: 2px solid #5e2ca5; /* Фіолетова обводка, як на фото */
 `;
 
 const TableHeader = styled.th`
-  border: 1px solid #fff;
-  padding: 8px;
+  background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Фіолетовий градієнт для заголовків */
+  border: 1px solid #5e2ca5;
+  padding: 12px;
   text-align: left;
   color: #fff;
-  background-color: #3e3e3e;
+  font-weight: bold;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 `;
 
 const TableCell = styled.td`
-  border: 1px solid #fff;
-  padding: 8px;
+  border: 1px solid #5e2ca5;
+  padding: 10px;
   text-align: left;
   color: #fff;
+  background-color: #2e2e2e; /* Темний фон для клітинок */
 `;
 
 const TableRow = styled.tr`
@@ -95,7 +158,7 @@ const TableRow = styled.tr`
   }
 
   &:nth-child(odd) {
-    background-color: #3e3e3e;
+    background-color: #3e3e3e; /* Трохи світліший фон для непарних рядків */
   }
 `;
 
@@ -107,45 +170,46 @@ const TradeEditForm = styled.form`
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
+  border: 2px solid #5e2ca5; /* Фіолетова обводка для форми */
 `;
 
 const EditInput = styled.input`
   margin-right: 10px;
-  padding: 5px;
+  padding: 8px;
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
-  border-radius: 4px;
+  border-radius: 5px;
   flex: 1;
   min-width: 200px;
 `;
 
 const EditTextarea = styled.textarea`
   margin-right: 10px;
-  padding: 5px;
+  padding: 8px;
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
-  border-radius: 4px;
+  border-radius: 5px;
   flex: 1;
   min-width: 200px;
   min-height: 80px;
   resize: vertical;
 `;
 
-const ActionButton = styled.button`
-  background-color: #5e2ca5;
+const EditActionButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
   padding: 8px 16px;
-  border-radius: 4px;
+  border-radius: 15px;
   cursor: pointer;
   margin-right: 10px;
-  transition: background-color 0.2s ease, transform 0.2s ease;
+  transition: transform 0.2s ease, opacity 0.2s ease;
 
   &:hover {
-    background-color: #4a1a8d;
     transform: scale(1.05);
+    opacity: 0.9;
   }
 
   &:active {
@@ -153,11 +217,11 @@ const ActionButton = styled.button`
   }
 `;
 
-const DeleteButton = styled(ActionButton)`
-  background-color: #e74c3c;
+const DeleteButton = styled(EditActionButton)`
+  background: conic-gradient(from 45deg, #e74c3c, #c0392b); /* Червоний градієнт для кнопки видалення */
 
   &:hover {
-    background-color: #c0392b;
+    background: conic-gradient(from 45deg, #c0392b, #a93226);
   }
 `;
 
@@ -213,20 +277,18 @@ function TradeJournal() {
     });
   }, [trades, filter]);
 
-  // Колонки для таблиці
+  // Колонки для таблиці (оновлено для відповідності дизайну)
   const columns = React.useMemo(
     () => [
-      { Header: 'No.', accessor: (row, i) => i + 1 }, // Порядковий номер
+      { Header: 'No.', accessor: (row, i) => i + 1 },
       { Header: 'Date', accessor: 'date' },
-      { Header: 'Asset', accessor: 'asset' },
-      { Header: 'Account', accessor: 'account' },
       { Header: 'Pair', accessor: 'pair' },
       { Header: 'Session', accessor: 'session' },
       { Header: 'Direction', accessor: 'direction' },
       { Header: 'Result', accessor: 'result' },
-      { Header: 'Position Size', accessor: 'positionSize' },
-      { Header: 'Gained Points', accessor: 'gainedPoints' },
-      { Header: 'Trade Class', accessor: 'tradeClass' },
+      { Header: 'Category', accessor: 'tradeClass' }, // Змінено з 'Trade Class' на 'Category' для відповідності фото
+      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%` }, // Форматування для відсотків
+      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}` }, // Форматування для доларів
     ],
     []
   );
@@ -242,6 +304,11 @@ function TradeJournal() {
   // Перехід на сторінку створення трейду
   const handleAddTrade = () => {
     navigate('/create-trade'); // Перехід на сторінку створення трейду
+  };
+
+  // Обробка кліку на кнопку "Back"
+  const handleBack = () => {
+    navigate(-1); // Повернення на попередню сторінку
   };
 
   // Початок редагування трейду
@@ -332,177 +399,143 @@ function TradeJournal() {
   };
 
   return (
-    <TradeJournalContainer>
-      <JournalHeader>
-        <FilterButtons>
-          <FilterButton onClick={() => setFilter('week')} className={filter === 'week' ? 'active' : ''}>
-            This Week
-          </FilterButton>
-          <FilterButton onClick={() => setFilter('month')} className={filter === 'month' ? 'active' : ''}>
-            This Month
-          </FilterButton>
-          <FilterButton onClick={() => setFilter('all')} className={filter === 'all' ? 'active' : ''}>
-            All Trades
-          </FilterButton>
-        </FilterButtons>
-        <AddTradeButton onClick={handleAddTrade}>
-          Add Trade
-        </AddTradeButton>
-      </JournalHeader>
-      {editingTradeId && (
-        <TradeEditForm onSubmit={handleSaveEdit}>
-          <EditInput
-            type="text"
-            name="asset"
-            value={editedTrade.asset}
-            onChange={(e) => setEditedTrade({ ...editedTrade, asset: e.target.value })}
-            placeholder="Asset (e.g., BTC/USD)"
-          />
-          <EditInput
-            type="number"
-            name="entryPrice"
-            value={editedTrade.entryPrice}
-            onChange={(e) => setEditedTrade({ ...editedTrade, entryPrice: e.target.value })}
-            placeholder="Entry Price"
-          />
-          <EditInput
-            type="number"
-            name="exitPrice"
-            value={editedTrade.exitPrice}
-            onChange={(e) => setEditedTrade({ ...editedTrade, exitPrice: e.target.value })}
-            placeholder="Exit Price"
-          />
-          <EditInput
-            type="number"
-            name="profitLoss"
-            value={editedTrade.profitLoss}
-            onChange={(e) => setEditedTrade({ ...editedTrade, profitLoss: e.target.value })}
-            placeholder="Profit/Loss"
-          />
-          <EditInput
-            type="text"
-            name="tradeName"
-            value={editedTrade.tradeName}
-            onChange={(e) => setEditedTrade({ ...editedTrade, tradeName: e.target.value })}
-            placeholder="Trade Name"
-          />
-          <EditInput
-            type="text"
-            name="account"
-            value={editedTrade.account}
-            onChange={(e) => setEditedTrade({ ...editedTrade, account: e.target.value })}
-            placeholder="Account"
-          />
-          <EditInput
-            type="text"
-            name="pair"
-            value={editedTrade.pair}
-            onChange={(e) => setEditedTrade({ ...editedTrade, pair: e.target.value })}
-            placeholder="Pair"
-          />
-          <EditInput
-            type="text"
-            name="session"
-            value={editedTrade.session}
-            onChange={(e) => setEditedTrade({ ...editedTrade, session: e.target.value })}
-            placeholder="Session"
-          />
-          <EditInput
-            type="text"
-            name="direction"
-            value={editedTrade.direction}
-            onChange={(e) => setEditedTrade({ ...editedTrade, direction: e.target.value })}
-            placeholder="Direction"
-          />
-          <EditInput
-            type="text"
-            name="result"
-            value={editedTrade.result}
-            onChange={(e) => setEditedTrade({ ...editedTrade, result: e.target.value })}
-            placeholder="Result"
-          />
-          <EditInput
-            type="number"
-            name="positionSize"
-            value={editedTrade.positionSize}
-            onChange={(e) => setEditedTrade({ ...editedTrade, positionSize: e.target.value })}
-            placeholder="Position Size"
-          />
-          <EditInput
-            type="number"
-            name="gainedPoints"
-            value={editedTrade.gainedPoints}
-            onChange={(e) => setEditedTrade({ ...editedTrade, gainedPoints: e.target.value })}
-            placeholder="Gained Points"
-          />
-          <EditInput
-            type="text"
-            name="tradeClass"
-            value={editedTrade.tradeClass}
-            onChange={(e) => setEditedTrade({ ...editedTrade, tradeClass: e.target.value })}
-            placeholder="Trade Class"
-          />
-          <EditTextarea
-            name="notes"
-            value={editedTrade.notes}
-            onChange={(e) => setEditedTrade({ ...editedTrade, notes: e.target.value })}
-            placeholder="Notes"
-          />
-          <ActionButton type="submit">Save Changes</ActionButton>
-          <ActionButton type="button" onClick={handleCancelEdit}>
-            Cancel
-          </ActionButton>
-          <DeleteButton type="button" onClick={() => handleDelete(editingTradeId)}>
-            Delete
-          </DeleteButton>
-        </TradeEditForm>
-      )}
-      <TradeTable {...getTableProps()}>
-        <thead>
-          {headerGroups.map((headerGroup) => (
-            <tr {...headerGroup.getHeaderGroupProps()}>
-              {headerGroup.headers.map((column) => (
-                <TableHeader {...column.getHeaderProps()}>{column.render('Header')}</TableHeader>
+    <>
+      <GlobalStyle />
+      <TradeJournalContainer>
+        <Header>
+          <BackButton onClick={handleBack} />
+          <Title>Trading Journal</Title>
+        </Header>
+        <JournalContent>
+          <JournalHeader>
+            <ButtonGroup>
+              <ActionButton onClick={handleAddTrade}>Add new Trade</ActionButton>
+            </ButtonGroup>
+            <ButtonGroup>
+              <ActionButton onClick={() => setFilter('week')}>Range</ActionButton>
+              <ActionButton onClick={() => setFilter('month')}>Filter</ActionButton>
+            </ButtonGroup>
+          </JournalHeader>
+          <TradeTable {...getTableProps()}>
+            <thead>
+              {headerGroups.map((headerGroup) => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map((column) => (
+                    <TableHeader {...column.getHeaderProps()}>{column.render('Header')}</TableHeader>
+                  ))}
+                </tr>
               ))}
-            </tr>
-          ))}
-        </thead>
-        <tbody {...getTableBodyProps()}>
-          {rows.length === 0 ? (
-            <TableRow>
-              <TableCell colSpan={columns.length} style={{ textAlign: 'center' }}>
-                No trades yet
-              </TableCell>
-            </TableRow>
-          ) : (
-            rows.map((row) => {
-              prepareRow(row);
-              return (
-                <TableRow {...row.getRowProps()}>
-                  {row.cells.map((cell) => {
-                    if (cell.column.Header === 'No.') {
-                      return (
-                        <TableCell {...cell.getCellProps()}>
-                          <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
-                            {cell.render('Cell')}
-                          </Link>
-                        </TableCell>
-                      );
-                    }
-                    return <TableCell {...cell.getCellProps()}>{cell.render('Cell')}</TableCell>;
-                  })}
-                  <TableCell>
-                    <ActionButton onClick={() => handleEdit(row.original)} className="edit-button">
-                      Edit
-                    </ActionButton>
+            </thead>
+            <tbody {...getTableBodyProps()}>
+              {rows.length === 0 ? (
+                <TableRow>
+                  <TableCell colSpan={columns.length} style={{ textAlign: 'center' }}>
+                    No trades yet
                   </TableCell>
                 </TableRow>
-              );
-            })
+              ) : (
+                rows.map((row) => {
+                  prepareRow(row);
+                  return (
+                    <TableRow {...row.getRowProps()}>
+                      {row.cells.map((cell) => {
+                        if (cell.column.Header === 'No.') {
+                          return (
+                            <TableCell {...cell.getCellProps()}>
+                              <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
+                                {cell.render('Cell')}
+                              </Link>
+                            </TableCell>
+                          );
+                        }
+                        return <TableCell {...cell.getCellProps()}>{cell.render('Cell')}</TableCell>;
+                      })}
+                      <TableCell>
+                        <EditActionButton onClick={() => handleEdit(row.original)}>
+                          Edit
+                        </EditActionButton>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </tbody>
+          </TradeTable>
+          {editingTradeId && (
+            <TradeEditForm onSubmit={handleSaveEdit}>
+              <EditInput
+                type="text"
+                name="pair"
+                value={editedTrade.pair}
+                onChange={(e) => setEditedTrade({ ...editedTrade, pair: e.target.value })}
+                placeholder="Pair (e.g., EURUSD)"
+              />
+              <EditInput
+                type="text"
+                name="session"
+                value={editedTrade.session}
+                onChange={(e) => setEditedTrade({ ...editedTrade, session: e.target.value })}
+                placeholder="Session (e.g., London)"
+              />
+              <EditInput
+                type="text"
+                name="direction"
+                value={editedTrade.direction}
+                onChange={(e) => setEditedTrade({ ...editedTrade, direction: e.target.value })}
+                placeholder="Direction (e.g., Long/Short)"
+              />
+              <EditInput
+                type="text"
+                name="result"
+                value={editedTrade.result}
+                onChange={(e) => setEditedTrade({ ...editedTrade, result: e.target.value })}
+                placeholder="Result (e.g., Win/Lose)"
+              />
+              <EditInput
+                type="text"
+                name="tradeClass"
+                value={editedTrade.tradeClass}
+                onChange={(e) => setEditedTrade({ ...editedTrade, tradeClass: e.target.value })}
+                placeholder="Category (e.g., B)"
+              />
+              <EditInput
+                type="number"
+                name="profitLoss"
+                value={editedTrade.profitLoss}
+                onChange={(e) => setEditedTrade({ ...editedTrade, profitLoss: e.target.value })}
+                placeholder="Profit in %"
+              />
+              <EditInput
+                type="number"
+                name="gainedPoints"
+                value={editedTrade.gainedPoints}
+                onChange={(e) => setEditedTrade({ ...editedTrade, gainedPoints: e.target.value })}
+                placeholder="Profit in $"
+              />
+              <EditInput
+                type="date"
+                name="date"
+                value={editedTrade.date || new Date().toISOString().split('T')[0]}
+                onChange={(e) => setEditedTrade({ ...editedTrade, date: e.target.value })}
+              />
+              <EditTextarea
+                name="notes"
+                value={editedTrade.notes}
+                onChange={(e) => setEditedTrade({ ...editedTrade, notes: e.target.value })}
+                placeholder="Notes"
+              />
+              <EditActionButton type="submit">Save Changes</EditActionButton>
+              <EditActionButton type="button" onClick={handleCancelEdit}>
+                Cancel
+              </EditActionButton>
+              <DeleteButton type="button" onClick={() => handleDelete(editingTradeId)}>
+                Delete
+              </DeleteButton>
+            </TradeEditForm>
           )}
-        </tbody>
-      </TradeTable>
-    </TradeJournalContainer>
+        </JournalContent>
+      </TradeJournalContainer>
+    </>
   );
 }
 

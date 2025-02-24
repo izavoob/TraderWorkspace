@@ -51,8 +51,8 @@ async function initializeDatabase() {
 
 function createWindow() {
   const win = new BrowserWindow({
-    width: 800,
-    height: 600,
+    width: 1920, // Встановлено ширину 1920 для 1920x1080
+    height: 1080, // Встановлено висоту 1080 для 1920x1080
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,

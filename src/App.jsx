@@ -131,8 +131,6 @@ function App() {
 // Функція для отримання назви секції (залишив для зворотної сумісності)
 function getSectionTitle(path) {
   switch (path) {
-    case '/trade-journal':
-      return 'TRADING JOURNAL';
     case '/daily-routine':
       return 'DAILY ROUTINE';
     case '/performance-analysis':
