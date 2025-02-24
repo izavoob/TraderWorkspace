@@ -1,25 +1,29 @@
 const path = require('path');
 
 module.exports = {
-  entry: './src/index.js', // Точка входу
+  entry: './src/index.js',
   output: {
-    path: path.resolve(__dirname, 'dist'), // Вихідна папка
-    filename: 'bundle.js', // Вихідний файл
+    path: path.resolve(__dirname, 'dist'),
+    filename: 'bundle.js',
   },
   module: {
     rules: [
       {
-        test: /\.js$/, // Обробка JavaScript
+        test: /\.js$/,
         exclude: /node_modules/,
         use: {
           loader: 'babel-loader',
+          options: {
+            presets: ['@babel/preset-react'],
+            plugins: [
+              '@babel/plugin-transform-runtime',
+              '@babel/plugin-proposal-class-properties',
+              'babel-plugin-styled-components',
+            ],
+          },
         },
-      },
-      {
-        test: /\.css$/, // Обробка CSS
-        use: ['style-loader', 'css-loader'],
       },
     ],
   },
-  target: 'electron-renderer', // Для Electron
+  target: 'electron-renderer',
 };
