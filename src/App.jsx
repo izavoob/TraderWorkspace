@@ -128,26 +128,26 @@ function App() {
   );
 }
 
-// Функція для отримання назви секції (залишив для зворотної сумісності)
+// Функція для отримання назви секції
 function getSectionTitle(path) {
   switch (path) {
-    case '/daily-routine':
+    case '/#daily-routine':
       return 'DAILY ROUTINE';
-    case '/performance-analysis':
+    case '/#performance-analysis':
       return 'PERFORMANCE ANALYSIS';
-    case '/statistics':
+    case '/#statistics':
       return 'STATISTICS';
-    case '/risk-management':
+    case '/#risk-management':
       return 'RISK MANAGEMENT';
-    case '/learning-section':
+    case '/#learning-section':
       return 'LEARNING SECTION';
-    case '/reporting-system':
+    case '/#reporting-system':
       return 'REPORTING SYSTEM';
-    case '/settings':
+    case '/#settings':
       return 'SETTINGS';
-    case '/trade/:id':
+    case '/#trade/:id':
       return 'TRADE DETAIL';
-    case '/create-trade':
+    case '/#create-trade':
       return 'CREATE TRADE';
     default:
       return '';
