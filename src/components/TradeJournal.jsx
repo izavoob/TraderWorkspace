@@ -15,7 +15,7 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 const TradeJournalContainer = styled.div`
-  max-width: 1200px;
+  max-width: 1820px; /* Ширша таблиця на весь екран із відступами 25px з обох сторін */
   margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a; /* Темний фон, як на фото */
@@ -45,7 +45,7 @@ const BackButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Той самий градієнт, що й у Header, для злиття */
   border: none;
   padding: 0;
-  width: 200px; /* Збільшено ширину в 2 рази (з 100px до 200px) */
+  width: 200px; /* Ширина кнопки, як у попередній версії */
   height: 100%; /* Висота на всю висоту Header */
   border-radius: 0; /* Без заокруглень, щоб злитися з фоном */
   cursor: pointer;
@@ -107,13 +107,15 @@ const ButtonGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'}; /* Залишив фон для "Range" і "Filter" як #5C9DF5 */
   color: #fff;
   border: none;
   padding: 10px 20px;
   border-radius: 15px; /* Заокруглені кнопки, як на фото */
   cursor: pointer;
   font-size: 16px;
+  height: 40px; /* Повернуто оригінальну висоту 40px для "Range" і "Filter" */
+  width: ${props => props.primary ? '240px' : 'auto'}; /* Залишив ширину 240px для "Add new Trade", інші кнопки адаптивні */
   transition: transform 0.2s ease, opacity 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 
@@ -277,18 +279,18 @@ function TradeJournal() {
     });
   }, [trades, filter]);
 
-  // Колонки для таблиці (оновлено для відповідності дизайну)
+  // Колонки для таблиці з оновленими ширинамі
   const columns = React.useMemo(
     () => [
-      { Header: 'No.', accessor: (row, i) => i + 1 },
-      { Header: 'Date', accessor: 'date' },
-      { Header: 'Pair', accessor: 'pair' },
-      { Header: 'Session', accessor: 'session' },
-      { Header: 'Direction', accessor: 'direction' },
-      { Header: 'Result', accessor: 'result' },
-      { Header: 'Category', accessor: 'tradeClass' }, // Змінено з 'Trade Class' на 'Category' для відповідності фото
-      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%` }, // Форматування для відсотків
-      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}` }, // Форматування для доларів
+      { Header: 'No.', accessor: (row, i) => i + 1, width: 20 }, // Зменшено вдвічі (з 40px до 20px)
+      { Header: 'Date', accessor: 'date', width: 129 }, // Більше на 2px (127px + 2px = 129px)
+      { Header: 'Pair', accessor: 'pair', width: 129 }, // Більше на 2px (127px + 2px = 129px)
+      { Header: 'Session', accessor: 'session', width: 110 }, // Більше на 2px (108px + 2px = 110px)
+      { Header: 'Direction', accessor: 'direction', width: 110 }, // Більше на 2px (108px + 2px = 110px)
+      { Header: 'Result', accessor: 'result', width: 110 }, // Більше на 2px (108px + 2px = 110px)
+      { Header: 'Category', accessor: 'tradeClass', width: 90 }, // Більше на 2px (88px + 2px = 90px)
+      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%`, width: 90 }, // Більше на 2px (88px + 2px = 90px)
+      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}`, width: 90 }, // Більше на 2px (88px + 2px = 90px)
     ],
     []
   );
@@ -409,7 +411,7 @@ function TradeJournal() {
         <JournalContent>
           <JournalHeader>
             <ButtonGroup>
-              <ActionButton onClick={handleAddTrade}>Add new Trade</ActionButton>
+              <ActionButton primary onClick={handleAddTrade}>Add new Trade</ActionButton>
             </ButtonGroup>
             <ButtonGroup>
               <ActionButton onClick={() => setFilter('week')}>Range</ActionButton>
@@ -421,7 +423,9 @@ function TradeJournal() {
               {headerGroups.map((headerGroup) => (
                 <tr {...headerGroup.getHeaderGroupProps()}>
                   {headerGroup.headers.map((column) => (
-                    <TableHeader {...column.getHeaderProps()}>{column.render('Header')}</TableHeader>
+                    <TableHeader {...column.getHeaderProps()} style={{ width: `${column.width}px` }}>
+                      {column.render('Header')}
+                    </TableHeader>
                   ))}
                 </tr>
               ))}
@@ -441,16 +445,20 @@ function TradeJournal() {
                       {row.cells.map((cell) => {
                         if (cell.column.Header === 'No.') {
                           return (
-                            <TableCell {...cell.getCellProps()}>
+                            <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
                               <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
                                 {cell.render('Cell')}
                               </Link>
                             </TableCell>
                           );
                         }
-                        return <TableCell {...cell.getCellProps()}>{cell.render('Cell')}</TableCell>;
+                        return (
+                          <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
+                            {cell.render('Cell')}
+                          </TableCell>
+                        );
                       })}
-                      <TableCell>
+                      <TableCell style={{ width: '100px' }}> {/* Фіксована ширина для колонки "Edit" */}
                         <EditActionButton onClick={() => handleEdit(row.original)}>
                           Edit
                         </EditActionButton>
