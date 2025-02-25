@@ -1,8 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, css } from 'styled-components';
 import { Link } from 'react-router-dom';
+
+// Імпортуй іконки як модулі
+import EditIcon from '../assets/icons/edit-icon.svg';
+import DeleteIcon from '../assets/icons/delete-icon.svg';
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -155,6 +159,7 @@ const TableCell = styled.td`
   text-align: left;
   color: #fff;
   background-color: #2e2e2e;
+  position: relative; /* Додано для позиціонування кнопок */
 `;
 
 const TableRow = styled.tr`
@@ -177,26 +182,47 @@ const IconButton = styled.button`
   align-items: center;
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: relative; /* Додано для позиціонування tooltip */
 
   &:hover {
-    filter: brightness(1.5);
+    transform: scale(1.1); /* Збільшення при наведенні, як у кнопки Back */
   }
+
+  &:active {
+    transform: scale(0.98); /* Зменшення при кліку, як у кнопки Back */
+  }
+
+  transition: transform 0.3s ease; /* Плавна анімація, як у кнопки Back */
 
   img {
     width: 16px;
     height: 16px;
   }
+
+  &:hover::after {
+    content: attr(data-tooltip);
+    position: absolute;
+    bottom: 100%; /* Позиція над кнопкою */
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: #2e2e2e;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 20;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  }
 `;
 
 const ButtonsContainer = styled.div`
   display: flex;
-  gap: 10px;
-  opacity: 0;
-  transition: opacity 0.2s ease;
-
-  .table-row:hover & {
-    opacity: 1;
-  }
+  gap: 5px; /* Зменшено відступ між кнопками для компактності */
+  justify-content: center; /* Центрування кнопок у вузькій колонці */
+  align-items: center; /* Вертикальне вирівнювання кнопок */
+  width: 100%; /* Забезпечує адаптивну ширину для вмісту, але обмежену колонкою */
+  opacity: 1; /* Кнопки завжди видимі */
 `;
 
 const Popup = styled.div`
@@ -205,21 +231,23 @@ const Popup = styled.div`
   left: 50%;
   transform: translate(-50%, -50%);
   background: #2e2e2e;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 40px; /* Залишено збільшений padding */
+  border-radius: 20px; /* Залишено збільшений border-radius */
   border: 2px solid #5e2ca5;
   color: #fff;
   z-index: 1001;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3); /* Залишено збільшену тінь */
+  min-width: 400px; /* Залишено збільшену мінімальну ширину */
+  min-height: 200px; /* Залишено збільшену мінімальну висоту */
 `;
 
 const PopupButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
-  padding: 8px 16px;
-  margin: 5px;
-  border-radius: 15px;
+  padding: 16px 32px; /* Залишено збільшений padding */
+  margin: 10px; /* Залишено збільшений margin */
+  border-radius: 30px; /* Залишено збільшений border-radius */
   cursor: pointer;
   transition: transform 0.2s ease;
 
@@ -272,15 +300,16 @@ function TradeJournal() {
 
   const columns = React.useMemo(
     () => [
+      { Header: 'Action', accessor: 'action', width: 20, Cell: () => null }, // Встановлено ширину, як у колонки "No." (20px)
       { Header: 'No.', accessor: (row, i) => i + 1, width: 20 },
-      { Header: 'Date', accessor: 'date', width: 129 },
-      { Header: 'Pair', accessor: 'pair', width: 129 },
-      { Header: 'Session', accessor: 'session', width: 110 },
-      { Header: 'Direction', accessor: 'direction', width: 110 },
-      { Header: 'Result', accessor: 'result', width: 110 },
-      { Header: 'Category', accessor: 'tradeClass', width: 90 },
-      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%`, width: 90 },
-      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}`, width: 90 },
+      { Header: 'Date', accessor: 'date', width: 120 },
+      { Header: 'Pair', accessor: 'pair', width: 120 },
+      { Header: 'Session', accessor: 'session', width: 100 },
+      { Header: 'Direction', accessor: 'direction', width: 100 },
+      { Header: 'Result', accessor: 'result', width: 100 },
+      { Header: 'Category', accessor: 'tradeClass', width: 80 },
+      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%`, width: 80 },
+      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}`, width: 80 },
     ],
     []
   );
@@ -355,9 +384,18 @@ function TradeJournal() {
                   prepareRow(row);
                   return (
                     <TableRow className="table-row" {...row.getRowProps()}>
-                      {row.cells.map((cell) => (
+                      {row.cells.map((cell, index) => (
                         <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
-                          {cell.column.Header === 'No.' ? (
+                          {index === 0 ? ( // Колонка "Action" для кнопок
+                            <ButtonsContainer>
+                              <IconButton data-tooltip="Change your trade" onClick={() => handleEdit(row.original.id)}>
+                                <img src={EditIcon} alt="Edit" />
+                              </IconButton>
+                              <IconButton data-tooltip="Move your trade to trash" onClick={() => setDeletePopup(row.original.id)}>
+                                <img src={DeleteIcon} alt="Delete" />
+                              </IconButton>
+                            </ButtonsContainer>
+                          ) : cell.column.Header === 'No.' ? ( // Колонка "No."
                             <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
                               {cell.render('Cell')}
                             </Link>
@@ -366,16 +404,6 @@ function TradeJournal() {
                           )}
                         </TableCell>
                       ))}
-                      <TableCell>
-                        <ButtonsContainer>
-                          <IconButton onClick={() => handleEdit(row.original.id)}>
-                            <img src={'/edit-icon.svg'} alt="Edit" />
-                          </IconButton>
-                          <IconButton onClick={() => setDeletePopup(row.original.id)}>
-                            <img src={'/delete-icon.svg'} alt="Delete" />
-                          </IconButton>
-                        </ButtonsContainer>
-                      </TableCell>
                     </TableRow>
                   );
                 })
