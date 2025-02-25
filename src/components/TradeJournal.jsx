@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { useTable, usePagination } from 'react-table'; // Додаємо usePagination для пагінації
-import { Link, useNavigate } from 'react-router-dom'; // Для переходу на сторінку трейду
-import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
+import { useNavigate } from 'react-router-dom';
+import { useTable } from 'react-table';
+import styled, { createGlobalStyle } from 'styled-components';
+import { Link } from 'react-router-dom';
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -15,82 +16,83 @@ const GlobalStyle = createGlobalStyle`
 `;
 
 const TradeJournalContainer = styled.div`
-  max-width: 1820px; /* Ширша таблиця на весь екран із відступами 25px з обох сторін */
+  max-width: 1820px;
   margin: 20px auto;
   min-height: 100vh;
-  background-color: #1a1a1a; /* Темний фон, як на фото */
+  background-color: #1a1a1a;
   padding: 20px;
+  position: relative;
 `;
 
 const Header = styled.header`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  padding: 20px 0; /* Змінено padding, щоб кнопка займала всю висоту */
-  border-radius: 10px 10px 0 0; /* Заокруглення верхніх кутів, як на фото */
+  padding: 20px 0;
+  border-radius: 10px 10px 0 0;
   color: #fff;
-  position: fixed; /* Фіксуємо заголовок зверху, як у Home */
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
-  z-index: 1000; /* Щоб був поверх інших елементів */
-  height: 128px; /* Фіксована висота, як у Home */
-  min-height: 6.67vh; /* Адаптивність для менших екранів */
-  max-height: 128px; /* Обмеження максимальної висоти */
+  z-index: 1000;
+  height: 128px;
+  min-height: 6.67vh;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
-  align-items: center; /* Вирівнювання контенту по вертикалі */
+  align-items: center;
 `;
 
 const BackButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Той самий градієнт, що й у Header, для злиття */
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
   padding: 0;
-  width: 200px; /* Ширина кнопки, як у попередній версії */
-  height: 100%; /* Висота на всю висоту Header */
-  border-radius: 0; /* Без заокруглень, щоб злитися з фоном */
+  width: 200px;
+  height: 100%;
+  border-radius: 0;
   cursor: pointer;
-  position: absolute; /* Фіксуємо кнопку в лівому краї */
+  position: absolute;
   left: 0;
   top: 0;
-  opacity: 0; /* Початкова прозорість для кнопки (невидима) */
-  transition: all 0.3s ease; /* Анімація для плавного переходу */
+  opacity: 0;
+  transition: all 0.3s ease;
 
   &:hover {
-    opacity: 1; /* Повна видимість при наведенні */
-    transform: scale(1.1); /* Збільшення кнопки при наведенні */
+    opacity: 1;
+    transform: scale(1.1);
   }
 
   &:active {
-    transform: scale(0.98); /* Легке стиснення при кліку */
+    transform: scale(0.98);
   }
 
   &:before {
-    content: 'Back'; /* Текст "Back" як псевдоелемент */
+    content: 'Back';
     position: absolute;
     top: 50%;
     left: 50%;
     transform: translate(-50%, -50%);
     font-size: 1.2em;
-    color: rgba(255, 255, 255, 0); /* Початкова невидимість тексту */
-    transition: color 0.3s ease; /* Анімація для тексту */
+    color: rgba(255, 255, 255, 0);
+    transition: color 0.3s ease;
   }
 
   &:hover:before {
-    color: #fff; /* Висвітлення тексту при наведенні */
+    color: #fff;
   }
 `;
 
-const Title = styled.h1` /* Змінено на h1 для відповідності розміру "Good Evening!" */
-  margin: 0 auto; /* Центрування тексту посередині, незалежно від кнопки */
-  font-size: 2.5em; /* Той самий розмір, як у Greeting у Home */
+const Title = styled.h1`
+  margin: 0 auto;
+  font-size: 2.5em;
   color: #fff;
-  text-align: center; /* Центрування тексту заголовка */
-  z-index: 1; /* Щоб текст був поверх кнопки */
+  text-align: center;
+  z-index: 1;
 `;
 
 const JournalContent = styled.div`
-  margin-top: 168px; /* Зсув вниз, враховуючи висоту Header (128px) + padding 20px, як у Home */
-  padding-top: 20px; /* Додатковий відступ для контенту під заголовком */
+  margin-top: 168px;
+  padding-top: 20px;
 `;
 
 const JournalHeader = styled.div`
@@ -103,19 +105,20 @@ const JournalHeader = styled.div`
 const ButtonGroup = styled.div`
   display: flex;
   gap: 10px;
-  align-items: center; /* Вирівнювання по центру вертикально */
+  align-items: center;
 `;
 
 const ActionButton = styled.button`
-  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'}; /* Залишив фон для "Range" і "Filter" як #5C9DF5 */
+  background: ${(props) =>
+    props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
   color: #fff;
   border: none;
   padding: 10px 20px;
-  border-radius: 15px; /* Заокруглені кнопки, як на фото */
+  border-radius: 15px;
   cursor: pointer;
   font-size: 16px;
-  height: 40px; /* Повернуто оригінальну висоту 40px для "Range" і "Filter" */
-  width: ${props => props.primary ? '240px' : 'auto'}; /* Залишив ширину 240px для "Add new Trade", інші кнопки адаптивні */
+  height: 40px;
+  width: ${(props) => (props.primary ? '240px' : 'auto')};
   transition: transform 0.2s ease, opacity 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 
@@ -132,12 +135,12 @@ const ActionButton = styled.button`
 const TradeTable = styled.table`
   width: 100%;
   border-collapse: collapse;
-  background-color: #2e2e2e; /* Темний фон таблиці */
-  border: 2px solid #5e2ca5; /* Фіолетова обводка, як на фото */
+  background-color: #2e2e2e;
+  border: 2px solid #5e2ca5;
 `;
 
 const TableHeader = styled.th`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Фіолетовий градієнт для заголовків */
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: 1px solid #5e2ca5;
   padding: 12px;
   text-align: left;
@@ -151,67 +154,77 @@ const TableCell = styled.td`
   padding: 10px;
   text-align: left;
   color: #fff;
-  background-color: #2e2e2e; /* Темний фон для клітинок */
+  background-color: #2e2e2e;
 `;
 
 const TableRow = styled.tr`
   &:nth-child(even) {
     background-color: #2e2e2e;
   }
-
   &:nth-child(odd) {
-    background-color: #3e3e3e; /* Трохи світліший фон для непарних рядків */
+    background-color: #3e3e3e;
   }
 `;
 
-const TradeEditForm = styled.form`
-  background-color: #2e2e2e;
-  padding: 15px;
-  border-radius: 5px;
-  margin-bottom: 20px;
+const IconButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
   display: flex;
-  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    filter: brightness(1.5);
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const ButtonsContainer = styled.div`
+  display: flex;
   gap: 10px;
-  border: 2px solid #5e2ca5; /* Фіолетова обводка для форми */
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  .table-row:hover & {
+    opacity: 1;
+  }
 `;
 
-const EditInput = styled.input`
-  margin-right: 10px;
-  padding: 8px;
-  background-color: #3e3e3e;
+const Popup = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2e2e2e;
+  padding: 20px;
+  border-radius: 10px;
+  border: 2px solid #5e2ca5;
   color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 5px;
-  flex: 1;
-  min-width: 200px;
+  z-index: 1001;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
 `;
 
-const EditTextarea = styled.textarea`
-  margin-right: 10px;
-  padding: 8px;
-  background-color: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 5px;
-  flex: 1;
-  min-width: 200px;
-  min-height: 80px;
-  resize: vertical;
-`;
-
-const EditActionButton = styled.button`
+const PopupButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
   padding: 8px 16px;
+  margin: 5px;
   border-radius: 15px;
   cursor: pointer;
-  margin-right: 10px;
-  transition: transform 0.2s ease, opacity 0.2s ease;
+  transition: transform 0.2s ease;
 
   &:hover {
     transform: scale(1.05);
-    opacity: 0.9;
   }
 
   &:active {
@@ -219,34 +232,10 @@ const EditActionButton = styled.button`
   }
 `;
 
-const DeleteButton = styled(EditActionButton)`
-  background: conic-gradient(from 45deg, #e74c3c, #c0392b); /* Червоний градієнт для кнопки видалення */
-
-  &:hover {
-    background: conic-gradient(from 45deg, #c0392b, #a93226);
-  }
-`;
-
 function TradeJournal() {
   const [trades, setTrades] = useState([]);
-  const [filter, setFilter] = useState('week'); // За замовчуванням — трейди цього тижня
-  const [editingTradeId, setEditingTradeId] = useState(null); // ID трейду, який редагуємо
-  const [editedTrade, setEditedTrade] = useState({
-    asset: '',
-    entryPrice: '',
-    exitPrice: '',
-    profitLoss: '',
-    notes: '',
-    tradeName: '',
-    account: '',
-    pair: '',
-    session: '',
-    direction: '',
-    result: '',
-    positionSize: '',
-    gainedPoints: '',
-    tradeClass: '',
-  });
+  const [filter] = useState('all'); // За замовчуванням усі трейди
+  const [deletePopup, setDeletePopup] = useState(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -256,13 +245,12 @@ function TradeJournal() {
         setTrades(loadedTrades || []);
       } catch (error) {
         console.error('Error loading trades:', error);
-        setTrades([]); // Установлюємо порожній масив навіть при помилці
+        setTrades([]);
       }
     };
     loadTrades();
   }, []);
 
-  // Фільтрація трейдів
   const filteredTrades = React.useMemo(() => {
     const now = new Date();
     return trades.filter((trade) => {
@@ -271,7 +259,10 @@ function TradeJournal() {
         const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
         return tradeDate >= weekStart && tradeDate <= now;
       } else if (filter === 'month') {
-        return tradeDate.getMonth() === now.getMonth() && tradeDate.getFullYear() === now.getFullYear();
+        return (
+          tradeDate.getMonth() === now.getMonth() &&
+          tradeDate.getFullYear() === now.getFullYear()
+        );
       } else if (filter === 'all') {
         return true;
       }
@@ -279,122 +270,44 @@ function TradeJournal() {
     });
   }, [trades, filter]);
 
-  // Колонки для таблиці з оновленими ширинамі
   const columns = React.useMemo(
     () => [
-      { Header: 'No.', accessor: (row, i) => i + 1, width: 20 }, // Зменшено вдвічі (з 40px до 20px)
-      { Header: 'Date', accessor: 'date', width: 129 }, // Більше на 2px (127px + 2px = 129px)
-      { Header: 'Pair', accessor: 'pair', width: 129 }, // Більше на 2px (127px + 2px = 129px)
-      { Header: 'Session', accessor: 'session', width: 110 }, // Більше на 2px (108px + 2px = 110px)
-      { Header: 'Direction', accessor: 'direction', width: 110 }, // Більше на 2px (108px + 2px = 110px)
-      { Header: 'Result', accessor: 'result', width: 110 }, // Більше на 2px (108px + 2px = 110px)
-      { Header: 'Category', accessor: 'tradeClass', width: 90 }, // Більше на 2px (88px + 2px = 90px)
-      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%`, width: 90 }, // Більше на 2px (88px + 2px = 90px)
-      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}`, width: 90 }, // Більше на 2px (88px + 2px = 90px)
+      { Header: 'No.', accessor: (row, i) => i + 1, width: 20 },
+      { Header: 'Date', accessor: 'date', width: 129 },
+      { Header: 'Pair', accessor: 'pair', width: 129 },
+      { Header: 'Session', accessor: 'session', width: 110 },
+      { Header: 'Direction', accessor: 'direction', width: 110 },
+      { Header: 'Result', accessor: 'result', width: 110 },
+      { Header: 'Category', accessor: 'tradeClass', width: 90 },
+      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%`, width: 90 },
+      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}`, width: 90 },
     ],
     []
   );
 
-  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } =
-    useTable({ columns, data: filteredTrades }, usePagination);
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ columns, data: filteredTrades });
 
-  // Обробка кліку на номер трейду для переходу на сторінку
   const handleTradeClick = (tradeId) => {
-    navigate(`/trade/${tradeId}`); // Перехід на сторінку трейду
+    navigate(`/trade/${tradeId}`);
   };
 
-  // Перехід на сторінку створення трейду
   const handleAddTrade = () => {
-    navigate('/create-trade'); // Перехід на сторінку створення трейду
+    navigate('/create-trade');
   };
 
-  // Обробка кліку на кнопку "Back"
   const handleBack = () => {
-    navigate(-1); // Повернення на попередню сторінку
+    navigate(-1);
   };
 
-  // Початок редагування трейду
-  const handleEdit = (trade) => {
-    setEditingTradeId(trade.id);
-    setEditedTrade({
-      asset: trade.asset || '',
-      entryPrice: trade.entryPrice || '',
-      exitPrice: trade.exitPrice || '',
-      profitLoss: trade.profitLoss || '',
-      notes: trade.notes || '',
-      tradeName: trade.tradeName || '',
-      account: trade.account || '',
-      pair: trade.pair || '',
-      session: trade.session || '',
-      direction: trade.direction || '',
-      result: trade.result || '',
-      positionSize: trade.positionSize || '',
-      gainedPoints: trade.gainedPoints || '',
-      tradeClass: trade.tradeClass || '',
-    });
+  const handleEdit = (tradeId) => {
+    navigate(`/trade/${tradeId}`);
   };
 
-  // Збереження змін у трейді
-  const handleSaveEdit = async (e) => {
-    e.preventDefault();
-    if (editingTradeId) {
-      const updatedTrade = {
-        id: editingTradeId,
-        date: trades.find((t) => t.id === editingTradeId)?.date || new Date().toISOString().split('T')[0],
-        ...editedTrade,
-      };
-      try {
-        await window.electronAPI.updateTrade(editingTradeId, updatedTrade);
-        setTrades(trades.map((trade) => (trade.id === editingTradeId ? updatedTrade : trade)));
-        setEditingTradeId(null);
-        setEditedTrade({
-          asset: '',
-          entryPrice: '',
-          exitPrice: '',
-          profitLoss: '',
-          notes: '',
-          tradeName: '',
-          account: '',
-          pair: '',
-          session: '',
-          direction: '',
-          result: '',
-          positionSize: '',
-          gainedPoints: '',
-          tradeClass: '',
-        });
-      } catch (error) {
-        console.error('Error updating trade:', error);
-      }
-    }
-  };
-
-  // Скасування редагування
-  const handleCancelEdit = () => {
-    setEditingTradeId(null);
-    setEditedTrade({
-      asset: '',
-      entryPrice: '',
-      exitPrice: '',
-      profitLoss: '',
-      notes: '',
-      tradeName: '',
-      account: '',
-      pair: '',
-      session: '',
-      direction: '',
-      result: '',
-      positionSize: '',
-      gainedPoints: '',
-      tradeClass: '',
-    });
-  };
-
-  // Видалення трейду
   const handleDelete = async (tradeId) => {
     try {
       await window.electronAPI.deleteTrade(tradeId);
       setTrades(trades.filter((trade) => trade.id !== tradeId));
+      setDeletePopup(null);
     } catch (error) {
       console.error('Error deleting trade:', error);
     }
@@ -441,27 +354,27 @@ function TradeJournal() {
                 rows.map((row) => {
                   prepareRow(row);
                   return (
-                    <TableRow {...row.getRowProps()}>
-                      {row.cells.map((cell) => {
-                        if (cell.column.Header === 'No.') {
-                          return (
-                            <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
-                              <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
-                                {cell.render('Cell')}
-                              </Link>
-                            </TableCell>
-                          );
-                        }
-                        return (
-                          <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
-                            {cell.render('Cell')}
-                          </TableCell>
-                        );
-                      })}
-                      <TableCell style={{ width: '100px' }}> {/* Фіксована ширина для колонки "Edit" */}
-                        <EditActionButton onClick={() => handleEdit(row.original)}>
-                          Edit
-                        </EditActionButton>
+                    <TableRow className="table-row" {...row.getRowProps()}>
+                      {row.cells.map((cell) => (
+                        <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
+                          {cell.column.Header === 'No.' ? (
+                            <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
+                              {cell.render('Cell')}
+                            </Link>
+                          ) : (
+                            cell.render('Cell')
+                          )}
+                        </TableCell>
+                      ))}
+                      <TableCell>
+                        <ButtonsContainer>
+                          <IconButton onClick={() => handleEdit(row.original.id)}>
+                            <img src={'/edit-icon.svg'} alt="Edit" />
+                          </IconButton>
+                          <IconButton onClick={() => setDeletePopup(row.original.id)}>
+                            <img src={'/delete-icon.svg'} alt="Delete" />
+                          </IconButton>
+                        </ButtonsContainer>
                       </TableCell>
                     </TableRow>
                   );
@@ -469,77 +382,12 @@ function TradeJournal() {
               )}
             </tbody>
           </TradeTable>
-          {editingTradeId && (
-            <TradeEditForm onSubmit={handleSaveEdit}>
-              <EditInput
-                type="text"
-                name="pair"
-                value={editedTrade.pair}
-                onChange={(e) => setEditedTrade({ ...editedTrade, pair: e.target.value })}
-                placeholder="Pair (e.g., EURUSD)"
-              />
-              <EditInput
-                type="text"
-                name="session"
-                value={editedTrade.session}
-                onChange={(e) => setEditedTrade({ ...editedTrade, session: e.target.value })}
-                placeholder="Session (e.g., London)"
-              />
-              <EditInput
-                type="text"
-                name="direction"
-                value={editedTrade.direction}
-                onChange={(e) => setEditedTrade({ ...editedTrade, direction: e.target.value })}
-                placeholder="Direction (e.g., Long/Short)"
-              />
-              <EditInput
-                type="text"
-                name="result"
-                value={editedTrade.result}
-                onChange={(e) => setEditedTrade({ ...editedTrade, result: e.target.value })}
-                placeholder="Result (e.g., Win/Lose)"
-              />
-              <EditInput
-                type="text"
-                name="tradeClass"
-                value={editedTrade.tradeClass}
-                onChange={(e) => setEditedTrade({ ...editedTrade, tradeClass: e.target.value })}
-                placeholder="Category (e.g., B)"
-              />
-              <EditInput
-                type="number"
-                name="profitLoss"
-                value={editedTrade.profitLoss}
-                onChange={(e) => setEditedTrade({ ...editedTrade, profitLoss: e.target.value })}
-                placeholder="Profit in %"
-              />
-              <EditInput
-                type="number"
-                name="gainedPoints"
-                value={editedTrade.gainedPoints}
-                onChange={(e) => setEditedTrade({ ...editedTrade, gainedPoints: e.target.value })}
-                placeholder="Profit in $"
-              />
-              <EditInput
-                type="date"
-                name="date"
-                value={editedTrade.date || new Date().toISOString().split('T')[0]}
-                onChange={(e) => setEditedTrade({ ...editedTrade, date: e.target.value })}
-              />
-              <EditTextarea
-                name="notes"
-                value={editedTrade.notes}
-                onChange={(e) => setEditedTrade({ ...editedTrade, notes: e.target.value })}
-                placeholder="Notes"
-              />
-              <EditActionButton type="submit">Save Changes</EditActionButton>
-              <EditActionButton type="button" onClick={handleCancelEdit}>
-                Cancel
-              </EditActionButton>
-              <DeleteButton type="button" onClick={() => handleDelete(editingTradeId)}>
-                Delete
-              </DeleteButton>
-            </TradeEditForm>
+          {deletePopup && (
+            <Popup>
+              <p>Want to delete?</p>
+              <PopupButton onClick={() => handleDelete(deletePopup)}>Yes</PopupButton>
+              <PopupButton onClick={() => setDeletePopup(null)}>No</PopupButton>
+            </Popup>
           )}
         </JournalContent>
       </TradeJournalContainer>
