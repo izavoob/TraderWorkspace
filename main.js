@@ -1,6 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
-const sqlite3 = require('sqlite3').Database;
+const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
 
 let db = null;
@@ -14,11 +14,12 @@ async function initializeDatabase() {
 
   try {
     await fs.mkdir(vaultPath, { recursive: true });
-    db = new sqlite3(dbPath, (err) => {
+    db = new sqlite3.Database(dbPath, (err) => {
       if (err) throw new Error(`Database connection failed: ${err.message}`);
       console.log('SQLite database initialized at:', dbPath);
     });
 
+    // Таблиця trades
     db.run(`
       CREATE TABLE IF NOT EXISTS trades (
         id TEXT PRIMARY KEY,
@@ -43,10 +44,27 @@ async function initializeDatabase() {
         fta TEXT,
         slPosition TEXT,
         score TEXT,
-        category TEXT
+        category TEXT,
+        topDownAnalysis TEXT,
+        execution TEXT,
+        management TEXT,
+        conclusion TEXT
       )
     `, (err) => {
-      if (err) throw new Error(`Table creation failed: ${err.message}`);
+      if (err) throw new Error(`Table trades creation failed: ${err.message}`);
+    });
+
+    // Таблиця notes
+    db.run(`
+      CREATE TABLE IF NOT EXISTS notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        tradeId TEXT,
+        title TEXT,
+        text TEXT,
+        FOREIGN KEY (tradeId) REFERENCES trades(id)
+      )
+    `, (err) => {
+      if (err) throw new Error(`Table notes creation failed: ${err.message}`);
     });
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -98,8 +116,9 @@ ipcMain.handle('save-trade', async (event, trade) => {
       INSERT OR REPLACE INTO trades (
         id, date, account, pair, direction, positionType, risk, result, rr, profitLoss,
         gainedPoints, followingPlan, bestTrade, session, pointA, trigger, volumeConfirmation,
-        entryModel, entryTF, fta, slPosition, score, category
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        entryModel, entryTF, fta, slPosition, score, category, topDownAnalysis, execution,
+        management, conclusion
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
       [
         trade.id,
@@ -125,9 +144,32 @@ ipcMain.handle('save-trade', async (event, trade) => {
         trade.slPosition || '',
         trade.score || '',
         trade.category || '',
+        JSON.stringify(trade.topDownAnalysis) || '[]',
+        JSON.stringify(trade.execution) || '{}',
+        JSON.stringify(trade.management) || '{}',
+        JSON.stringify(trade.conclusion) || '{}',
       ],
-      (err) => {
-        if (err) reject(err);
+      async (err) => {
+        if (err) {
+          console.error('Error saving trade:', err);
+          reject(err);
+          return;
+        }
+        // Зберігаємо нотатки
+        if (trade.notes && trade.notes.length > 0) {
+          for (const note of trade.notes) {
+            await new Promise((noteResolve, noteReject) => {
+              db.run(
+                'INSERT INTO notes (tradeId, title, text) VALUES (?, ?, ?)',
+                [trade.id, note.title, note.text],
+                (noteErr) => {
+                  if (noteErr) noteReject(noteErr);
+                  else noteResolve();
+                }
+              );
+            });
+          }
+        }
         resolve(true);
       }
     );
@@ -137,9 +179,43 @@ ipcMain.handle('save-trade', async (event, trade) => {
 ipcMain.handle('get-trades', async () => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM trades', (err, rows) => {
-      if (err) reject(err);
-      resolve(rows || []);
+    db.all('SELECT * FROM trades', (err, tradeRows) => {
+      if (err) {
+        console.error('Error fetching trades:', err);
+        reject(err);
+        return;
+      }
+      const trades = tradeRows.map(row => ({
+        ...row,
+        topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
+        execution: JSON.parse(row.execution || '{}'),
+        management: JSON.parse(row.management || '{}'),
+        conclusion: JSON.parse(row.conclusion || '{}'),
+        notes: [],
+      }));
+
+      const tradeIds = trades.map(trade => trade.id);
+      if (tradeIds.length === 0) {
+        resolve(trades);
+        return;
+      }
+      db.all(
+        'SELECT * FROM notes WHERE tradeId IN (' + tradeIds.map(() => '?').join(',') + ')',
+        tradeIds,
+        (err, noteRows) => {
+          if (err) {
+            console.error('Error fetching notes:', err);
+            reject(err);
+            return;
+          }
+          trades.forEach(trade => {
+            trade.notes = noteRows
+              .filter(note => note.tradeId === trade.id)
+              .map(note => ({ title: note.title, text: note.text }));
+          });
+          resolve(trades || []);
+        }
+      );
     });
   });
 });
@@ -153,7 +229,8 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, 
         result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, 
         bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, 
-        entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?
+        entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?,
+        topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?
       WHERE id = ?
     `,
       [
@@ -179,10 +256,40 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         updatedTrade.slPosition || '',
         updatedTrade.score || '',
         updatedTrade.category || '',
+        JSON.stringify(updatedTrade.topDownAnalysis) || '[]',
+        JSON.stringify(updatedTrade.execution) || '{}',
+        JSON.stringify(updatedTrade.management) || '{}',
+        JSON.stringify(updatedTrade.conclusion) || '{}',
         tradeId,
       ],
-      (err) => {
-        if (err) reject(err);
+      async (err) => {
+        if (err) {
+          console.error('Error updating trade:', err);
+          reject(err);
+          return;
+        }
+        // Видаляємо старі нотатки
+        await new Promise((delResolve, delReject) => {
+          db.run('DELETE FROM notes WHERE tradeId = ?', [tradeId], (delErr) => {
+            if (delErr) delReject(delErr);
+            else delResolve();
+          });
+        });
+        // Додаємо нові нотатки
+        if (updatedTrade.notes && updatedTrade.notes.length > 0) {
+          for (const note of updatedTrade.notes) {
+            await new Promise((noteResolve, noteReject) => {
+              db.run(
+                'INSERT INTO notes (tradeId, title, text) VALUES (?, ?, ?)',
+                [tradeId, note.title, note.text],
+                (noteErr) => {
+                  if (noteErr) noteReject(noteErr);
+                  else noteResolve();
+                }
+              );
+            });
+          }
+        }
         resolve(true);
       }
     );
@@ -193,8 +300,33 @@ ipcMain.handle('delete-trade', async (event, tradeId) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     db.run('DELETE FROM trades WHERE id = ?', [tradeId], (err) => {
-      if (err) reject(err);
-      resolve(true);
+      if (err) {
+        console.error('Error deleting trade:', err);
+        reject(err);
+        return;
+      }
+      db.run('DELETE FROM notes WHERE tradeId = ?', [tradeId], (noteErr) => {
+        if (noteErr) reject(noteErr);
+        else resolve(true);
+      });
     });
   });
+});
+
+ipcMain.handle('save-file', async (event, file) => {
+  await ensureDatabaseInitialized();
+  const screenshotsPath = path.join(vaultPath, 'screenshots');
+  await fs.mkdir(screenshotsPath, { recursive: true });
+  const filePath = path.join(screenshotsPath, `${Date.now()}-${file.name}`);
+  await fs.writeFile(filePath, Buffer.from(await file.arrayBuffer()));
+  return filePath;
+});
+
+ipcMain.handle('save-blob-as-file', async (event, buffer) => {
+  await ensureDatabaseInitialized();
+  const screenshotsPath = path.join(vaultPath, 'screenshots');
+  await fs.mkdir(screenshotsPath, { recursive: true });
+  const filePath = path.join(screenshotsPath, `${Date.now()}.png`);
+  await fs.writeFile(filePath, Buffer.from(buffer));
+  return filePath;
 });

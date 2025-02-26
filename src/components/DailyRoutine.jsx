@@ -8,6 +8,7 @@ const DailyRoutineContainer = styled.div`
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
+  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;
 
 const Header = styled.header`
@@ -53,7 +54,7 @@ const BackButton = styled.button`
   }
 
   &:before {
-    content: 'Back';
+    content: "Back";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -79,13 +80,14 @@ const Title = styled.h1`
 const RoutineContent = styled.div`
   margin-top: 148px;
   padding-top: 20px;
+  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;
 
 function DailyRoutine() {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate('/');
+    navigate(-1);
   };
 
   return (
@@ -95,7 +97,7 @@ function DailyRoutine() {
         <Title>Daily Routine</Title>
       </Header>
       <RoutineContent>
-        {/* Здесь будет контент новых разделов */}
+        {/* Тут буде контент нових розділів */}
       </RoutineContent>
     </DailyRoutineContainer>
   );

@@ -4,18 +4,17 @@ const path = require('path');
 async function readFiles() {
   const projectDir = ''; // Оновіть шлях, якщо інший
   const filesToRead = [
-    'src/App.jsx', // Оновлено з .js на .jsx
-    'src/components/CreateTrade.jsx', // Оновлено з .js на .jsx
-    'src/components/GalleryItem.jsx', // Оновлено з .js на .jsx
-    'src/components/Placeholder.jsx', // Оновлено з .js на .jsx
-    'src/components/TradeDetail.jsx', // Оновлено з .js на .jsx
-    'src/components/TradeJournal.jsx', // Оновлено з .js на .jsx, але розділено на підкомпоненти
+    'src/App.jsx',
+    'src/components/CreateTrade.jsx',
+    'src/components/DailyRoutine.jsx', // Додано, згадувався раніше
+    'src/components/GalleryItem.jsx',
+    'src/components/Home.jsx',
     'src/components/TradeTableComponent.jsx', // Доданий файл для таблиці трейдів
     'src/components/ActionButtons.jsx', // Доданий файл для кнопок "Edit"/"Delete"
     'src/components/Home.jsx', // Новий файл, доданий для "Home"
     'src/components/Trash.jsx', // Новий файл, доданий для кошика
-    'src/index.jsx', // Оновлено з .js на .jsx
-    'index.html', // У кореневій директорії, а не в public/
+    'src/index.jsx',
+    'index.html',
     'main.js',
     'preload.js',
     'webpack.config.js',
@@ -29,7 +28,9 @@ async function readFiles() {
   for (const file of filesToRead) {
     const filePath = path.join(projectDir, file);
     try {
-      projectData[file] = await fs.readFile(filePath, 'utf8');
+      const content = await fs.readFile(filePath, 'utf8');
+      // Перетворюємо вміст у один рядок, замінюючи перенос рядків на пробіли
+      projectData[file] = content.replace(/(\r\n|\n|\r)/g, ' ').replace(/\s+/g, ' ').trim();
       console.log(`Successfully read ${file}`);
     } catch (error) {
       console.error(`Error reading ${file}: ${error.message}`);
@@ -38,7 +39,7 @@ async function readFiles() {
 
   // Зберігаємо JSON у папку dist/
   const outputPath = path.join(projectDir, 'dist', 'projectData.json');
-  await fs.mkdir(path.dirname(outputPath), { recursive: true }); // Створюємо папку dist/, якщо її немає
+  await fs.mkdir(path.dirname(outputPath), { recursive: true });
   await fs.writeFile(outputPath, JSON.stringify(projectData, null, 2), 'utf8');
   console.log('JSON saved to projectData.json in dist/ directory');
 }

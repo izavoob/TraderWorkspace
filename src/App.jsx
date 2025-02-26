@@ -5,7 +5,7 @@ import TradeJournal from './components/TradeJournal.jsx';
 import TradeDetail from './components/TradeDetail.jsx';
 import Placeholder from './components/Placeholder.jsx';
 import CreateTrade from './components/CreateTrade.jsx';
-import DailyRoutine from './components/DailyRoutine.jsx'; // Добавляем новый компонент
+import DailyRoutine from './components/DailyRoutine.jsx';
 import styled, { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
@@ -15,7 +15,25 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    overflow: hidden;
+    overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  }
+
+  /* Стиль повзунка скролінга */
+  ::-webkit-scrollbar {
+    width: 6px; /* Вузький повзунок */
+  }
+
+  ::-webkit-scrollbar-track {
+    background: transparent; /* Без фону */
+  }
+
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9; /* Колір повзунка */
+    border-radius: 3px;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5e2ca5; /* Колір при наведенні */
   }
 `;
 
@@ -28,8 +46,8 @@ const AppContainer = styled.div`
   padding: 20px;
   min-height: 100vh;
   box-sizing: border-box;
-  height: 100%;
   width: 100%;
+  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;
 
 const NavigationButtons = styled.div`
@@ -81,11 +99,11 @@ const NavButton = styled.button`
   }
 
   &.back::before {
-    content: '\2190';
+    content: "\\2190";
   }
 
   &.forward::before {
-    content: '\2192';
+    content: "\\2192";
   }
 `;
 
@@ -116,7 +134,7 @@ function App() {
           <Route path="/trade-journal" element={<TradeJournal />} />
           <Route path="/trade/:id" element={<TradeDetail />} />
           <Route path="/create-trade" element={<CreateTrade />} />
-          <Route path="/daily-routine" element={<DailyRoutine />} /> {/* Заменяем Placeholder */}
+          <Route path="/daily-routine" element={<DailyRoutine />} />
           <Route path="/performance-analysis" element={<Placeholder title="Performance Analysis" />} />
           <Route path="/statistics" element={<Placeholder title="Statistics" />} />
           <Route path="/risk-management" element={<Placeholder title="Risk Management" />} />
