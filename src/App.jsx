@@ -5,6 +5,7 @@ import TradeJournal from './components/TradeJournal.jsx';
 import TradeDetail from './components/TradeDetail.jsx';
 import Placeholder from './components/Placeholder.jsx';
 import CreateTrade from './components/CreateTrade.jsx';
+import DailyRoutine from './components/DailyRoutine.jsx'; // Добавляем новый компонент
 import styled, { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
@@ -115,7 +116,7 @@ function App() {
           <Route path="/trade-journal" element={<TradeJournal />} />
           <Route path="/trade/:id" element={<TradeDetail />} />
           <Route path="/create-trade" element={<CreateTrade />} />
-          <Route path="/daily-routine" element={<Placeholder title="Daily Routine" />} />
+          <Route path="/daily-routine" element={<DailyRoutine />} /> {/* Заменяем Placeholder */}
           <Route path="/performance-analysis" element={<Placeholder title="Performance Analysis" />} />
           <Route path="/statistics" element={<Placeholder title="Statistics" />} />
           <Route path="/risk-management" element={<Placeholder title="Risk Management" />} />
@@ -128,7 +129,6 @@ function App() {
   );
 }
 
-// Функція для отримання назви секції
 function getSectionTitle(path) {
   switch (path) {
     case '/#daily-routine':
