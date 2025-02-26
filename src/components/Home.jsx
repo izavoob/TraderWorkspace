@@ -5,16 +5,16 @@ import styled from 'styled-components';
 const Header = styled.header`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   padding: 20px;
-  border-radius: 0 0 10px 10px; /* Заокруглення тільки нижніх кутів */
+  border-radius: 0 0 10px 10px;
   color: #fff;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px; /* Фіксована висота для екрану 1920x1080 */
-  min-height: 6.67vh; /* Адаптивність для менших екранів */
-  max-height: 128px; /* Обмеження максимальної висоти */
+  height: 128px;
+  min-height: 6.67vh;
+  max-height: 128px;
 `;
 
 const Greeting = styled.h1`
@@ -31,14 +31,14 @@ const WorkPhrase = styled.p`
 
 const Gallery = styled.div`
   display: flex;
-  justify-content: center; /* Центрування по ширині */
-  align-items: center; /* Центрування по висоті */
-  flex-wrap: wrap; /* Дозволяє елементи переноситися, якщо екран малий */
-  gap: 30px; /* Збільшено відступ між кнопками для кращого вигляду */
-  margin-top: 168px; /* Зсув вниз, враховуючи висоту Header (128px) + padding 20px */
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 30px;
+  margin-top: 168px;
   padding: 20px;
-  min-height: calc(100vh - 168px); /* Займає весь доступний простір під Header */
-  width: 100%; /* Займає всю ширину екрана */
+  width: 100%;
+  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;
 
 function Home() {

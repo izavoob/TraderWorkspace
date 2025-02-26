@@ -8,6 +8,8 @@ const CreateTradeContainer = styled.div`
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
+  overflow-y: auto;
+  overflow-x: hidden;
 `;
 
 const Header = styled.header`
@@ -88,7 +90,7 @@ const TradeContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  min-height: calc(100vh - 168px);
+  width: 100%;
 `;
 
 const TablesContainer = styled.div`
@@ -199,7 +201,7 @@ const VolumeConfirmationPopup = styled.div`
 const VolumeOption = styled.div`
   padding: 5px;
   cursor: pointer;
-  background-color: ${(props) => (props.selected ? 'rgba(0, 0, 255, 0.5)' : 'transparent')}; // Синій із 50% прозорістю
+  background-color: ${(props) => (props.selected ? 'rgba(0, 0, 255, 0.5)' : 'transparent')};
   color: #fff;
 
   &:hover {
@@ -215,6 +217,237 @@ const ConfirmButton = styled.button`
   padding: 5px 10px;
   border-radius: 5px;
   cursor: pointer;
+`;
+
+const SectionTitle = styled.h2`
+  color: #5e2ca5;
+  margin: 20px 0 10px;
+  font-size: 2em;
+`;
+
+const ScreenshotContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  width: 100%;
+`;
+
+const ScreenshotField = styled.div`
+  flex: 1 1 45%;
+  background-color: #2e2e2e;
+  padding: 15px;
+  border-radius: 5px;
+  border: 2px solid #5e2ca5;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+
+  &:hover .delete-screenshot {
+    opacity: 1;
+  }
+`;
+
+const ScreenshotTitle = styled.h3`
+  color: #fff;
+  margin-bottom: 10px;
+  font-size: 1em;
+`;
+
+const ScreenshotInput = styled.input`
+  width: 100%;
+  padding: 8px;
+  background-color: #3e3e3e;
+  color: #fff;
+  border: 1px solid #5e2ca5;
+  border-radius: 5px;
+  margin-bottom: 10px;
+  text-align: center;
+`;
+
+const ScreenshotPreview = styled.img`
+  width: 100%;
+  height: auto;
+  margin-bottom: 10px;
+  cursor: pointer;
+`;
+
+const TextArea = styled.textarea`
+  width: 100%;
+  padding: 8px;
+  background-color: #3e3e3e;
+  color: #fff;
+  border: 1px solid #5e2ca5;
+  border-radius: 5px;
+  min-height: 100px;
+  text-align: center;
+`;
+
+const Row = styled.div`
+  display: flex;
+  gap: 20px;
+  width: 100%;
+`;
+
+const NoteContainer = styled.div`
+  width: 100%;
+`;
+
+const NoteItem = styled.div`
+  background-color: #2e2e2e;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #5e2ca5;
+  margin-bottom: 10px;
+  cursor: pointer;
+  position: relative;
+`;
+
+const NoteText = styled.p`
+  margin: 0;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+`;
+
+const IconButton = styled.button`
+  background: conic-gradient(from 45deg, #7425c9, #b886ee);
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  top: 10px;
+
+  &:hover {
+    filter: brightness(1.5);
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
+  }
+
+  &.edit {
+    right: 40px;
+  }
+
+  &.delete {
+    right: 10px;
+  }
+`;
+
+const DeleteScreenshotButton = styled.button`
+  background: conic-gradient(from 45deg, #7425c9, #b886ee);
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    filter: brightness(1.5);
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
+  }
+`;
+
+const FullscreenModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.9);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+`;
+
+const FullscreenImage = styled.img`
+  max-width: 90%;
+  max-height: 90%;
+`;
+
+const CloseButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: conic-gradient(from 45deg, #7425c9, #b886ee);
+  border: none;
+  padding: 10px;
+  border-radius: 50%;
+  cursor: pointer;
+  color: #fff;
+  font-size: 1.2em;
+`;
+
+const NotePopup = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: calc(100vw / 2);
+  height: calc(100vh / 2);
+  background-color: #2e2e2e;
+  padding: 20px;
+  border-radius: 10px;
+  border: 2px solid #5e2ca5;
+  color: #fff;
+  z-index: 1001;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const NotePopupTitle = styled.h3`
+  color: #fff;
+  margin: 0 0 10px;
+`;
+
+const NotePopupInput = styled.input`
+  padding: 8px;
+  background-color: #3e3e3e;
+  color: #fff;
+  border: 1px solid #5e2ca5;
+  border-radius: 5px;
+  width: 100%;
+`;
+
+const NotePopupTextArea = styled.textarea`
+  padding: 8px;
+  background-color: #3e3e3e;
+  color: #fff;
+  border: 1px solid #5e2ca5;
+  border-radius: 5px;
+  width: 100%;
+  flex-grow: 1;
+`;
+
+const NotePopupButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: flex-end;
 `;
 
 function CreateTrade() {
@@ -243,9 +476,24 @@ function CreateTrade() {
     slPosition: '',
     score: '',
     category: '',
+    topDownAnalysis: [
+      { title: 'Daily Timeframe', screenshot: '', text: '' },
+      { title: '4h Timeframe', screenshot: '', text: '' },
+      { title: '1h Timeframe', screenshot: '', text: '' },
+      { title: '15/5m Timeframe', screenshot: '', text: '' },
+    ],
+    execution: { screenshot: '', text: '' },
+    management: { screenshot: '', text: '' },
+    conclusion: { videoLink: '', text: '' },
+    notes: [],
   });
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [tempVolumeConfirmation, setTempVolumeConfirmation] = useState([]);
+  const [showNotePopup, setShowNotePopup] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [editNoteIndex, setEditNoteIndex] = useState(null);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
 
   useEffect(() => {
     window.electronAPI.getTrades().then((trades) => {
@@ -282,6 +530,104 @@ function CreateTrade() {
     setShowVolumePopup(false);
   };
 
+  const handleScreenshotChange = (section, index, field, value) => {
+    setTrade((prev) => {
+      if (section === 'topDownAnalysis') {
+        const updated = [...prev.topDownAnalysis];
+        updated[index] = { ...updated[index], [field]: value };
+        return { ...prev, topDownAnalysis: updated };
+      } else {
+        return { ...prev, [section]: { ...prev[section], [field]: value } };
+      }
+    });
+  };
+
+  const handlePaste = async (section, index, e) => {
+    const items = e.clipboardData.items;
+    for (let item of items) {
+      if (item.type.startsWith('image/')) {
+        const blob = item.getAsFile();
+        try {
+          const buffer = await blob.arrayBuffer();
+          const filePath = await window.electronAPI.saveBlobAsFile(buffer);
+          handleScreenshotChange(section, index, 'screenshot', filePath);
+        } catch (error) {
+          console.error('Error saving blob as file:', error);
+          alert('Failed to save screenshot.');
+        }
+        e.preventDefault();
+        return;
+      }
+    }
+  };
+
+  const deleteScreenshot = (section, index) => {
+    setTrade((prev) => {
+      if (section === 'topDownAnalysis') {
+        const updated = [...prev.topDownAnalysis];
+        updated[index] = { ...updated[index], screenshot: '' };
+        return { ...prev, topDownAnalysis: updated };
+      } else {
+        return { ...prev, [section]: { ...prev[section], screenshot: '' } };
+      }
+    });
+  };
+
+  const openFullscreen = (src) => {
+    setFullscreenImage(src);
+  };
+
+  const closeFullscreen = () => {
+    setFullscreenImage(null);
+  };
+
+  const openNotePopup = (index = null) => {
+    if (index !== null) {
+      setNoteTitle(trade.notes[index].title);
+      setNoteText(trade.notes[index].text);
+      setEditNoteIndex(index);
+    } else {
+      setNoteTitle('');
+      setNoteText('');
+      setEditNoteIndex(null);
+    }
+    setShowNotePopup(true);
+  };
+
+  const saveNote = () => {
+    if (noteTitle && noteText) {
+      const note = { title: noteTitle, text: noteText };
+      setTrade((prev) => {
+        if (editNoteIndex !== null) {
+          const updatedNotes = [...prev.notes];
+          updatedNotes[editNoteIndex] = note;
+          return { ...prev, notes: updatedNotes };
+        } else {
+          return { ...prev, notes: [...prev.notes, note] };
+        }
+      });
+      setShowNotePopup(false);
+      setNoteTitle('');
+      setNoteText('');
+      setEditNoteIndex(null);
+    }
+  };
+
+  const deleteNote = (index) => {
+    setTrade((prev) => ({
+      ...prev,
+      notes: prev.notes.filter((_, i) => i !== index),
+    }));
+    setShowNotePopup(false);
+  };
+
+  const cancelNote = () => {
+    setShowNotePopup(false);
+    setNoteTitle('');
+    setNoteText('');
+    setEditNoteIndex(null);
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
@@ -301,7 +647,7 @@ function CreateTrade() {
   };
 
   const handleBack = () => {
-    navigate('/trade-journal');
+    navigate('/trade-journal', { replace: true });
   };
 
   return (
@@ -559,13 +905,170 @@ function CreateTrade() {
             </FormRow>
           </TradeTable>
         </TablesContainer>
+
+        <SectionTitle>Top Down Analysis</SectionTitle>
+        <ScreenshotContainer>
+          {trade.topDownAnalysis.map((item, index) => (
+            <ScreenshotField key={index}>
+              <ScreenshotTitle>{item.title}</ScreenshotTitle>
+              {!item.screenshot && (
+                <ScreenshotInput
+                  type="text"
+                  placeholder="Paste screenshot here (Ctrl+V)"
+                  onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
+                />
+              )}
+              {item.screenshot && (
+                <ScreenshotPreview
+                  src={item.screenshot}
+                  alt="Screenshot"
+                  onClick={() => openFullscreen(item.screenshot)}
+                />
+              )}
+              <TextArea
+                value={item.text}
+                onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
+              />
+              {item.screenshot && (
+                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('topDownAnalysis', index)}>
+                  <img src="/assets/delete-icon.svg" alt="Delete" />
+                </DeleteScreenshotButton>
+              )}
+            </ScreenshotField>
+          ))}
+        </ScreenshotContainer>
+
+        <Row>
+          <div style={{ flex: 1 }}>
+            <SectionTitle>Execution</SectionTitle>
+            <ScreenshotField>
+              <ScreenshotTitle>Exit Moment</ScreenshotTitle>
+              {!trade.execution.screenshot && (
+                <ScreenshotInput
+                  type="text"
+                  placeholder="Paste screenshot here (Ctrl+V)"
+                  onPaste={(e) => handlePaste('execution', 0, e)}
+                />
+              )}
+              {trade.execution.screenshot && (
+                <ScreenshotPreview
+                  src={trade.execution.screenshot}
+                  alt="Screenshot"
+                  onClick={() => openFullscreen(trade.execution.screenshot)}
+                />
+              )}
+              <TextArea
+                value={trade.execution.text}
+                onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
+              />
+              {trade.execution.screenshot && (
+                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('execution', 0)}>
+                  <img src="/assets/delete-icon.svg" alt="Delete" />
+                </DeleteScreenshotButton>
+              )}
+            </ScreenshotField>
+          </div>
+          <div style={{ flex: 1 }}>
+            <SectionTitle>Management</SectionTitle>
+            <ScreenshotField>
+              <ScreenshotTitle>First Trouble Area</ScreenshotTitle>
+              {!trade.management.screenshot && (
+                <ScreenshotInput
+                  type="text"
+                  placeholder="Paste screenshot here (Ctrl+V)"
+                  onPaste={(e) => handlePaste('management', 0, e)}
+                />
+              )}
+              {trade.management.screenshot && (
+                <ScreenshotPreview
+                  src={trade.management.screenshot}
+                  alt="Screenshot"
+                  onClick={() => openFullscreen(trade.management.screenshot)}
+                />
+              )}
+              <TextArea
+                value={trade.management.text}
+                onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
+              />
+              {trade.management.screenshot && (
+                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('management', 0)}>
+                  <img src="/assets/delete-icon.svg" alt="Delete" />
+                </DeleteScreenshotButton>
+              )}
+            </ScreenshotField>
+          </div>
+        </Row>
+
+        <Row>
+          <div style={{ flex: 1 }}>
+            <SectionTitle>Conclusion</SectionTitle>
+            <ScreenshotField>
+              <ScreenshotTitle>Daily Performance Analysis</ScreenshotTitle>
+              <ScreenshotInput
+                type="text"
+                placeholder="YouTube video link"
+                value={trade.conclusion.videoLink}
+                onChange={(e) => handleScreenshotChange('conclusion', 0, 'videoLink', e.target.value)}
+              />
+              <TextArea
+                value={trade.conclusion.text}
+                onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
+              />
+            </ScreenshotField>
+          </div>
+          <div style={{ flex: 1 }}>
+            <SectionTitle>Notes & Mistakes</SectionTitle>
+            <NoteContainer>
+              {trade.notes.map((note, index) => (
+                <NoteItem key={index} onClick={() => openNotePopup(index)}>
+                  <NoteText>{note.title}</NoteText>
+                  <IconButton className="edit" onClick={(e) => { e.stopPropagation(); openNotePopup(index); }}>
+                    <img src="/assets/edit-icon.svg" alt="Edit" />
+                  </IconButton>
+                  <IconButton className="delete" onClick={(e) => { e.stopPropagation(); deleteNote(index); }}>
+                    <img src="/assets/delete-icon.svg" alt="Delete" />
+                  </IconButton>
+                </NoteItem>
+              ))}
+              <FormButton onClick={() => openNotePopup()}>Add Note or Mistake</FormButton>
+            </NoteContainer>
+          </div>
+        </Row>
+
+        {showNotePopup && (
+          <NotePopup>
+            <NotePopupTitle>Adding Notes & Mistakes</NotePopupTitle>
+            <NotePopupInput
+              type="text"
+              placeholder="Enter note title"
+              value={noteTitle}
+              onChange={(e) => setNoteTitle(e.target.value)}
+            />
+            <NotePopupTextArea
+              placeholder="Enter note text"
+              value={noteText}
+              onChange={(e) => setNoteText(e.target.value)}
+            />
+            <NotePopupButtons>
+              <FormButton onClick={saveNote}>Save</FormButton>
+              <FormButton onClick={cancelNote}>Cancel</FormButton>
+              {editNoteIndex !== null && (
+                <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
+              )}
+            </NotePopupButtons>
+          </NotePopup>
+        )}
+
+        {fullscreenImage && (
+          <FullscreenModal onClick={closeFullscreen}>
+            <FullscreenImage src={fullscreenImage} alt="Fullscreen Screenshot" />
+            <CloseButton>X</CloseButton>
+          </FullscreenModal>
+        )}
+
         <ButtonGroup>
-          <FormButton type="submit" onClick={handleSubmit}>
-            Save Trade
-          </FormButton>
-          <FormButton type="button" onClick={handleBack}>
-            Cancel
-          </FormButton>
+          <FormButton type="submit" onClick={handleSubmit}>Save Trade</FormButton>
+          <FormButton type="button" onClick={handleBack}>Cancel</FormButton>
         </ButtonGroup>
       </TradeContent>
     </CreateTradeContainer>
