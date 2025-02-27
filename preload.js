@@ -6,5 +6,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateTrade: (tradeId, updatedTrade) => ipcRenderer.invoke('update-trade', tradeId, updatedTrade),
   deleteTrade: (tradeId) => ipcRenderer.invoke('delete-trade', tradeId),
   saveFile: (file) => ipcRenderer.invoke('save-file', file),
-  saveBlobAsFile: (buffer) => ipcRenderer.invoke('save-blob-as-file', buffer), // Очікуємо ArrayBuffer
+  saveBlobAsFile: (buffer) => ipcRenderer.invoke('save-blob-as-file', buffer),
+  saveDailyRoutine: (routine) => ipcRenderer.invoke('save-daily-routine', routine),
+  getDailyRoutine: (date) => ipcRenderer.invoke('get-daily-routine', date),
 });

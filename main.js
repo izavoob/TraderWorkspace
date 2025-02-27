@@ -8,10 +8,8 @@ let vaultPath = null;
 
 async function initializeDatabase() {
   if (vaultPath && db) return;
-
   vaultPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault');
   const dbPath = path.join(vaultPath, 'trades.db');
-
   try {
     await fs.mkdir(vaultPath, { recursive: true });
     db = new sqlite3.Database(dbPath, (err) => {
@@ -66,6 +64,19 @@ async function initializeDatabase() {
     `, (err) => {
       if (err) throw new Error(`Table notes creation failed: ${err.message}`);
     });
+
+    // Таблиця daily_routines
+    db.run(`
+      CREATE TABLE IF NOT EXISTS daily_routines (
+        date TEXT PRIMARY KEY,
+        preSession TEXT,
+        postSession TEXT,
+        emotions TEXT,
+        notes TEXT
+      )
+    `, (err) => {
+      if (err) throw new Error(`Table daily_routines creation failed: ${err.message}`);
+    });
   } catch (error) {
     console.error('Error initializing database:', error);
     throw new Error('Database initialization failed');
@@ -82,7 +93,6 @@ function createWindow() {
       preload: path.join(__dirname, 'preload.js'),
     },
   });
-
   win.loadFile('index.html');
   initializeDatabase().catch(console.error);
 }
@@ -112,14 +122,7 @@ ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     db.run(
-      `
-      INSERT OR REPLACE INTO trades (
-        id, date, account, pair, direction, positionType, risk, result, rr, profitLoss,
-        gainedPoints, followingPlan, bestTrade, session, pointA, trigger, volumeConfirmation,
-        entryModel, entryTF, fta, slPosition, score, category, topDownAnalysis, execution,
-        management, conclusion
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `,
+      `INSERT OR REPLACE INTO trades (id, date, account, pair, direction, positionType, risk, result, rr, profitLoss, gainedPoints, followingPlan, bestTrade, session, pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition, score, category, topDownAnalysis, execution, management, conclusion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         trade.id,
         trade.date || '',
@@ -155,7 +158,6 @@ ipcMain.handle('save-trade', async (event, trade) => {
           reject(err);
           return;
         }
-        // Зберігаємо нотатки
         if (trade.notes && trade.notes.length > 0) {
           for (const note of trade.notes) {
             await new Promise((noteResolve, noteReject) => {
@@ -193,7 +195,6 @@ ipcMain.handle('get-trades', async () => {
         conclusion: JSON.parse(row.conclusion || '{}'),
         notes: [],
       }));
-
       const tradeIds = trades.map(trade => trade.id);
       if (tradeIds.length === 0) {
         resolve(trades);
@@ -224,15 +225,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     db.run(
-      `
-      UPDATE trades SET 
-        date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, 
-        result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, 
-        bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, 
-        entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?,
-        topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?
-      WHERE id = ?
-    `,
+      `UPDATE trades SET date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?, topDownAnalysis = ?, execution = ?, management = ?, conclusion = ? WHERE id = ?`,
       [
         updatedTrade.date || '',
         updatedTrade.account || '',
@@ -268,14 +261,12 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
           reject(err);
           return;
         }
-        // Видаляємо старі нотатки
         await new Promise((delResolve, delReject) => {
           db.run('DELETE FROM notes WHERE tradeId = ?', [tradeId], (delErr) => {
             if (delErr) delReject(delErr);
             else delResolve();
           });
         });
-        // Додаємо нові нотатки
         if (updatedTrade.notes && updatedTrade.notes.length > 0) {
           for (const note of updatedTrade.notes) {
             await new Promise((noteResolve, noteReject) => {
@@ -329,4 +320,56 @@ ipcMain.handle('save-blob-as-file', async (event, buffer) => {
   const filePath = path.join(screenshotsPath, `${Date.now()}.png`);
   await fs.writeFile(filePath, Buffer.from(buffer));
   return filePath;
+});
+
+ipcMain.handle('save-daily-routine', async (event, routine) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT OR REPLACE INTO daily_routines (date, preSession, postSession, emotions, notes) VALUES (?, ?, ?, ?, ?)`,
+      [
+        routine.date,
+        JSON.stringify(routine.preSession || ''),
+        JSON.stringify(routine.postSession || ''),
+        JSON.stringify(routine.emotions || ''),
+        JSON.stringify(routine.notes || ''),
+      ],
+      (err) => {
+        if (err) {
+          console.error('Error saving daily routine:', err);
+          reject(err);
+        } else {
+          resolve(true);
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle('get-daily-routine', async (event, date) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM daily_routines WHERE date = ?', [date], (err, row) => {
+      if (err) {
+        console.error('Error fetching daily routine:', err);
+        reject(err);
+      } else if (row) {
+        resolve({
+          date: row.date,
+          preSession: JSON.parse(row.preSession || '[]'),
+          postSession: JSON.parse(row.postSession || '[]'),
+          emotions: JSON.parse(row.emotions || '[]'),
+          notes: JSON.parse(row.notes || '[]'),
+        });
+      } else {
+        resolve({
+          date,
+          preSession: [],
+          postSession: [],
+          emotions: [],
+          notes: [],
+        });
+      }
+    });
+  });
 });
