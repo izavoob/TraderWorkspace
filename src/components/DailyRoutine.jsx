@@ -1,15 +1,16 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
 const DailyRoutineContainer = styled.div`
   max-width: 1820px;
   margin: 20px auto;
-  min-height: 100vh;
+  height: 100vh; /* Фиксируем высоту на весь экран */
   background-color: #1a1a1a;
   padding: 20px;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  overflow: hidden; /* Убираем весь скролл */
+  display: flex;
+  flex-direction: column;
 `;
 
 const Header = styled.header`
@@ -31,7 +32,7 @@ const Header = styled.header`
   align-items: center;
 `;
 
-const BackButton = styled.button`
+const BackButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
   padding: 0;
@@ -44,6 +45,7 @@ const BackButton = styled.button`
   top: 0;
   opacity: 0;
   transition: all 0.3s ease;
+  text-decoration: none;
   &:hover {
     opacity: 1;
     transform: scale(1.1);
@@ -75,32 +77,34 @@ const Title = styled.h1`
 `;
 
 const RoutineContent = styled.div`
-  margin-top: 120px; /* Зменшено верхній відступ для заповнення простору */
-  padding: 20px 0;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  flex: 1; /* Занимает оставшееся пространство */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden; /* Убираем скролл внутри контента */
 `;
 
 const TabsContainer = styled.div`
-  margin-top: 0; /* Вилучено верхній відступ, щоб заповнити простір */
-  padding: 20px 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 40px; /* Збережено комфортний відступ */
-  justify-content: center; /* Центрування сітки по горизонталі */
-  justify-items: center; /* Центрування елементів у сітці */
+  display: flex;
+  flex-direction: column;
+  gap: 40px; /* Уменьшаем расстояние до разумного значения */
+  justify-content: center;
+  align-items: center;
+  width: 100%;
 `;
 
 const TabButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 30px;
+  border-radius: 15px;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
-  font-size: 1.2em;
-  width: 80%; /* Збережено гармонійний розмір */
-  height: 150px;
+  font-size: 1.8em;
+  width: 720px;
+  max-width: 90%; /* Ограничиваем ширину для маленьких экранов */
+  height: 180px; /* Уменьшаем высоту с 225px до 180px, чтобы уместить обе кнопки */
   display: flex;
   align-items: center;
   justify-content: center;
@@ -115,24 +119,16 @@ const TabButton = styled(Link)`
 `;
 
 function DailyRoutine() {
-  const navigate = useNavigate();
-
-  const handleBack = () => {
-    navigate(-1);
-  };
-
   return (
     <DailyRoutineContainer>
       <Header>
-        <BackButton onClick={handleBack} />
+        <BackButton to="/" title="Back to Home" aria-label="Back to Home" />
         <Title>Daily Routine</Title>
       </Header>
       <RoutineContent>
         <TabsContainer>
           <TabButton to="/daily-routine/pre-session">Pre-Session Journal</TabButton>
           <TabButton to="/daily-routine/post-session">Post-Session Journal</TabButton>
-          <TabButton to="/daily-routine/emotions">Emotions & Control</TabButton>
-          <TabButton to="/daily-routine/notes">Notes</TabButton>
         </TabsContainer>
       </RoutineContent>
     </DailyRoutineContainer>

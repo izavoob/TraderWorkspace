@@ -75,23 +75,60 @@ const Title = styled.h1`
 `;
 
 const LearningContent = styled.div`
-  margin-top: 148px;
+  margin-top: 120px;
   padding-top: 20px;
   overflow-x: hidden;
 `;
 
-function EmotionsControl() {
+const TabsContainer = styled.div`
+  margin-top: 0;
+  padding: 20px 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+  justify-content: center;
+  justify-items: center;
+`;
+
+const TabButton = styled(Link)`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  color: #fff;
+  border: none;
+  padding: 20px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  font-size: 1.2em;
+  width: 80%;
+  height: 150px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  &:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+function LearningSection() {
   return (
     <LearningSectionContainer>
       <Header>
-        <BackButton to="/learning-section" title="Back to Learning Section" aria-label="Back to Learning Section" />
-        <Title>Emotions & Control</Title>
+        <BackButton to="/" title="Back to Home" aria-label="Back to Home" />
+        <Title>Learning Section</Title>
       </Header>
       <LearningContent>
-        <p>This section will contain emotions and control tracking content.</p>
+        <TabsContainer>
+          <TabButton to="/learning-section/emotions">Emotions & Control</TabButton>
+          <TabButton to="/learning-section/notes">Notes</TabButton>
+        </TabsContainer>
       </LearningContent>
     </LearningSectionContainer>
   );
 }
 
-export default EmotionsControl;
+export default LearningSection;

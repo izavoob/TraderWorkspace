@@ -8,8 +8,9 @@ import CreateTrade from './components/CreateTrade.jsx';
 import DailyRoutine from './components/DailyRoutine.jsx';
 import PreSessionJournal from './components/PreSessionJournal.jsx';
 import PostSessionJournal from './components/PostSessionJournal.jsx';
-import EmotionsControl from './components/EmotionsControl.jsx';
-import Notes from './components/Notes.jsx';
+import LearningSection from './components/LearningSection.jsx'; // Новый импорт
+import EmotionsControl from './components/EmotionsControl.jsx'; // Новый импорт
+import Notes from './components/Notes.jsx'; // Новый импорт
 import styled, { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
@@ -128,12 +129,12 @@ function App() {
           <Route path="/daily-routine" element={<DailyRoutine />} />
           <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
           <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
-          <Route path="/daily-routine/emotions" element={<EmotionsControl />} />
-          <Route path="/daily-routine/notes" element={<Notes />} />
+          <Route path="/learning-section" element={<LearningSection />} />
+          <Route path="/learning-section/emotions" element={<EmotionsControl />} />
+          <Route path="/learning-section/notes" element={<Notes />} />
           <Route path="/performance-analysis" element={<Placeholder title="Performance Analysis" />} />
           <Route path="/statistics" element={<Placeholder title="Statistics" />} />
           <Route path="/risk-management" element={<Placeholder title="Risk Management" />} />
-          <Route path="/learning-section" element={<Placeholder title="Learning Section" />} />
           <Route path="/reporting-system" element={<Placeholder title="Reporting System" />} />
           <Route path="/settings" element={<Placeholder title="Settings" />} />
         </Routes>
@@ -144,36 +145,15 @@ function App() {
 
 function getSectionTitle(path) {
   switch (path) {
-    case '/daily-routine/pre-session':
-      return 'PRE-SESSION JOURNAL';
-    case '/daily-routine/post-session':
-      return 'POST-SESSION JOURNAL';
-    case '/daily-routine/emotions':
-      return 'EMOTIONS & CONTROL';
-    case '/daily-routine/notes':
-      return 'NOTES';
-    case '/daily-routine':
-      return 'DAILY ROUTINE';
-    case '/#daily-routine':
-      return 'DAILY ROUTINE';
-    case '/#performance-analysis':
-      return 'PERFORMANCE ANALYSIS';
-    case '/#statistics':
-      return 'STATISTICS';
-    case '/#risk-management':
-      return 'RISK MANAGEMENT';
-    case '/#learning-section':
-      return 'LEARNING SECTION';
-    case '/#reporting-system':
-      return 'REPORTING SYSTEM';
-    case '/#settings':
-      return 'SETTINGS';
-    case '/#trade/:id':
-      return 'TRADE DETAIL';
-    case '/#create-trade':
-      return 'CREATE TRADE';
-    default:
-      return '';
+    case '/daily-routine': return 'DAILY ROUTINE';
+    case '/daily-routine/pre-session': return 'PRE-SESSION JOURNAL';
+    case '/daily-routine/post-session': return 'POST-SESSION JOURNAL';
+    case '/learning-section': return 'LEARNING SECTION';
+    case '/learning-section/emotions': return 'EMOTIONS & CONTROL';
+    case '/learning-section/notes': return 'NOTES';
+    case '/trade-journal': return 'TRADE JOURNAL';
+    case '/create-trade': return 'CREATE TRADE';
+    default: return path.split('/')[1]?.toUpperCase() || '';
   }
 }
 
