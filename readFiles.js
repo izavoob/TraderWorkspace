@@ -6,13 +6,15 @@ async function readFiles() {
   const filesToRead = [
     'src/App.jsx',
     'src/components/CreateTrade.jsx',
-    'src/components/DailyRoutine.jsx', // Додано, згадувався раніше
+    'src/components/DailyRoutine.jsx',
     'src/components/GalleryItem.jsx',
     'src/components/Home.jsx',
-    'src/components/TradeTableComponent.jsx', // Доданий файл для таблиці трейдів
-    'src/components/ActionButtons.jsx', // Доданий файл для кнопок "Edit"/"Delete"
-    'src/components/Home.jsx', // Новий файл, доданий для "Home"
-    'src/components/Trash.jsx', // Новий файл, доданий для кошика
+    'src/components/TradeTableComponent.jsx',
+    'src/components/ActionButtons.jsx',
+    'src/components/Trash.jsx',
+    'src/components/EmotionsControl.jsx', // Додано
+    'src/components/Notes.jsx', // Додано
+    'src/components/LearningSection.jsx', // Додано
     'src/index.jsx',
     'index.html',
     'main.js',

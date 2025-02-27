@@ -1,14 +1,14 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
-const DailyRoutineContainer = styled.div`
+const LearningSectionContainer = styled.div`
   max-width: 1820px;
   margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  overflow-x: hidden;
 `;
 
 const Header = styled.header`
@@ -30,7 +30,7 @@ const Header = styled.header`
   align-items: center;
 `;
 
-const BackButton = styled.button`
+const BackButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
   padding: 0;
@@ -43,6 +43,7 @@ const BackButton = styled.button`
   top: 0;
   opacity: 0;
   transition: all 0.3s ease;
+  text-decoration: none;
   &:hover {
     opacity: 1;
     transform: scale(1.1);
@@ -73,29 +74,23 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
-const RoutineContent = styled.div`
+const LearningContent = styled.div`
   margin-top: 148px;
   padding-top: 20px;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  overflow-x: hidden;
 `;
 
 function Notes() {
-  const navigate = useNavigate();
-
-  const handleBack = () => {
-    navigate('/daily-routine');
-  };
-
   return (
-    <DailyRoutineContainer>
+    <LearningSectionContainer>
       <Header>
-        <BackButton onClick={handleBack} />
+        <BackButton to="/learning-section" title="Back to Learning Section" aria-label="Back to Learning Section" />
         <Title>Notes</Title>
       </Header>
-      <RoutineContent>
+      <LearningContent>
         <p>This section will contain general notes content.</p>
-      </RoutineContent>
-    </DailyRoutineContainer>
+      </LearningContent>
+    </LearningSectionContainer>
   );
 }
 

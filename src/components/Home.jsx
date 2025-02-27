@@ -38,7 +38,7 @@ const Gallery = styled.div`
   margin-top: 168px;
   padding: 20px;
   width: 100%;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  overflow-x: hidden;
 `;
 
 function Home() {
