@@ -6,6 +6,10 @@ import TradeDetail from './components/TradeDetail.jsx';
 import Placeholder from './components/Placeholder.jsx';
 import CreateTrade from './components/CreateTrade.jsx';
 import DailyRoutine from './components/DailyRoutine.jsx';
+import PreSessionJournal from './components/PreSessionJournal.jsx';
+import PostSessionJournal from './components/PostSessionJournal.jsx';
+import EmotionsControl from './components/EmotionsControl.jsx';
+import Notes from './components/Notes.jsx';
 import styled, { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
@@ -15,25 +19,20 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+    overflow-x: hidden;
   }
-
-  /* Стиль повзунка скролінга */
   ::-webkit-scrollbar {
-    width: 6px; /* Вузький повзунок */
+    width: 6px;
   }
-
   ::-webkit-scrollbar-track {
-    background: transparent; /* Без фону */
+    background: transparent;
   }
-
   ::-webkit-scrollbar-thumb {
-    background: #7425C9; /* Колір повзунка */
+    background: #7425C9;
     border-radius: 3px;
   }
-
   ::-webkit-scrollbar-thumb:hover {
-    background: #5e2ca5; /* Колір при наведенні */
+    background: #5e2ca5;
   }
 `;
 
@@ -47,7 +46,7 @@ const AppContainer = styled.div`
   min-height: 100vh;
   box-sizing: border-box;
   width: 100%;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  overflow-x: hidden;
 `;
 
 const NavigationButtons = styled.div`
@@ -56,7 +55,6 @@ const NavigationButtons = styled.div`
   left: 10px;
   display: flex;
   align-items: center;
-
   &.hidden {
     display: none;
   }
@@ -76,32 +74,25 @@ const NavButton = styled.button`
   align-items: center;
   justify-content: center;
   transition: transform 0.2s ease, background-color 0.2s ease;
-
   &.back {
     border-right: 2px solid #4a1a8d;
   }
-
   &.forward {
     margin-left: '-2px';
   }
-
   &:hover {
     background-color: #4a1a8d;
     transform: scale(1.1);
   }
-
   &:active {
     transform: scale(0.95);
   }
-
   &:before {
     font-size: 20px;
   }
-
   &.back::before {
     content: "\\2190";
   }
-
   &.forward::before {
     content: "\\2192";
   }
@@ -135,6 +126,10 @@ function App() {
           <Route path="/trade/:id" element={<TradeDetail />} />
           <Route path="/create-trade" element={<CreateTrade />} />
           <Route path="/daily-routine" element={<DailyRoutine />} />
+          <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
+          <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
+          <Route path="/daily-routine/emotions" element={<EmotionsControl />} />
+          <Route path="/daily-routine/notes" element={<Notes />} />
           <Route path="/performance-analysis" element={<Placeholder title="Performance Analysis" />} />
           <Route path="/statistics" element={<Placeholder title="Statistics" />} />
           <Route path="/risk-management" element={<Placeholder title="Risk Management" />} />
@@ -149,6 +144,16 @@ function App() {
 
 function getSectionTitle(path) {
   switch (path) {
+    case '/daily-routine/pre-session':
+      return 'PRE-SESSION JOURNAL';
+    case '/daily-routine/post-session':
+      return 'POST-SESSION JOURNAL';
+    case '/daily-routine/emotions':
+      return 'EMOTIONS & CONTROL';
+    case '/daily-routine/notes':
+      return 'NOTES';
+    case '/daily-routine':
+      return 'DAILY ROUTINE';
     case '/#daily-routine':
       return 'DAILY ROUTINE';
     case '/#performance-analysis':

@@ -1,6 +1,5 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
 const DailyRoutineContainer = styled.div`
@@ -75,68 +74,29 @@ const Title = styled.h1`
 `;
 
 const RoutineContent = styled.div`
-  margin-top: 120px; /* Зменшено верхній відступ для заповнення простору */
-  padding: 20px 0;
+  margin-top: 148px;
+  padding-top: 20px;
   overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;
 
-const TabsContainer = styled.div`
-  margin-top: 0; /* Вилучено верхній відступ, щоб заповнити простір */
-  padding: 20px 0;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 40px; /* Збережено комфортний відступ */
-  justify-content: center; /* Центрування сітки по горизонталі */
-  justify-items: center; /* Центрування елементів у сітці */
-`;
-
-const TabButton = styled(Link)`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  color: #fff;
-  border: none;
-  padding: 20px;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  font-size: 1.2em;
-  width: 80%; /* Збережено гармонійний розмір */
-  height: 150px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  text-decoration: none;
-  &:hover {
-    transform: scale(1.05);
-    opacity: 0.9;
-  }
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-function DailyRoutine() {
+function PostSessionJournal() {
   const navigate = useNavigate();
 
   const handleBack = () => {
-    navigate(-1);
+    navigate('/daily-routine');
   };
 
   return (
     <DailyRoutineContainer>
       <Header>
         <BackButton onClick={handleBack} />
-        <Title>Daily Routine</Title>
+        <Title>Post-Session Journal</Title>
       </Header>
       <RoutineContent>
-        <TabsContainer>
-          <TabButton to="/daily-routine/pre-session">Pre-Session Journal</TabButton>
-          <TabButton to="/daily-routine/post-session">Post-Session Journal</TabButton>
-          <TabButton to="/daily-routine/emotions">Emotions & Control</TabButton>
-          <TabButton to="/daily-routine/notes">Notes</TabButton>
-        </TabsContainer>
+        <p>This section will contain post-session review content.</p>
       </RoutineContent>
     </DailyRoutineContainer>
   );
 }
 
-export default DailyRoutine;
+export default PostSessionJournal;
