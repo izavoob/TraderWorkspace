@@ -2,28 +2,22 @@ const fs = require('fs').promises;
 const path = require('path');
 
 async function readFiles() {
-  const projectDir = ''; // Оновіть шлях, якщо інший
+  const projectDir = ''; // Оновіть шлях, якщо потрібно
   const filesToRead = [
-    'src/App.jsx',
-    'src/components/CreateTrade.jsx',
+    'README.md', //завжди має записуватися
+    'webpack.config.js', //завжди має записуватися
+    'preload.js', //завжди має записуватися
+    'index.html', //завжди має записуватися
+    'main.js', //завжди має записуватися
+    'src/App.jsx', //завжди має записуватися
+    'src/components/Home.jsx', //завжди має записуватися
+    'src/index.jsx', //завжди має записуватися
+    'package.json', //завжди має записуватися
+
+    // Ті що нижче, треба змінювати, залежно від того чи планується із ними робота. Логіка така, якщо із Trash.jsx ти не плануєш працювати, то його у список не додаєш, так як боту код цього файла не потрібний.
+   // Якщо ти хочеш працювати над чимось, наприклад в Daily Routine, хочеш додати функціонал, то її треба додати в список, щоб бот прочитав весь код DailyRoutine.jsx повністю і давав правильний код.
     'src/components/DailyRoutine.jsx',
-    'src/components/GalleryItem.jsx',
-    'src/components/Home.jsx',
-    'src/components/TradeTableComponent.jsx',
-    'src/components/ActionButtons.jsx',
-    'src/components/Trash.jsx',
-    'src/components/EmotionsControl.jsx', // Додано
-    'src/components/Notes.jsx', // Додано
-    'src/components/LearningSection.jsx', // Додано
-    'src/index.jsx',
-    'index.html',
-    'main.js',
-    'preload.js',
-    'webpack.config.js',
-    'package.json',
-    'README.md',
-    '.gitignore'
-  ];
+  ]; // Цей список, це все, що бот знає про програму та її код. Але цього має бути достатньо для роботи. Якщо функціонал передбачає взаємозв'язок декількох компонентів, то до списку треба додати пов'язаний компонент.
 
   const projectData = {};
 
@@ -31,8 +25,8 @@ async function readFiles() {
     const filePath = path.join(projectDir, file);
     try {
       const content = await fs.readFile(filePath, 'utf8');
-      // Перетворюємо вміст у один рядок, замінюючи перенос рядків на пробіли
-      projectData[file] = content.replace(/(\r\n|\n|\r)/g, ' ').replace(/\s+/g, ' ').trim();
+      // Зберігаємо вміст як є, без зміни форматування
+      projectData[file] = content;
       console.log(`Successfully read ${file}`);
     } catch (error) {
       console.error(`Error reading ${file}: ${error.message}`);
