@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
+import DeleteIcon from '../assets/icons/delete-icon.svg';
+import EditIcon from '../assets/icons/edit-icon.svg';
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
@@ -82,6 +84,7 @@ const TradeNumber = styled.p`
   color: #fff;
   font-size: 1.2em;
   margin: 10px 0;
+  text-align: center;
 `;
 
 const TradeContent = styled.div`
@@ -108,19 +111,28 @@ const TradeTable = styled.div`
 `;
 
 const FormRow = styled.div`
-  display: flex;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
   gap: 15px;
   margin-bottom: 15px;
+  justify-content: center;
+  align-items: center;
 `;
 
 const FormField = styled.div`
-  flex: 1;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
 const FormLabel = styled.label`
-  color: #fff;
+  color: rgb(92, 157, 245); /* Змінюємо колір на синій */
   margin-bottom: 5px;
   display: block;
+  text-align: center;
+  font-size: 1.5em; /* Залишаємо розмір шрифта у 1.5 рази більшим */
+  width: 100%;
 `;
 
 const FormInput = styled.input`
@@ -130,6 +142,8 @@ const FormInput = styled.input`
   border: 1px solid #5e2ca5;
   border-radius: 5px;
   width: 100%;
+  text-align: center;
+  box-sizing: border-box;
 `;
 
 const FormSelect = styled.select`
@@ -139,10 +153,27 @@ const FormSelect = styled.select`
   border: 1px solid #5e2ca5;
   border-radius: 5px;
   width: 100%;
+  text-align: center;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%235e2ca5" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  box-sizing: border-box;
 `;
 
 const FormCheckbox = styled.input`
   margin-right: 10px;
+  align-self: center;
+  width: auto;
+`;
+
+const FormCheckboxLabel = styled.label`
+  color: rgb(92, 157, 245); /* Змінюємо колір на синій для чекбоксів */
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  font-size: 1.5em; /* Залишаємо розмір шрифта у 1.5 рази більшим */
+  text-align: center;
 `;
 
 const FormButton = styled.button`
@@ -223,6 +254,7 @@ const SectionTitle = styled.h2`
   color: #5e2ca5;
   margin: 20px 0 10px;
   font-size: 2em;
+  text-align: center;
 `;
 
 const ScreenshotContainer = styled.div`
@@ -230,6 +262,7 @@ const ScreenshotContainer = styled.div`
   flex-wrap: wrap;
   gap: 20px;
   width: 100%;
+  justify-content: center;
 `;
 
 const ScreenshotField = styled.div`
@@ -252,6 +285,7 @@ const ScreenshotTitle = styled.h3`
   color: #fff;
   margin-bottom: 10px;
   font-size: 1em;
+  text-align: center;
 `;
 
 const ScreenshotInput = styled.input`
@@ -287,10 +321,14 @@ const Row = styled.div`
   display: flex;
   gap: 20px;
   width: 100%;
+  justify-content: center;
 `;
 
 const NoteContainer = styled.div`
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 `;
 
 const NoteItem = styled.div`
@@ -301,6 +339,8 @@ const NoteItem = styled.div`
   margin-bottom: 10px;
   cursor: pointer;
   position: relative;
+  width: 100%;
+  max-width: 400px;
 `;
 
 const NoteText = styled.p`
@@ -309,6 +349,7 @@ const NoteText = styled.p`
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+  text-align: center;
 `;
 
 const IconButton = styled.button`
@@ -417,12 +458,14 @@ const NotePopup = styled.div`
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
+  align-items: center;
   gap: 10px;
 `;
 
 const NotePopupTitle = styled.h3`
   color: #fff;
   margin: 0 0 10px;
+  text-align: center;
 `;
 
 const NotePopupInput = styled.input`
@@ -432,6 +475,7 @@ const NotePopupInput = styled.input`
   border: 1px solid #5e2ca5;
   border-radius: 5px;
   width: 100%;
+  text-align: center;
 `;
 
 const NotePopupTextArea = styled.textarea`
@@ -442,12 +486,14 @@ const NotePopupTextArea = styled.textarea`
   border-radius: 5px;
   width: 100%;
   flex-grow: 1;
+  text-align: center;
 `;
 
 const NotePopupButtons = styled.div`
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  justify-content: center;
+  width: 100%;
 `;
 
 function CreateTrade() {
@@ -638,8 +684,12 @@ function CreateTrade() {
         rr: trade.rr ? `${trade.rr}RR` : '',
         volumeConfirmation: trade.volumeConfirmation.join(', '),
       };
-      await window.electronAPI.saveTrade(tradeData);
-      navigate('/trade-journal');
+      const result = await window.electronAPI.saveTrade(tradeData);
+      if (result) {
+        navigate('/trade-journal', { state: { fromCreateTrade: true } });
+      } else {
+        throw new Error('Failed to save trade');
+      }
     } catch (error) {
       console.error('Error saving trade:', error);
       alert('Failed to save trade. Please try again.');
@@ -647,7 +697,7 @@ function CreateTrade() {
   };
 
   const handleBack = () => {
-    navigate('/trade-journal', { replace: true });
+    navigate(-1); // Повернення назад по історії
   };
 
   return (
@@ -759,7 +809,7 @@ function CreateTrade() {
                 />
               </FormField>
               <FormField>
-                <FormLabel>
+                <FormCheckboxLabel>
                   <FormCheckbox
                     type="checkbox"
                     name="followingPlan"
@@ -767,10 +817,10 @@ function CreateTrade() {
                     onChange={handleChange}
                   />
                   Following the Plan?
-                </FormLabel>
+                </FormCheckboxLabel>
               </FormField>
               <FormField>
-                <FormLabel>
+                <FormCheckboxLabel>
                   <FormCheckbox
                     type="checkbox"
                     name="bestTrade"
@@ -778,7 +828,7 @@ function CreateTrade() {
                     onChange={handleChange}
                   />
                   Best Trade?
-                </FormLabel>
+                </FormCheckboxLabel>
               </FormField>
             </FormRow>
           </TradeTable>
@@ -931,7 +981,7 @@ function CreateTrade() {
               />
               {item.screenshot && (
                 <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('topDownAnalysis', index)}>
-                  <img src="/assets/delete-icon.svg" alt="Delete" />
+                  <img src={DeleteIcon} alt="Delete" />
                 </DeleteScreenshotButton>
               )}
             </ScreenshotField>
@@ -963,7 +1013,7 @@ function CreateTrade() {
               />
               {trade.execution.screenshot && (
                 <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('execution', 0)}>
-                  <img src="/assets/delete-icon.svg" alt="Delete" />
+                  <img src={DeleteIcon} alt="Delete" />
                 </DeleteScreenshotButton>
               )}
             </ScreenshotField>
@@ -992,7 +1042,7 @@ function CreateTrade() {
               />
               {trade.management.screenshot && (
                 <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('management', 0)}>
-                  <img src="/assets/delete-icon.svg" alt="Delete" />
+                  <img src={DeleteIcon} alt="Delete" />
                 </DeleteScreenshotButton>
               )}
             </ScreenshotField>
@@ -1023,10 +1073,10 @@ function CreateTrade() {
                 <NoteItem key={index} onClick={() => openNotePopup(index)}>
                   <NoteText>{note.title}</NoteText>
                   <IconButton className="edit" onClick={(e) => { e.stopPropagation(); openNotePopup(index); }}>
-                    <img src="/assets/edit-icon.svg" alt="Edit" />
+                    <img src={EditIcon} alt="Edit" /> 
                   </IconButton>
                   <IconButton className="delete" onClick={(e) => { e.stopPropagation(); deleteNote(index); }}>
-                    <img src="/assets/delete-icon.svg" alt="Delete" />
+                    <img src={DeleteIcon} alt="Delete" />
                   </IconButton>
                 </NoteItem>
               ))}
