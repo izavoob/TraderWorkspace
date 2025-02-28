@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import DeleteIcon from '../assets/icons/delete-icon.svg';
-import EditIcon from '../assets/icons/edit-icon.svg';
+import DeleteIcon from '../../assets/icons/delete-icon.svg';;
+import EditIcon from '../../assets/icons/edit-icon.svg';
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;

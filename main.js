@@ -179,6 +179,11 @@ ipcMain.handle('deleteNote', async (event, id) => {
     });
   });
 });
+ipcMain.handle('get-trade', async (event, id) => {
+  // Отримання трейду з бази даних за id
+  const trade = await db.get('SELECT * FROM trades WHERE id = ?', id);
+  return trade;
+});
 
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
