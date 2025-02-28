@@ -102,13 +102,14 @@ const TabButton = styled(Link)`
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
   font-size: 1.8em;
-  width: 100%; /* Заполняет TabsContainer */
+  width: 100%; /* Адаптивная ширина внутри контейнера */
   height: 180px; /* Изначальная фиксированная высота */
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  box-sizing: border-box;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Добавляем тень как в Header */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Добавляем тень как в Header */
   &:hover {
     transform: scale(1.05);
     opacity: 0.9;

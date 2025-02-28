@@ -1,5 +1,6 @@
 import React from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
+import styled, { createGlobalStyle } from 'styled-components';
 import Home from './components/Home.jsx';
 import TradeJournal from './components/TradeJournal.jsx';
 import TradeDetail from './components/TradeDetail.jsx';
@@ -7,16 +8,22 @@ import CreateTrade from './components/CreateTrade.jsx';
 import DailyRoutine from './components/DailyRoutine.jsx';
 import PreSessionJournal from './components/PreSessionJournal.jsx';
 import PostSessionJournal from './components/PostSessionJournal.jsx';
-import EmotionsControl from './components/EmotionsControl.jsx';
-import Notes from './components/Notes.jsx';
 import Placeholder from './components/Placeholder.jsx';
-import styled, { createGlobalStyle } from 'styled-components';
 import PerformanceAnalysis from './components/PerformanceAnalysis.jsx';
+import WPA from './components/PerformanceAnalysis/WPA.jsx';
+import MPA from './components/PerformanceAnalysis/MPA.jsx';
+import QPA from './components/PerformanceAnalysis/QPA.jsx';
+import YPA from './components/PerformanceAnalysis/YPA.jsx';
+import LearningSection from './components/LearningSection.jsx'; // Додаємо імпорт LearningSection
+import Strategy from './components/LearningSection/Strategy.jsx';
+import TradingPsychology from './components/LearningSection/TradingPsychology.jsx';
+import Notes from './components/LearningSection/Notes.jsx';
 import Statistics from './components/Statistics.jsx';
 import RiskManagement from './components/RiskManagement.jsx';
 import ReportingSystem from './components/ReportingSystem.jsx';
 import Settings from './components/Settings.jsx';
-import LearningSection from './components/LearningSection.jsx'; // Додаємо імпорт LearningSection
+
+
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -134,12 +141,18 @@ function App() {
           <Route path="/daily-routine" element={<DailyRoutine />} />
           <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
           <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
-          <Route path="/daily-routine/emotions" element={<EmotionsControl />} />
-          <Route path="/daily-routine/notes" element={<Notes />} />
+          <Route path="/learning-section" element={<LearningSection />} />
+          <Route path="/learning-section/strategy" element={<Strategy />} />
+          <Route path="/learning-section/trading-psychology" element={<TradingPsychology />} />
+          <Route path="/learning-section/notes" element={<Notes />} />
           <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
+          <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
+          <Route path="/performance-analysis/wpa" element={<WPA />} />
+          <Route path="/performance-analysis/mpa" element={<MPA />} />
+          <Route path="/performance-analysis/qpa" element={<QPA />} />
+          <Route path="/performance-analysis/ypa" element={<YPA />} />
           <Route path="/statistics" element={<Statistics />} />
           <Route path="/risk-management" element={<RiskManagement />} />
-          <Route path="/learning-section" element={<LearningSection />} /> {/* Замінюємо Placeholder на LearningSection */}
           <Route path="/reporting-system" element={<ReportingSystem />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
@@ -154,10 +167,12 @@ function getSectionTitle(path) {
       return 'PRE-SESSION JOURNAL';
     case '/daily-routine/post-session':
       return 'POST-SESSION JOURNAL';
-    case '/daily-routine/emotions':
-      return 'EMOTIONS & CONTROL';
-    case '/daily-routine/notes':
-      return 'NOTES';
+    case '/learning-section/strategy':
+        return 'STRATEGY DEVELOPMENT';
+    case '/learning-section/trading-psychology':
+        return 'TRADING PSYCHOLOGY';
+    case '/notes':
+        return 'NOTES';
     case '/daily-routine':
       return 'DAILY ROUTINE';
     case '/#daily-routine':
