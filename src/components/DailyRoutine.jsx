@@ -3,14 +3,13 @@ import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
 const DailyRoutineContainer = styled.div`
-  max-width: 1820px;
-  margin: 20px auto;
-  height: 100vh; /* Фиксируем высоту на весь экран */
+  height: 100%; /* Используем 100% от родителя (body/html) */
+  width: 100%;
   background-color: #1a1a1a;
-  padding: 20px;
-  overflow: hidden; /* Убираем весь скролл */
+  overflow: hidden; /* Убираем скролл полностью */
   display: flex;
   flex-direction: column;
+  box-sizing: border-box;
 `;
 
 const Header = styled.header`
@@ -23,9 +22,7 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
-  min-height: 6.67vh;
-  max-height: 128px;
+  height: 128px; /* Фиксированная высота заголовка */
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -77,38 +74,41 @@ const Title = styled.h1`
 `;
 
 const RoutineContent = styled.div`
-  flex: 1; /* Занимает оставшееся пространство */
+  margin-top: 128px; /* Учитываем только высоту Header */
+  height: calc(100% - 128px); /* Оставшееся пространство после Header */
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden; /* Убираем скролл внутри контента */
+  overflow: hidden; /* Убираем скролл внутри */
+  box-sizing: border-box;
 `;
 
 const TabsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 40px; /* Уменьшаем расстояние до разумного значения */
+  gap: 40px; /* Изначальный gap из твоего кода */
   justify-content: center;
   align-items: center;
-  width: 100%;
+  width: 720px; /* Изначальная ширина кнопок */
+  max-width: 90%; /* Адаптивность для маленьких экранов */
 `;
 
 const TabButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
-  padding: 30px;
+  padding: 30px; /* Изначальный padding */
   border-radius: 15px;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
   font-size: 1.8em;
-  width: 720px;
-  max-width: 90%; /* Ограничиваем ширину для маленьких экранов */
-  height: 180px; /* Уменьшаем высоту с 225px до 180px, чтобы уместить обе кнопки */
+  width: 100%; /* Заполняет TabsContainer */
+  height: 180px; /* Изначальная фиксированная высота */
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  box-sizing: border-box;
   &:hover {
     transform: scale(1.05);
     opacity: 0.9;
