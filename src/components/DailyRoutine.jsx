@@ -3,13 +3,19 @@ import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
 const DailyRoutineContainer = styled.div`
-  height: 100%; /* Используем 100% от родителя (body/html) */
-  width: 100%;
+ max-width: 1820px;
+  margin: 0 auto; // Прибрали margin-top
+  height: 100vh;
   background-color: #1a1a1a;
-  overflow: hidden; /* Убираем скролл полностью */
+  padding: 0; // Прибрали padding
+  overflow: hidden;
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  position: fixed; // Додали fixed позиціонування
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 `;
 
 const Header = styled.header`
@@ -74,13 +80,12 @@ const Title = styled.h1`
 `;
 
 const RoutineContent = styled.div`
-  margin-top: 128px; /* Учитываем только высоту Header */
-  height: calc(100% - 128px); /* Оставшееся пространство после Header */
+  flex: 1;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden; /* Убираем скролл внутри */
-  box-sizing: border-box;
+  overflow: hidden;
+  margin-top: 128px; // Додали відступ зверху для врахування висоти хедера
 `;
 
 const TabsContainer = styled.div`

@@ -1,15 +1,21 @@
 import React from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
-const PerformanceAnalysisContainer = styled.div`
+const PerformanceContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
-  min-height: 100vh;
+  margin: 0 auto; 
+  height: 100vh;
   background-color: #1a1a1a;
-  padding: 20px;
-  overflow-y: auto;
-  overflow-x: hidden;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed; 
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 `;
 
 const Header = styled.header`
@@ -31,7 +37,7 @@ const Header = styled.header`
   align-items: center;
 `;
 
-const BackButton = styled.button`
+const BackButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
   padding: 0;
@@ -39,23 +45,21 @@ const BackButton = styled.button`
   height: 100%;
   border-radius: 0;
   cursor: pointer;
-  position: absolutely;
+  position: absolute;
   left: 0;
   top: 0;
   opacity: 0;
   transition: all 0.3s ease;
-
+  text-decoration: none;
   &:hover {
     opacity: 1;
     transform: scale(1.1);
   }
-
   &:active {
     transform: scale(0.98);
   }
-
   &:before {
-    content: 'Back';
+    content: "Back";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -64,7 +68,6 @@ const BackButton = styled.button`
     color: rgba(255, 255, 255, 0);
     transition: color 0.3s ease;
   }
-
   &:hover:before {
     color: #fff;
   }
@@ -78,66 +81,65 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
-const Content = styled.div`
-  margin-top: 148px; /* Зсув для обходу фіксованого Header */
-  padding-top: 20px;
+const PerformanceContent = styled.div`
+  flex: 1;
   display: flex;
-  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+  margin-top: 128px;
+`;
+
+const TabsContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+  justify-content: center;
   align-items: center;
   width: 100%;
+  max-width: 1500px;
+  padding: 0 20px;
 `;
 
-const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245); /* Синій колір, як у лабелів у CreateTrade */
-  margin: 20px 0 10px;
-  font-size: 2em;
-  text-align: center;
-`;
-
-const Card = styled.div`
-  background-color: #2e2e2e;
-  padding: 20px;
-  border-radius: 10px;
-  border: 2px solid #5e2ca5;
-  margin-bottom: 20px;
-  width: 80%;
-  max-width: 800px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-`;
-
-const PlaceholderText = styled.p`
+const TabButton = styled(Link)`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
-  font-size: 1.2em;
-  text-align: center;
+  border: none;
+  padding: 30px;
+  border-radius: 15px;
+  cursor: pointer;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  font-size: 1.8em;
+  height: 180px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  &:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+  &:active {
+    transform: scale(0.95);
+  }
 `;
 
 function PerformanceAnalysis() {
-  const navigate = useNavigate();
-
-  const handleBack = () => {
-    navigate(-1);
-  };
-
   return (
-    <PerformanceAnalysisContainer>
+    <PerformanceContainer>
       <Header>
-        <BackButton onClick={handleBack} />
+        <BackButton to="/" title="Back to Home" aria-label="Back to Home" />
         <Title>Performance Analysis</Title>
       </Header>
-      <Content>
-        <SectionTitle>Performance Overview</SectionTitle>
-        <Card>
-          <PlaceholderText>
-            This section will display detailed performance metrics, including profit/loss, win rate, and trade efficiency. Coming soon with interactive charts and data analysis tools.
-          </PlaceholderText>
-        </Card>
-        <Card>
-          <PlaceholderText>
-            Add features like trade history visualization, performance trends, and comparison with market benchmarks.
-          </PlaceholderText>
-        </Card>
-      </Content>
-    </PerformanceAnalysisContainer>
+      <PerformanceContent>
+        <TabsContainer>
+          <TabButton to="/performance-analysis/wpa">Weekly Performance Analysis</TabButton>
+          <TabButton to="/performance-analysis/mpa">Monthly Performance Analysis</TabButton>
+          <TabButton to="/performance-analysis/qpa">Quarterly Performance Analysis</TabButton>
+          <TabButton to="/performance-analysis/ypa">Yearly Performance Analysis</TabButton>
+        </TabsContainer>
+      </PerformanceContent>
+    </PerformanceContainer>
   );
 }
 
