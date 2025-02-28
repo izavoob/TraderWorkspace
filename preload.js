@@ -9,4 +9,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveBlobAsFile: (buffer) => ipcRenderer.invoke('save-blob-as-file', buffer),
   saveDailyRoutine: (routine) => ipcRenderer.invoke('save-daily-routine', routine),
   getDailyRoutine: (date) => ipcRenderer.invoke('get-daily-routine', date),
+  getTrade: (id) => ipcRenderer.invoke('get-trade', id),
+
 });

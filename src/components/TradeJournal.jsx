@@ -13,17 +13,33 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    overflow: hidden;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5e2ca5;
   }
 `;
 
 const TradeJournalContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
-  min-height: 100vh;
+  margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
   position: relative;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
 `;
 
 const Header = styled.header`
@@ -93,8 +109,12 @@ const Title = styled.h1`
 `;
 
 const JournalContent = styled.div`
-  margin-top: 148px; /* Залишаємо 148px, але перевіримо, чи це не ховає JournalHeader */
+  margin-top: 148px;
   padding-top: 20px;
+  position: relative;
+  min-height: calc(100vh - 168px);
+  width: 100%;
+  overflow-y: visible;
 `;
 
 const JournalHeader = styled.div`
@@ -102,7 +122,10 @@ const JournalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
-  z-index: 999; /* Додаємо z-index, щоб переконатися, що не перекривається Header */
+  z-index: 999;
+  min-height: 50px;
+  flex-direction: row;
+  width: 100%;
 `;
 
 const ButtonGroup = styled.div`
@@ -266,6 +289,7 @@ function TradeJournal() {
   const navigate = useNavigate();
   const location = useLocation();
   const hasRendered = useRef(false);
+  const containerRef = useRef(null);
 
   useEffect(() => {
     const loadTrades = async () => {
@@ -280,8 +304,19 @@ function TradeJournal() {
     loadTrades();
   }, []);
 
-  // Оновлюємо стан при поверненні з CreateTrade
   useEffect(() => {
+    const resetScroll = () => {
+      // Скидаємо прокрутку для контейнера і вікна з затримкою
+      setTimeout(() => {
+        if (containerRef.current) {
+          containerRef.current.scrollTop = 0;
+        }
+        window.scrollTo(0, 0);
+      }, 100); // Затримка 100мс для гарантії завершення рендерингу
+    };
+
+    resetScroll();
+
     if (location.state?.fromCreateTrade && !hasRendered.current) {
       console.log('Returned from CreateTrade, ensuring full render');
       const reloadTrades = async () => {
@@ -289,6 +324,7 @@ function TradeJournal() {
           const loadedTrades = await window.electronAPI.getTrades();
           setTrades(loadedTrades || []);
           hasRendered.current = true;
+          resetScroll(); // Скидаємо прокрутку після завантаження
         } catch (error) {
           console.error('Error reloading trades:', error);
         }
@@ -360,18 +396,17 @@ function TradeJournal() {
     }
   };
 
-  console.log('Rendering TradeJournal, trades:', trades, 'filter:', filter); // Додаємо логування для діагностики
+  console.log('Rendering TradeJournal, trades:', trades, 'filter:', filter);
 
   return (
     <>
       <GlobalStyle />
-      <TradeJournalContainer>
+      <TradeJournalContainer ref={containerRef}>
         <Header>
           <BackButton onClick={handleBack} />
           <Title>Trading Journal</Title>
         </Header>
         <JournalContent>
-          {/* Додаємо умовне логування для діагностики */}
           {console.log('Rendering JournalHeader')}
           <JournalHeader>
             <ButtonGroup>

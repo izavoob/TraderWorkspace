@@ -136,7 +136,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/trade-journal" element={<TradeJournal />} />
-          <Route path="/trade-journal/trade/:id" element={<TradeDetail />} />
+          <Route path="/trade/:id" element={<TradeDetail />} />
           <Route path="/create-trade" element={<CreateTrade />} />
           <Route path="/daily-routine" element={<DailyRoutine />} />
           <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
