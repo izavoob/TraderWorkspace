@@ -2,13 +2,20 @@ import React from 'react';
 import { Link } from 'react-router-dom';
 import styled from 'styled-components';
 
-const LearningSectionContainer = styled.div`
+const StrategyContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
-  min-height: 100vh;
+  margin: 0 auto;
+  height: 100vh;
   background-color: #1a1a1a;
-  padding: 20px;
-  overflow-x: hidden;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 `;
 
 const Header = styled.header`
@@ -74,24 +81,27 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
-const LearningContent = styled.div`
-  margin-top: 148px;
-  padding-top: 20px;
-  overflow-x: hidden;
+const Content = styled.div`
+  margin-top: 128px;
+  padding: 20px;
+  color: white;
+  max-width: 800px;
+  margin-left: auto;
+  margin-right: auto;
 `;
 
-function EmotionsControl() {
+function Strategy() {
   return (
-    <LearningSectionContainer>
+    <StrategyContainer>
       <Header>
-        <BackButton to="/learning-section" title="Back to Learning Section" aria-label="Back to Learning Section" />
-        <Title>Emotions & Control</Title>
+        <BackButton to="/learning-section" title="Back" aria-label="Back" />
+        <Title>Strategy Development</Title>
       </Header>
-      <LearningContent>
-        <p>This section will contain emotions and control tracking content.</p>
-      </LearningContent>
-    </LearningSectionContainer>
+      <Content>
+        {/* Тут буде контент для розділу стратегій */}
+      </Content>
+    </StrategyContainer>
   );
 }
 
-export default EmotionsControl;
+export default Strategy;
