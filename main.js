@@ -65,6 +65,19 @@ async function initializeDatabase() {
       if (err) throw new Error(`Table notes creation failed: ${err.message}`);
     });
 
+    // Таблиця learning_notes
+    db.run(`
+      CREATE TABLE IF NOT EXISTS learning_notes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        title TEXT NOT NULL,
+        content TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+    `, (err) => {
+      if (err) throw new Error(`Table learning_notes creation failed: ${err.message}`);
+    });
+
     // Таблиця daily_routines
     db.run(`
       CREATE TABLE IF NOT EXISTS daily_routines (
@@ -117,6 +130,55 @@ const ensureDatabaseInitialized = async () => {
   }
   if (!db) throw new Error('Database not initialized');
 };
+
+ipcMain.handle('saveNote', async (event, note) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    if (note.id) {
+      // Оновлення існуючої нотатки
+      db.run(
+        'UPDATE learning_notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
+        [note.title, note.content, note.id],
+        function(err) {
+          if (err) {
+            console.error('Error updating learning note:', err);
+            reject(err);
+          } else {
+            resolve(note.id);
+          }
+        }
+      );
+    } else {
+      // Створення нової нотатки
+      db.run(
+        'INSERT INTO learning_notes (title, content) VALUES (?, ?)',
+        [note.title, note.content],
+        function(err) {
+          if (err) {
+            console.error('Error creating learning note:', err);
+            reject(err);
+          } else {
+            resolve(this.lastID);
+          }
+        }
+      );
+    }
+  });
+});
+
+ipcMain.handle('deleteNote', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM learning_notes WHERE id = ?', [id], (err) => {
+      if (err) {
+        console.error('Error deleting learning note:', err);
+        reject(err);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+});
 
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();

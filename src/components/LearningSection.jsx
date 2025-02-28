@@ -4,11 +4,18 @@ import styled from 'styled-components';
 
 const LearningSectionContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
-  min-height: 100vh;
+  margin: 0 auto;
+  height: 100vh;
   background-color: #1a1a1a;
-  padding: 20px;
-  overflow-x: hidden;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
 `;
 
 const Header = styled.header`
@@ -74,37 +81,40 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
-const LearningContent = styled.div`
-  margin-top: 120px;
-  padding-top: 20px;
-  overflow-x: hidden;
+const LearningSectionContent = styled.div`
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  margin-top: 128px;
 `;
 
 const TabsContainer = styled.div`
-  margin-top: 0;
-  padding: 20px 0;
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 40px;
   justify-content: center;
-  justify-items: center;
+  align-items: center;
+  width: 100%;
+  max-width: 1200px;
+  padding: 0 20px;
 `;
 
 const TabButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 30px;
+  border-radius: 15px;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
-  font-size: 1.2em;
-  width: 80%;
-  height: 150px;
+  font-size: 1.8em;
+  height: 180px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
+  text-align: center;
   &:hover {
     transform: scale(1.05);
     opacity: 0.9;
@@ -121,12 +131,13 @@ function LearningSection() {
         <BackButton to="/" title="Back to Home" aria-label="Back to Home" />
         <Title>Learning Section</Title>
       </Header>
-      <LearningContent>
+      <LearningSectionContent>
         <TabsContainer>
-          <TabButton to="/learning-section/emotions">Emotions & Control</TabButton>
+          <TabButton to="/learning-section/strategy">Strategy Development</TabButton>
+          <TabButton to="/learning-section/trading-psychology">Trading Psychology</TabButton>
           <TabButton to="/learning-section/notes">Notes</TabButton>
         </TabsContainer>
-      </LearningContent>
+      </LearningSectionContent>
     </LearningSectionContainer>
   );
 }
