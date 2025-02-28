@@ -3,8 +3,8 @@ import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 import Home from './components/Home.jsx';
 import TradeJournal from './components/TradeJournal.jsx';
-import TradeDetail from './components/TradeDetail.jsx';
-import CreateTrade from './components/CreateTrade.jsx';
+import TradeDetail from './components/TradingJournal/TradeDetail.jsx';
+import CreateTrade from './components/TradingJournal/CreateTrade.jsx';
 import DailyRoutine from './components/DailyRoutine.jsx';
 import PreSessionJournal from './components/PreSessionJournal.jsx';
 import PostSessionJournal from './components/PostSessionJournal.jsx';
@@ -136,7 +136,7 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/trade-journal" element={<TradeJournal />} />
-          <Route path="/trade/:id" element={<TradeDetail />} />
+          <Route path="/trade-journal/trade/:id" element={<TradeDetail />} />
           <Route path="/create-trade" element={<CreateTrade />} />
           <Route path="/daily-routine" element={<DailyRoutine />} />
           <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
