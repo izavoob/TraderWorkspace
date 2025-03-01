@@ -107,6 +107,7 @@ function createWindow() {
   });
 
   mainWindow.once('ready-to-show', () => {
+    mainWindow.maximize(); // Додаємо максимізацію вікна
     mainWindow.show();
   });
 

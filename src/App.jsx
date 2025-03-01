@@ -32,50 +32,20 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    color: white;
-    font-family: 'Arial', sans-serif;
     overflow-x: hidden;
   }
-
-  * {
-    box-sizing: border-box;
-  }
-
   ::-webkit-scrollbar {
     width: 4px;
   }
-
   ::-webkit-scrollbar-track {
     background: transparent;
   }
-
   ::-webkit-scrollbar-thumb {
     background: #7425C9;
     border-radius: 3px;
   }
-
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
-  }
-
-  button {
-    font-family: inherit;
-  }
-
-  input, select, textarea {
-    font-family: inherit;
-    font-size: 16px;
-    background-color: #2e2e2e;
-    color: white;
-    border: 1px solid #5e2ca5;
-    border-radius: 4px;
-    padding: 8px;
-
-    &:focus {
-      outline: none;
-      border-color: #7425C9;
-      box-shadow: 0 0 0 2px rgba(116, 37, 201, 0.2);
-    }
   }
 `;
 
@@ -100,9 +70,6 @@ const NavigationButtons = styled.div`
   left: 10px;
   display: flex;
   align-items: center;
-  gap: 5px;
-  z-index: 100;
-
   &.hidden {
     display: none;
   }
@@ -121,34 +88,28 @@ const NavButton = styled.button`
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: all 0.2s ease;
-
-  &:hover {
-    background-color: #7425C9;
-    transform: scale(1.05);
+  transition: transform 0.2s ease, background-color 0.2s ease;
+  &.back {
+    border-right: 2px solid #4a1a8d;
   }
-
+  &.forward {
+    margin-left: '-2px';
+  }
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.1);
+  }
   &:active {
     transform: scale(0.95);
   }
-
+  &:before {
+    font-size: 20px;
+  }
   &.back::before {
     content: "\\2190";
-    font-size: 20px;
   }
-
   &.forward::before {
     content: "\\2192";
-    font-size: 20px;
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    &:hover {
-      transform: none;
-      background-color: #5e2ca5;
-    }
   }
 `;
 
