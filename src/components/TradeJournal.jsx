@@ -434,7 +434,15 @@ function TradeJournal() {
   const hasRendered = useRef(false);
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
+  const handleApplyFilters = () => {
+    setShowFilterModal(false); // Закриваємо модальне вікно після застосування
+  };
+
   const rangeButtonRef = useRef(null);
+
+  const handleApplyRange = () => {
+    setShowRangeModal(false); // Закриваємо модальне вікно після застосування
+  };
 
   useEffect(() => {
     const loadTrades = async () => {
@@ -524,6 +532,14 @@ function TradeJournal() {
       result: ''
     });
   };
+  
+  const handleFilterApply = () => {
+    setShowFilterDropdown(false);
+  };
+
+  const handleRangeApply = () => {
+    setShowRangeDropdown(false);
+  };
 
   const handleAddTrade = () => {
     navigate('/create-trade');
@@ -581,9 +597,9 @@ function TradeJournal() {
                       dateFormat="yyyy-MM-dd"
                     />
                     <FilterButtonGroup>
-                      <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
-                      <FilterButton>Apply</FilterButton>
-                    </FilterButtonGroup>
+                    <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
+                    <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
+                  </FilterButtonGroup>
                   </RangeDropdown>
                 )}
               </div>
@@ -656,9 +672,9 @@ function TradeJournal() {
                     </FilterGroup>
 
                     <FilterButtonGroup>
-                      <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
-                      <FilterButton>Apply</FilterButton>
-                    </FilterButtonGroup>
+                    <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
+                    <FilterButton onClick={handleFilterApply}>Apply</FilterButton>
+                  </FilterButtonGroup>
                   </FilterDropdown>
                 )}
               </div>
