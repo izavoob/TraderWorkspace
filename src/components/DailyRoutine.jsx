@@ -1,36 +1,52 @@
 import React from 'react';
+import styled, { createGlobalStyle } from 'styled-components';
 import { Link } from 'react-router-dom';
-import styled from 'styled-components';
+
+// Добавляем глобальные стили для скрытия скролла
+const GlobalStyle = createGlobalStyle`
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+`;
 
 const DailyRoutineContainer = styled.div`
-  height: 100%; /* Используем 100% от родителя (body/html) */
-  width: 100%;
-  background-color: #1a1a1a;
-  overflow: hidden; /* Убираем скролл полностью */
   display: flex;
   flex-direction: column;
-  box-sizing: border-box;
+  height: 100vh;
+  background: #1a1a1a;
+  overflow: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const Header = styled.header`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  padding: 20px 0;
-  border-radius: 10px 10px 0 0;
-  color: #fff;
+  padding: 20px;
+  display: flex;
+  align-items: center;
   position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px; /* Фиксированная высота заголовка */
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: center;
+  height: 128px;
+  min-height: 6.67vh;
+  max-height: 128px;
 `;
 
 const BackButton = styled(Link)`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: rgba(0, 0, 0, 0.2);
   border: none;
   padding: 0;
   width: 200px;
@@ -74,42 +90,56 @@ const Title = styled.h1`
 `;
 
 const RoutineContent = styled.div`
-  margin-top: 128px; /* Учитываем только высоту Header */
-  height: calc(100% - 128px); /* Оставшееся пространство после Header */
+  position: fixed;
+  top: 128px;
+  left: 0;
+  right: 0;
+  bottom: 0;
   display: flex;
   justify-content: center;
   align-items: center;
-  overflow: hidden; /* Убираем скролл внутри */
-  box-sizing: border-box;
+  overflow: hidden;
+  padding: 20px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const TabsContainer = styled.div`
   display: flex;
   flex-direction: column;
-  gap: 40px; /* Изначальный gap из твоего кода */
+  gap: 50px;
   justify-content: center;
   align-items: center;
-  width: 720px; /* Изначальная ширина кнопок */
-  max-width: 90%; /* Адаптивность для маленьких экранов */
+  width: 800px;
+  max-width: 95%;
+  height: 100%;
+  max-height: calc(100vh - 168px);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const TabButton = styled(Link)`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   border: none;
-  padding: 30px; /* Изначальный padding */
+  padding: 40px;
   border-radius: 15px;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
   font-size: 1.8em;
-  width: 100%; /* Адаптивная ширина внутри контейнера */
-  height: 180px; /* Изначальная фиксированная высота */
+  width: 100%;
+  height: 200px;
   display: flex;
   align-items: center;
   justify-content: center;
   text-decoration: none;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Добавляем тень как в Header */
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Добавляем тень как в Header */
+  box-sizing: border-box;
   &:hover {
     transform: scale(1.05);
     opacity: 0.9;
@@ -121,18 +151,21 @@ const TabButton = styled(Link)`
 
 function DailyRoutine() {
   return (
-    <DailyRoutineContainer>
-      <Header>
-        <BackButton to="/" title="Back to Home" aria-label="Back to Home" />
-        <Title>Daily Routine</Title>
-      </Header>
-      <RoutineContent>
-        <TabsContainer>
-          <TabButton to="/daily-routine/pre-session">Pre-Session Journal</TabButton>
-          <TabButton to="/daily-routine/post-session">Post-Session Journal</TabButton>
-        </TabsContainer>
-      </RoutineContent>
-    </DailyRoutineContainer>
+    <>
+      <GlobalStyle />
+      <DailyRoutineContainer>
+        <Header>
+          <BackButton to="/" title="Back to Home" aria-label="Back to Home" />
+          <Title>Daily Routine</Title>
+        </Header>
+        <RoutineContent>
+          <TabsContainer>
+            <TabButton to="/daily-routine/pre-session">Pre-Session Journal</TabButton>
+            <TabButton to="/daily-routine/post-session">Post-Session Journal</TabButton>
+          </TabsContainer>
+        </RoutineContent>
+      </DailyRoutineContainer>
+    </>
   );
 }
 
