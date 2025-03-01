@@ -101,15 +101,6 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
-const RoutineContent = styled.div`
-  margin-top: 148px;
-  padding-top: 20px;
-  position: relative;
-  min-height: calc(100vh - 168px);
-  width: 100%;
-  overflow-y: visible;
-`;
-
 const ButtonContainer = styled.div`
   display: flex;
   justify-content: space-between;
@@ -119,6 +110,8 @@ const ButtonContainer = styled.div`
   min-height: 50px;
   flex-direction: row;
   width: 100%;
+  margin-top: 148px;
+  padding-top: 20px;
 `;
 
 const ActionButton = styled.button`
@@ -141,15 +134,6 @@ const ActionButton = styled.button`
 
   &:active {
     transform: scale(0.95);
-  }
-`;
-
-const FullSessionButton = styled(ActionButton)`
-  margin-top: 20px;
-  width: 100%;
-  background: linear-gradient(45deg, #2C5364, #203A43, #0F2027);
-  &:hover {
-    background: linear-gradient(45deg, #203A43, #0F2027, #2C5364);
   }
 `;
 
@@ -185,14 +169,6 @@ const IconButton = styled.button`
     height: 14px;
     filter: brightness(0) invert(1);
   }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-    &:hover {
-      transform: none;
-    }
-  }
 `;
 
 const Table = styled.table`
@@ -209,7 +185,6 @@ const Th = styled.th`
   text-align: left;
   color: #fff;
   font-weight: bold;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 `;
 
 const Td = styled.td`
@@ -218,7 +193,6 @@ const Td = styled.td`
   text-align: left;
   color: #fff;
   background-color: #2e2e2e;
-  position: relative;
 `;
 
 const TableRow = styled.tr`
@@ -230,14 +204,28 @@ const TableRow = styled.tr`
   }
 `;
 
-const Select = styled.select`
+const StyledSelect = styled.select`
   width: 100%;
   padding: 8px;
   background: #3e3e3e;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
-  color: #fff;
-  font-size: 14px;
+  color: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#4ade80';
+      case 'Bearish':
+        return '#f87171';
+      case 'Win':
+        return '#4ade80';
+      case 'Loss':
+        return '#f87171';
+      case 'BE':
+        return '#fbbf24';
+      default:
+        return '#fff';
+    }
+  }};
 
   option {
     background: #3e3e3e;
@@ -249,61 +237,6 @@ const Select = styled.select`
     outline: none;
     border-color: #B886EE;
   }
-`;
-
-const Modal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1100;
-`;
-
-const ModalContent = styled.div`
-  background: #2e2e2e;
-  padding: 30px;
-  border-radius: 15px;
-  border: 2px solid #5e2ca5;
-  width: 90%;
-  max-width: 600px;
-  color: white;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
-`;
-
-const ModalTitle = styled.h2`
-  color: white;
-  text-align: center;
-  margin-bottom: 20px;
-`;
-
-const FormGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 15px;
-  margin-bottom: 20px;
-`;
-
-const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-`;
-
-const Label = styled.label`
-  color: white;
-  font-size: 14px;
-`;
-
-const ModalButtons = styled.div`
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  margin-top: 20px;
 `;
 
 const StyledOption = styled.option`
@@ -323,29 +256,6 @@ const StyledOption = styled.option`
         return '#3e3e3e';
     }
   }};
-  color: ${props => {
-    switch (props.value) {
-      case 'Bullish':
-        return '#4ade80';
-      case 'Bearish':
-        return '#f87171';
-      case 'Win':
-        return '#4ade80';
-      case 'Loss':
-        return '#f87171';
-      case 'BE':
-        return '#fbbf24';
-      default:
-        return '#fff';
-    }
-  }};
-`;
-
-const StyledSelect = styled(Select)`
-  & option {
-    padding: 8px;
-  }
-
   color: ${props => {
     switch (props.value) {
       case 'Bullish':
@@ -405,17 +315,12 @@ const Popup = styled.div`
   border: 2px solid #5e2ca5;
   text-align: center;
   z-index: 1000;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-
-  p {
-    color: #fff;
-    margin-bottom: 20px;
-  }
+  color: white;
 `;
 
 const PopupButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  color: #fff;
+  color: white;
   border: none;
   padding: 8px 20px;
   border-radius: 8px;
@@ -432,8 +337,6 @@ function PreSessionJournal() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [deletePopup, setDeletePopup] = useState(null);
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [editingRow, setEditingRow] = useState(null);
   const [newEntry, setNewEntry] = useState({
     id: null,
     date: new Date().toISOString().split('T')[0],
@@ -459,14 +362,68 @@ function PreSessionJournal() {
     }
   };
 
-  const handleFullSession = (entry = null) => {
-    const sessionData = entry || {
-      ...newEntry,
-      id: Date.now(),
-      date: new Date().toISOString().split('T')[0],
-      weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
-    };
-    navigate('/pre-session-full', { state: { sessionData } });
+  const handleEdit = (id) => {
+    const entryToEdit = data.find(entry => entry.id === id);
+    if (entryToEdit) {
+      navigate(`/daily-routine/pre-session/${id}`, { 
+        state: { sessionData: entryToEdit } 
+      });
+    }
+  };
+
+  const handleAdd = async () => {
+    try {
+      const newRecord = {
+        id: Date.now(),
+        date: new Date().toISOString().split('T')[0],
+        weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+        pair: '',
+        narrative: '',
+        execution: '',
+        outcome: '',
+        planOutcome: false,
+        addPair: false
+      };
+
+      const updatedData = [...data, newRecord];
+      setData(updatedData);
+      await window.electronAPI.saveDailyRoutine({
+        date: newRecord.date,
+        preSession: updatedData,
+        postSession: [],
+        emotions: [],
+        notes: [],
+      });
+
+      setNewEntry(newRecord);
+    } catch (error) {
+      console.error('Error adding pre-session entry:', error);
+      alert('Failed to add Pre-Session entry.');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const updatedData = data.filter(entry => entry.id !== id);
+      setData(updatedData);
+      
+      await window.electronAPI.saveDailyRoutine({
+        date: newEntry.date,
+        preSession: updatedData,
+        postSession: [],
+        emotions: [],
+        notes: [],
+      });
+      
+      setDeletePopup(null);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      alert('Failed to delete entry.');
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/daily-routine');
   };
 
   const columns = React.useMemo(
@@ -479,7 +436,7 @@ function PreSessionJournal() {
           <ButtonsContainer>
             <IconButton
               data-tooltip="Edit entry"
-              onClick={() => handleFullSession(row.original)}
+              onClick={() => handleEdit(row.original.id)}
             >
               <img src={EditIcon} alt="Edit" />
             </IconButton>
@@ -536,7 +493,7 @@ function PreSessionJournal() {
             value={value || ''}
             onChange={(e) => handleChange('execution', e.target.value, row.original.id)}
           >
-            <StyledOption value="">Select</StyledOption>
+                        <StyledOption value="">Select</StyledOption>
             <StyledOption value="Day off">Day off</StyledOption>
             <StyledOption value="No Trades">No Trades</StyledOption>
             <StyledOption value="Skipped">Skipped</StyledOption>
@@ -606,62 +563,6 @@ function PreSessionJournal() {
     fetchData();
   }, [newEntry.date]);
 
-  const handleAdd = async () => {
-    try {
-      const newRecord = {
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
-        pair: '',
-        narrative: '',
-        execution: '',
-        outcome: '',
-        planOutcome: false,
-        addPair: false
-      };
-
-      const updatedData = [...data, newRecord];
-      setData(updatedData);
-      await window.electronAPI.saveDailyRoutine({
-        date: newRecord.date,
-        preSession: updatedData,
-        postSession: [],
-        emotions: [],
-        notes: [],
-      });
-
-      setIsModalOpen(false);
-      setNewEntry(newRecord);
-    } catch (error) {
-      console.error('Error adding pre-session entry:', error);
-      alert('Failed to add Pre-Session entry.');
-    }
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      const updatedData = data.filter(entry => entry.id !== id);
-      setData(updatedData);
-      
-      await window.electronAPI.saveDailyRoutine({
-        date: newEntry.date,
-        preSession: updatedData,
-        postSession: [],
-        emotions: [],
-        notes: [],
-      });
-      
-      setDeletePopup(null);
-    } catch (error) {
-      console.error('Error deleting entry:', error);
-      alert('Failed to delete entry.');
-    }
-  };
-
-  const handleBack = () => {
-    navigate('/daily-routine');
-  };
-
   const {
     getTableProps,
     getTableBodyProps,
@@ -678,57 +579,42 @@ function PreSessionJournal() {
           <BackButton onClick={handleBack} />
           <Title>Pre-Session Analysis Journal</Title>
         </Header>
-        <RoutineContent>
-          <ButtonContainer>
-            <ActionButton primary onClick={handleAdd}>
-              Add new Pre-Session
-            </ActionButton>
-            <div style={{ display: 'flex', gap: '10px' }}>
-              <ActionButton>Range</ActionButton>
-              <ActionButton>Filter</ActionButton>
-            </div>
-          </ButtonContainer>
-          <Table {...getTableProps()}>
-            <thead>
-              {headerGroups.map(headerGroup => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map(column => (
-                    <Th {...column.getHeaderProps()} style={{ width: column.width }}>
-                      {column.render('Header')}
-                    </Th>
+        <ButtonContainer>
+          <ActionButton primary onClick={handleAdd}>
+            Add new Pre-Session
+          </ActionButton>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <ActionButton>Range</ActionButton>
+            <ActionButton>Filter</ActionButton>
+          </div>
+        </ButtonContainer>
+        <Table {...getTableProps()}>
+          <thead>
+            {headerGroups.map(headerGroup => (
+              <tr {...headerGroup.getHeaderGroupProps()}>
+                {headerGroup.headers.map(column => (
+                  <Th {...column.getHeaderProps()} style={{ width: column.width }}>
+                    {column.render('Header')}
+                  </Th>
+                ))}
+              </tr>
+            ))}
+          </thead>
+          <tbody {...getTableBodyProps()}>
+            {rows.map(row => {
+              prepareRow(row);
+              return (
+                <TableRow {...row.getRowProps()}>
+                  {row.cells.map(cell => (
+                    <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                      {cell.render('Cell')}
+                    </Td>
                   ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody {...getTableBodyProps()}>
-              {rows.map(row => {
-                prepareRow(row);
-                return (
-                  <TableRow {...row.getRowProps()}>
-                    {row.cells.map(cell => (
-                      <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                        {cell.render('Cell')}
-                      </Td>
-                    ))}
-                  </TableRow>
-                );
-              })}
-            </tbody>
-          </Table>
-        </RoutineContent>
-
-        {isModalOpen && (
-          <Modal>
-            <ModalContent>
-              <ModalTitle>Pre-Session Options</ModalTitle>
-              <ModalButtons>
-                <PopupButton onClick={() => handleAdd()}>Quick Add</PopupButton>
-                <PopupButton onClick={() => handleFullSession()}>Full Pre-Session</PopupButton>
-                <PopupButton onClick={() => setIsModalOpen(false)}>Cancel</PopupButton>
-              </ModalButtons>
-            </ModalContent>
-          </Modal>
-        )}
+                </TableRow>
+              );
+            })}
+          </tbody>
+        </Table>
 
         {deletePopup && (
           <Popup>
