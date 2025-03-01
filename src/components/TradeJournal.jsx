@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, css } from 'styled-components';
 import { Link } from 'react-router-dom';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
@@ -222,12 +222,22 @@ const FilterDropdown = styled.div`
   }
 `;
 
+const SortDropdown = styled(FilterDropdown)`
+  width: 200px;
+`;
+
 const RangeDropdown = styled(FilterDropdown)`
   width: 300px;
 `;
 
 const FilterGroup = styled.div`
   margin-bottom: 15px;
+`;
+
+const SortGroup = styled(FilterGroup)`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
 `;
 
 const FilterLabel = styled.label`
@@ -274,6 +284,44 @@ const FilterButton = styled.button`
     transform: scale(1.05);
   }
 `;
+const SortOption = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  color: #fff;
+
+  &:hover {
+    background-color: #3e3e3e;
+  }
+
+  ${props => props.selected && `
+    background-color: #5e2ca5;
+  `}
+`;
+
+const RadioButton = styled.div`
+  width: 16px;
+  height: 16px;
+  border: 2px solid #B886EE;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  ${props => props.selected && `
+    &::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      background: #B886EE;
+      border-radius: 50%;
+    }
+  `}
+`;
 
 const StyledDatePicker = styled(DatePicker)`
   background: #2e2e2e;
@@ -310,8 +358,8 @@ const TableHeader = styled.th`
 
 const TableCell = styled.td`
   border: 1px solid #5e2ca5;
-  padding: 10px;
-  text-align: left;
+  padding: 6px;
+  text-align: center;
   color: #fff;
   background-color: #2e2e2e;
   position: relative;
@@ -319,10 +367,22 @@ const TableCell = styled.td`
 
 const TableRow = styled.tr`
   &:nth-child(even) {
-    background-color: #2e2e2e;
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
   }
   &:nth-child(odd) {
-    background-color: #3e3e3e;
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
+  }
+
+  ${props => props.selected && css`
+    && {
+      background-color: rgba(116, 37, 201, 0.3) !important;
+    }
+  `}
+
+  &:hover {
+    .checkbox-container {
+      opacity: ${props => props.selected ? 1 : 0.8};
+    }
   }
 `;
 
@@ -415,10 +475,77 @@ const PopupButton = styled.button`
   }
 `;
 
+const CheckboxContainer = styled.div`
+  opacity: ${props => props.selected ? 1 : 0};
+  transition: opacity 0.2s ease;
+
+  ${TableRow}:hover & {
+    opacity: 0.8;
+  }
+`;
+
+const Checkbox = styled.input.attrs({ type: 'checkbox' })`
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+  appearance: none;
+  border: 2px solid #B886EE;
+  border-radius: 4px;
+  background-color: transparent;
+  position: relative;
+
+  &:checked {
+    background-color: #7425C9;
+    &:after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+  }
+
+  &:hover {
+    border-color: #B886EE;
+  }
+`;
+
+const SelectAllContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 16px;
+  color: #fff;
+  height: 40px; // Додаємо фіксовану висоту
+`;
+
+const DeleteSelectedButton = styled(ActionButton)`
+  background: #ff4757;
+  opacity: ${props => props.disabled ? 0.5 : 1};
+  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+`;
+
+const ConfirmationPopup = styled(Popup)`
+  text-align: center;
+
+  p {
+    margin-bottom: 20px;
+  }
+
+  span {
+    color: #ff4757;
+    font-weight: bold;
+  }
+`;
 function TradeJournal() {
   const [trades, setTrades] = useState([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
+  const [showSortDropdown, setShowSortDropdown] = useState(false);
   const [dateRange, setDateRange] = useState([null, null]);
   const [startDate, endDate] = dateRange;
   const [filterCriteria, setFilterCriteria] = useState({
@@ -428,21 +555,20 @@ function TradeJournal() {
     result: ''
   });
   const [deletePopup, setDeletePopup] = useState(null);
+  const [sortConfig, setSortConfig] = useState({
+    field: 'date',
+    order: 'desc'
+  });
+  const [selectedTrades, setSelectedTrades] = useState([]);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
   const hasRendered = useRef(false);
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
-  const handleApplyFilters = () => {
-    setShowFilterModal(false); // Закриваємо модальне вікно після застосування
-  };
-
   const rangeButtonRef = useRef(null);
-
-  const handleApplyRange = () => {
-    setShowRangeModal(false); // Закриваємо модальне вікно після застосування
-  };
+  const sortButtonRef = useRef(null);
 
   useEffect(() => {
     const loadTrades = async () => {
@@ -459,7 +585,6 @@ function TradeJournal() {
 
   useEffect(() => {
     const handleClickOutside = (event) => {
-      // Перевіряємо, чи клік був не по дропдауну і не по кнопці
       if (filterButtonRef.current && 
           !filterButtonRef.current.contains(event.target) && 
           !event.target.closest('.filter-dropdown')) {
@@ -470,11 +595,23 @@ function TradeJournal() {
           !event.target.closest('.range-dropdown')) {
         setShowRangeDropdown(false);
       }
+      if (sortButtonRef.current && 
+          !sortButtonRef.current.contains(event.target) && 
+          !event.target.closest('.sort-dropdown')) {
+        setShowSortDropdown(false);
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  const handleSort = (field) => {
+    setSortConfig(prev => ({
+      field,
+      order: prev.field === field ? (prev.order === 'asc' ? 'desc' : 'asc') : 'desc'
+    }));
+  };
 
   const filteredTrades = React.useMemo(() => {
     return trades.filter((trade) => {
@@ -482,7 +619,6 @@ function TradeJournal() {
       
       const tradeDate = trade.date ? new Date(trade.date) : null;
       
-      // Модифікуємо перевірку дат, щоб включати крайні дати
       const inDateRange = startDate && endDate && tradeDate ? 
         (tradeDate >= startDate && tradeDate <= new Date(endDate.setHours(23, 59, 59, 999))) : true;
   
@@ -495,9 +631,57 @@ function TradeJournal() {
     });
   }, [trades, filterCriteria, startDate, endDate]);
 
+  const sortedAndFilteredTrades = React.useMemo(() => {
+    const filtered = filteredTrades;
+    
+    return [...filtered].sort((a, b) => {
+      if (sortConfig.field === 'date') {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      if (sortConfig.field === 'no') {
+        // Отримуємо індекс кожного трейду в оригінальному масиві
+        const aIndex = trades.findIndex(t => t.id === a.id);
+        const bIndex = trades.findIndex(t => t.id === b.id);
+        return sortConfig.order === 'asc' ? aIndex - bIndex : bIndex - aIndex;
+      }
+      return 0;
+    });
+  }, [filteredTrades, sortConfig]);
+
+  const handleSelectTrade = (tradeId) => {
+    setSelectedTrades(prev => {
+      if (prev.includes(tradeId)) {
+        return prev.filter(id => id !== tradeId);
+      } else {
+        return [...prev, tradeId];
+      }
+    });
+  };
+
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedTrades(sortedAndFilteredTrades.map(trade => trade.id));
+    } else {
+      setSelectedTrades([]);
+    }
+  };
+
+  const handleDeleteSelected = async () => {
+    try {
+      await Promise.all(selectedTrades.map(id => window.electronAPI.deleteTrade(id)));
+      setTrades(trades.filter(trade => !selectedTrades.includes(trade.id)));
+      setSelectedTrades([]);
+      setShowDeleteConfirmation(false);
+    } catch (error) {
+      console.error('Error deleting trades:', error);
+    }
+  };
+
   const columns = React.useMemo(
     () => [
-      { Header: 'Action', accessor: 'action', width: 20, Cell: () => null },
+      { Header: 'Action', accessor: 'action', width: 20 },
       { Header: 'No.', accessor: (row, i) => i + 1, width: 20 },
       { Header: 'Date', accessor: 'date', width: 120 },
       { Header: 'Pair', accessor: 'pair', width: 120 },
@@ -513,7 +697,7 @@ function TradeJournal() {
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ 
     columns, 
-    data: filteredTrades 
+    data: sortedAndFilteredTrades 
   });
 
   const handleFilterChange = (e) => {
@@ -597,9 +781,9 @@ function TradeJournal() {
                       dateFormat="yyyy-MM-dd"
                     />
                     <FilterButtonGroup>
-                    <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
-                    <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
-                  </FilterButtonGroup>
+                      <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
+                      <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
+                    </FilterButtonGroup>
                   </RangeDropdown>
                 )}
               </div>
@@ -672,14 +856,78 @@ function TradeJournal() {
                     </FilterGroup>
 
                     <FilterButtonGroup>
-                    <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
-                    <FilterButton onClick={handleFilterApply}>Apply</FilterButton>
-                  </FilterButtonGroup>
+                      <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
+                      <FilterButton onClick={handleFilterApply}>Apply</FilterButton>
+                    </FilterButtonGroup>
                   </FilterDropdown>
+                )}
+              </div>
+
+              <div style={{ position: 'relative' }}>
+                <ActionButton 
+                  ref={sortButtonRef}
+                  onClick={() => setShowSortDropdown(!showSortDropdown)}
+                >
+                  Sort
+                </ActionButton>
+                {showSortDropdown && (
+                  <SortDropdown className="sort-dropdown">
+                    <SortGroup>
+                      <FilterLabel>Sort by</FilterLabel>
+                      
+                      <SortOption 
+                        selected={sortConfig.field === 'date'}
+                        onClick={() => handleSort('date')}
+                      >
+                        <RadioButton selected={sortConfig.field === 'date'} />
+                        <span>Date {sortConfig.field === 'date' && 
+                          (sortConfig.order === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+
+                      <SortOption 
+                        selected={sortConfig.field === 'no'}
+                        onClick={() => handleSort('no')}
+                      >
+                        <RadioButton selected={sortConfig.field === 'no'} />
+                        <span>No. {sortConfig.field === 'no' && 
+                          (sortConfig.order === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+                    </SortGroup>
+
+                    <FilterButtonGroup>
+                      <FilterButton 
+                        clear 
+                        onClick={() => {
+                          setSortConfig({ field: 'date', order: 'desc' });
+                          setShowSortDropdown(false);
+                        }}
+                      >
+                        Reset
+                      </FilterButton>
+                      <FilterButton onClick={() => setShowSortDropdown(false)}>
+                        Apply
+                      </FilterButton>
+                    </FilterButtonGroup>
+                  </SortDropdown>
                 )}
               </div>
             </ButtonGroup>
           </JournalHeader>
+
+          <SelectAllContainer>
+            <Checkbox
+              checked={selectedTrades.length === sortedAndFilteredTrades.length && sortedAndFilteredTrades.length > 0}
+              onChange={handleSelectAll}
+            />
+            <span>Select All Trades</span>
+            {selectedTrades.length > 0 && (
+              <DeleteSelectedButton
+                onClick={() => setShowDeleteConfirmation(true)}
+              >
+                Delete Selected ({selectedTrades.length})
+              </DeleteSelectedButton>
+            )}
+          </SelectAllContainer>
 
           <TradeTable {...getTableProps()}>
             <thead>
@@ -703,12 +951,20 @@ function TradeJournal() {
               ) : (
                 rows.map((row) => {
                   prepareRow(row);
+                  const isSelected = selectedTrades.includes(row.original.id);
                   return (
-                    <TableRow className="table-row" {...row.getRowProps()}>
-                      {row.cells.map((cell, index) => (
+                    <TableRow className="table-row" {...row.getRowProps()} selected={isSelected}>
+                                            {row.cells.map((cell, index) => (
                         <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
                           {index === 0 ? (
                             <ButtonsContainer>
+                              <CheckboxContainer className="checkbox-container" selected={isSelected}>
+                                <Checkbox
+                                  checked={selectedTrades.includes(row.original.id)}
+                                  onChange={() => handleSelectTrade(row.original.id)}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </CheckboxContainer>
                               <IconButton 
                                 data-tooltip="Change your trade" 
                                 onClick={() => handleEdit(row.original.id)}
@@ -747,6 +1003,14 @@ function TradeJournal() {
               <PopupButton onClick={() => handleDelete(deletePopup)}>Yes</PopupButton>
               <PopupButton onClick={() => setDeletePopup(null)}>No</PopupButton>
             </Popup>
+          )}
+
+          {showDeleteConfirmation && (
+            <ConfirmationPopup>
+              <p>Are you sure you want to delete <span>{selectedTrades.length}</span> selected trades?</p>
+              <PopupButton onClick={handleDeleteSelected}>Yes, Delete All</PopupButton>
+              <PopupButton onClick={() => setShowDeleteConfirmation(false)}>Cancel</PopupButton>
+            </ConfirmationPopup>
           )}
         </JournalContent>
       </TradeJournalContainer>

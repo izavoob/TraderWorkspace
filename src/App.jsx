@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 import Home from './components/Home.jsx';
@@ -14,7 +14,7 @@ import WPA from './components/PerformanceAnalysis/WPA.jsx';
 import MPA from './components/PerformanceAnalysis/MPA.jsx';
 import QPA from './components/PerformanceAnalysis/QPA.jsx';
 import YPA from './components/PerformanceAnalysis/YPA.jsx';
-import LearningSection from './components/LearningSection.jsx'; // Додаємо імпорт LearningSection
+import LearningSection from './components/LearningSection.jsx';
 import Strategy from './components/LearningSection/Strategy.jsx';
 import TradingPsychology from './components/LearningSection/TradingPsychology.jsx';
 import Notes from './components/LearningSection/Notes.jsx';
@@ -22,9 +22,7 @@ import Statistics from './components/Statistics.jsx';
 import RiskManagement from './components/RiskManagement.jsx';
 import ReportingSystem from './components/ReportingSystem.jsx';
 import Settings from './components/Settings.jsx';
-
-
-
+import LoadingScreen from './components/LoadingScreen.jsx';
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -61,6 +59,8 @@ const AppContainer = styled.div`
   box-sizing: border-box;
   width: 100%;
   overflow-x: hidden;
+  opacity: ${props => props.isLoading ? 0 : 1};
+  transition: opacity 0.3s ease-in-out;
 `;
 
 const NavigationButtons = styled.div`
@@ -113,9 +113,18 @@ const NavButton = styled.button`
 `;
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const isHome = location.pathname === '/';
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleBack = () => {
     navigate(-1);
@@ -125,10 +134,14 @@ function App() {
     navigate(1);
   };
 
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <>
       <GlobalStyle />
-      <AppContainer>
+      <AppContainer isLoading={isLoading}>
         {!isHome && <h2 style={{ color: '#5e2ca5' }}>{getSectionTitle(location.pathname)}</h2>}
         <NavigationButtons className={isHome ? 'hidden' : ''}>
           <NavButton onClick={handleBack} className="back" aria-label="Back" />
@@ -169,11 +182,11 @@ function getSectionTitle(path) {
     case '/daily-routine/post-session':
       return 'POST-SESSION JOURNAL';
     case '/learning-section/strategy':
-        return 'STRATEGY DEVELOPMENT';
+      return 'STRATEGY DEVELOPMENT';
     case '/learning-section/trading-psychology':
-        return 'TRADING PSYCHOLOGY';
+      return 'TRADING PSYCHOLOGY';
     case '/notes':
-        return 'NOTES';
+      return 'NOTES';
     case '/daily-routine':
       return 'DAILY ROUTINE';
     case '/#daily-routine':
@@ -185,7 +198,7 @@ function getSectionTitle(path) {
     case '/risk-management':
       return 'RISK MANAGEMENT';
     case '/learning-section':
-      return 'LEARNING SECTION'; // Оновлюємо для LearningSection
+      return 'LEARNING SECTION';
     case '/reporting-system':
       return 'REPORTING SYSTEM';
     case '/settings':
