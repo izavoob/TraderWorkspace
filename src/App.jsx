@@ -25,6 +25,7 @@ import Settings from './components/Settings.jsx';
 
 
 
+
 const GlobalStyle = createGlobalStyle`
   body, html {
     margin: 0;
@@ -35,7 +36,7 @@ const GlobalStyle = createGlobalStyle`
     overflow-x: hidden;
   }
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
