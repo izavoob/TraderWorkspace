@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 import { useTable, usePagination } from 'react-table';
 import EditIcon from '../assets/icons/edit-icon.svg';
@@ -144,6 +144,15 @@ const ActionButton = styled.button`
   }
 `;
 
+const FullSessionButton = styled(ActionButton)`
+  margin-top: 20px;
+  width: 100%;
+  background: linear-gradient(45deg, #2C5364, #203A43, #0F2027);
+  &:hover {
+    background: linear-gradient(45deg, #203A43, #0F2027, #2C5364);
+  }
+`;
+
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 5px;
@@ -242,6 +251,119 @@ const Select = styled.select`
   }
 `;
 
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1100;
+`;
+
+const ModalContent = styled.div`
+  background: #2e2e2e;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px solid #5e2ca5;
+  width: 90%;
+  max-width: 600px;
+  color: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+`;
+
+const ModalTitle = styled.h2`
+  color: white;
+  text-align: center;
+  margin-bottom: 20px;
+`;
+
+const FormGrid = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 15px;
+  margin-bottom: 20px;
+`;
+
+const FormGroup = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const Label = styled.label`
+  color: white;
+  font-size: 14px;
+`;
+
+const ModalButtons = styled.div`
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 20px;
+`;
+
+const StyledOption = styled.option`
+  background: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#1a472a';
+      case 'Bearish':
+        return '#5c1919';
+      case 'Win':
+        return '#1a472a';
+      case 'Loss':
+        return '#5c1919';
+      case 'BE':
+        return '#714a14';
+      default:
+        return '#3e3e3e';
+    }
+  }};
+  color: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#4ade80';
+      case 'Bearish':
+        return '#f87171';
+      case 'Win':
+        return '#4ade80';
+      case 'Loss':
+        return '#f87171';
+      case 'BE':
+        return '#fbbf24';
+      default:
+        return '#fff';
+    }
+  }};
+`;
+
+const StyledSelect = styled(Select)`
+  & option {
+    padding: 8px;
+  }
+
+  color: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#4ade80';
+      case 'Bearish':
+        return '#f87171';
+      case 'Win':
+        return '#4ade80';
+      case 'Loss':
+        return '#f87171';
+      case 'BE':
+        return '#fbbf24';
+      default:
+        return '#fff';
+    }
+  }};
+`;
+
 const Checkbox = styled.input`
   appearance: none;
   width: 20px;
@@ -310,8 +432,10 @@ function PreSessionJournal() {
   const navigate = useNavigate();
   const [data, setData] = useState([]);
   const [deletePopup, setDeletePopup] = useState(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingRow, setEditingRow] = useState(null);
   const [newEntry, setNewEntry] = useState({
-    id: Date.now(),
+    id: null,
     date: new Date().toISOString().split('T')[0],
     weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
     pair: '',
@@ -321,6 +445,29 @@ function PreSessionJournal() {
     planOutcome: false,
     addPair: false,
   });
+
+  const handleChange = (field, value, rowId = null) => {
+    if (rowId !== null) {
+      setData(prevData => prevData.map(item =>
+        item.id === rowId ? { ...item, [field]: value } : item
+      ));
+    } else {
+      setNewEntry(prev => ({
+        ...prev,
+        [field]: value,
+      }));
+    }
+  };
+
+  const handleFullSession = (entry = null) => {
+    const sessionData = entry || {
+      ...newEntry,
+      id: Date.now(),
+      date: new Date().toISOString().split('T')[0],
+      weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+    };
+    navigate('/pre-session-full', { state: { sessionData } });
+  };
 
   const columns = React.useMemo(
     () => [
@@ -332,7 +479,7 @@ function PreSessionJournal() {
           <ButtonsContainer>
             <IconButton
               data-tooltip="Edit entry"
-              onClick={() => handleEdit(row.original.id)}
+              onClick={() => handleFullSession(row.original)}
             >
               <img src={EditIcon} alt="Edit" />
             </IconButton>
@@ -351,62 +498,81 @@ function PreSessionJournal() {
         Header: 'Pair',
         accessor: 'pair',
         width: 120,
-        Cell: ({ value }) => (
-          <Select value={value || ''} onChange={(e) => handleChange('pair', e.target.value)}>
-            <option value="">Select</option>
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
-          </Select>
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('pair', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="EUR/USD">EUR/USD</StyledOption>
+            <StyledOption value="GBP/USD">GBP/USD</StyledOption>
+            <StyledOption value="USD/JPY">USD/JPY</StyledOption>
+          </StyledSelect>
         ),
       },
       {
         Header: 'Narrative',
         accessor: 'narrative',
         width: 120,
-        Cell: ({ value }) => (
-          <Select value={value || ''} onChange={(e) => handleChange('narrative', e.target.value)}>
-            <option value="">Select</option>
-            <option value="Bullish">Bullish</option>
-            <option value="Bearish">Bearish</option>
-            <option value="Neutral">Neutral</option>
-          </Select>
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('narrative', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="Bullish">Bullish</StyledOption>
+            <StyledOption value="Bearish">Bearish</StyledOption>
+            <StyledOption value="Neutral">Neutral</StyledOption>
+            <StyledOption value="Day off">Day off</StyledOption>
+          </StyledSelect>
         ),
       },
       {
         Header: 'Execution',
         accessor: 'execution',
         width: 120,
-        Cell: ({ value }) => (
-          <Select value={value || ''} onChange={(e) => handleChange('execution', e.target.value)}>
-            <option value="">Select</option>
-            <option value="Manual">Manual</option>
-            <option value="Automated">Automated</option>
-          </Select>
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('execution', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="Day off">Day off</StyledOption>
+            <StyledOption value="No Trades">No Trades</StyledOption>
+            <StyledOption value="Skipped">Skipped</StyledOption>
+            <StyledOption value="Missed">Missed</StyledOption>
+            <StyledOption value="BE">BE</StyledOption>
+            <StyledOption value="Loss">Loss</StyledOption>
+            <StyledOption value="Win">Win</StyledOption>
+          </StyledSelect>
         ),
       },
       {
         Header: 'Outcome',
         accessor: 'outcome',
         width: 120,
-        Cell: ({ value }) => (
-          <Select value={value || ''} onChange={(e) => handleChange('outcome', e.target.value)}>
-            <option value="">Select</option>
-            <option value="Profit">Profit</option>
-            <option value="Loss">Loss</option>
-            <option value="Break Even">Break Even</option>
-          </Select>
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('outcome', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="Bullish">Bullish</StyledOption>
+            <StyledOption value="Bearish">Bearish</StyledOption>
+            <StyledOption value="Neutral">Neutral</StyledOption>
+            <StyledOption value="Day off">Day off</StyledOption>
+          </StyledSelect>
         ),
       },
       {
         Header: 'Plan&Outcome',
         accessor: 'planOutcome',
         width: 120,
-        Cell: ({ value }) => (
+        Cell: ({ row, value }) => (
           <Checkbox
             type="checkbox"
             checked={value || false}
-            onChange={(e) => handleChange('planOutcome', e.target.checked)}
+            onChange={(e) => handleChange('planOutcome', e.target.checked, row.original.id)}
           />
         ),
       },
@@ -414,11 +580,11 @@ function PreSessionJournal() {
         Header: 'Add. Pair',
         accessor: 'addPair',
         width: 120,
-        Cell: ({ value }) => (
+        Cell: ({ row, value }) => (
           <Checkbox
             type="checkbox"
             checked={value || false}
-            onChange={(e) => handleChange('addPair', e.target.checked)}
+            onChange={(e) => handleChange('addPair', e.target.checked, row.original.id)}
           />
         ),
       },
@@ -431,20 +597,7 @@ function PreSessionJournal() {
       try {
         const routine = await window.electronAPI.getDailyRoutine(newEntry.date);
         const preSessionData = routine.preSession || [];
-        const normalizedData = Array.isArray(preSessionData)
-          ? preSessionData.map(item => ({
-              id: item.id || Date.now() + Math.random(),
-              date: item.date || newEntry.date,
-              weekDay: item.weekDay || newEntry.weekDay,
-              pair: item.pair || '',
-              narrative: item.narrative || '',
-              execution: item.execution || '',
-              outcome: item.outcome || '',
-              planOutcome: item.planOutcome || false,
-              addPair: item.addPair || false,
-            }))
-          : [];
-        setData(normalizedData);
+        setData(preSessionData);
       } catch (error) {
         console.error('Error fetching pre-session data:', error);
         setData([]);
@@ -453,25 +606,9 @@ function PreSessionJournal() {
     fetchData();
   }, [newEntry.date]);
 
-  const handleChange = (field, value) => {
-    setNewEntry(prev => ({
-      ...prev,
-      [field]: typeof value === 'string' ? value : Boolean(value),
-    }));
-  };
-
   const handleAdd = async () => {
     try {
-      const updatedData = [...data, { ...newEntry, id: Date.now() }];
-      setData(updatedData);
-      await window.electronAPI.saveDailyRoutine({
-        date: newEntry.date,
-        preSession: updatedData,
-        postSession: [],
-        emotions: [],
-        notes: [],
-      });
-      setNewEntry({
+      const newRecord = {
         id: Date.now(),
         date: new Date().toISOString().split('T')[0],
         weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
@@ -480,20 +617,24 @@ function PreSessionJournal() {
         execution: '',
         outcome: '',
         planOutcome: false,
-        addPair: false,
+        addPair: false
+      };
+
+      const updatedData = [...data, newRecord];
+      setData(updatedData);
+      await window.electronAPI.saveDailyRoutine({
+        date: newRecord.date,
+        preSession: updatedData,
+        postSession: [],
+        emotions: [],
+        notes: [],
       });
-      alert('Pre-Session entry added successfully!');
+
+      setIsModalOpen(false);
+      setNewEntry(newRecord);
     } catch (error) {
-      console
       console.error('Error adding pre-session entry:', error);
       alert('Failed to add Pre-Session entry.');
-    }
-  };
-
-  const handleEdit = (id) => {
-    const entryToEdit = data.find(entry => entry.id === id);
-    if (entryToEdit) {
-      setNewEntry(entryToEdit);
     }
   };
 
@@ -511,7 +652,6 @@ function PreSessionJournal() {
       });
       
       setDeletePopup(null);
-      alert('Entry deleted successfully!');
     } catch (error) {
       console.error('Error deleting entry:', error);
       alert('Failed to delete entry.');
@@ -540,7 +680,9 @@ function PreSessionJournal() {
         </Header>
         <RoutineContent>
           <ButtonContainer>
-            <ActionButton primary onClick={handleAdd}>Add new Pre-Session</ActionButton>
+            <ActionButton primary onClick={handleAdd}>
+              Add new Pre-Session
+            </ActionButton>
             <div style={{ display: 'flex', gap: '10px' }}>
               <ActionButton>Range</ActionButton>
               <ActionButton>Filter</ActionButton>
@@ -559,47 +701,35 @@ function PreSessionJournal() {
               ))}
             </thead>
             <tbody {...getTableBodyProps()}>
-              {rows.length > 0 ? (
-                rows.map(row => {
-                  prepareRow(row);
-                  return (
-                    <TableRow {...row.getRowProps()}>
-                      {row.cells.map(cell => (
-                        <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                          {cell.render('Cell')}
-                        </Td>
-                      ))}
-                    </TableRow>
-                  );
-                })
-              ) : (
-                <TableRow>
-                  <Td colSpan={columns.length}>No data available</Td>
-                </TableRow>
-              )}
-              <TableRow>
-                {columns.map(column => (
-                  <Td key={column.accessor} style={{ width: column.width }}>
-                    {column.accessor === 'actions' ? (
-                      <ButtonsContainer>
-                        <IconButton disabled>
-                          <img src={EditIcon} alt="Edit" />
-                        </IconButton>
-                        <IconButton disabled>
-                          <img src={DeleteIcon} alt="Delete" />
-                        </IconButton>
-                      </ButtonsContainer>
-                    ) : column.accessor === 'date' ? newEntry.date :
-                       column.accessor === 'weekDay' ? newEntry.weekDay :
-                       column.Cell ? (
-                         column.Cell({ value: newEntry[column.accessor] })
-                       ) : newEntry[column.accessor] || ''}
-                  </Td>
-                ))}
-              </TableRow>
+              {rows.map(row => {
+                prepareRow(row);
+                return (
+                  <TableRow {...row.getRowProps()}>
+                    {row.cells.map(cell => (
+                      <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                        {cell.render('Cell')}
+                      </Td>
+                    ))}
+                  </TableRow>
+                );
+              })}
             </tbody>
           </Table>
         </RoutineContent>
+
+        {isModalOpen && (
+          <Modal>
+            <ModalContent>
+              <ModalTitle>Pre-Session Options</ModalTitle>
+              <ModalButtons>
+                <PopupButton onClick={() => handleAdd()}>Quick Add</PopupButton>
+                <PopupButton onClick={() => handleFullSession()}>Full Pre-Session</PopupButton>
+                <PopupButton onClick={() => setIsModalOpen(false)}>Cancel</PopupButton>
+              </ModalButtons>
+            </ModalContent>
+          </Modal>
+        )}
+
         {deletePopup && (
           <Popup>
             <p>Want to delete?</p>
