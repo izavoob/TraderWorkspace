@@ -5,6 +5,8 @@ import styled, { createGlobalStyle } from 'styled-components';
 import { Link } from 'react-router-dom';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -28,6 +30,43 @@ const GlobalStyle = createGlobalStyle`
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
+  }
+`;
+
+const DatePickerStyles = createGlobalStyle`
+  .react-datepicker {
+    background-color: #2e2e2e;
+    border: 1px solid #5e2ca5;
+    font-family: inherit;
+  }
+
+  .react-datepicker__header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__current-month,
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    color: #fff;
+  }
+
+  .react-datepicker__day:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__day--selected,
+  .react-datepicker__day--in-range {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+    color: #fff;
+  }
+
+  .react-datepicker__navigation {
+    top: 8px;
+  }
+
+  .react-datepicker__navigation-icon::before {
+    border-color: #B886EE;
   }
 `;
 
@@ -135,8 +174,7 @@ const ButtonGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: ${(props) =>
-    props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
+  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
   color: #fff;
   border: none;
   padding: 10px 20px;
@@ -144,7 +182,7 @@ const ActionButton = styled.button`
   cursor: pointer;
   font-size: 16px;
   height: 40px;
-  width: ${(props) => (props.primary ? '240px' : 'auto')};
+  width: ${props => props.primary ? '240px' : 'auto'};
   transition: transform 0.2s ease, opacity 0.2s ease;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 
@@ -155,6 +193,101 @@ const ActionButton = styled.button`
 
   &:active {
     transform: scale(0.95);
+  }
+`;
+
+const FilterDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 200px;
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  transform-origin: top right;
+  animation: dropDown 0.3s ease;
+
+  @keyframes dropDown {
+    from {
+      transform: scaleY(0);
+      opacity: 0;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
+`;
+
+const RangeDropdown = styled(FilterDropdown)`
+  width: 300px;
+`;
+
+const FilterGroup = styled.div`
+  margin-bottom: 15px;
+`;
+
+const FilterLabel = styled.label`
+  display: block;
+  margin-bottom: 5px;
+  color: #fff;
+  font-size: 14px;
+`;
+
+const FilterSelect = styled.select`
+  width: 100%;
+  padding: 8px;
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
+
+  option {
+    background: #3e3e3e;
+    color: #fff;
+    padding: 8px;
+  }
+`;
+
+const FilterButtonGroup = styled.div`
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
+`;
+
+const FilterButton = styled.button`
+  background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
+  color: #fff;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
+`;
+
+const StyledDatePicker = styled(DatePicker)`
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  color: #fff;
+  padding: 11px;
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+  font-size: 11px;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
   }
 `;
 
@@ -191,6 +324,15 @@ const TableRow = styled.tr`
   &:nth-child(odd) {
     background-color: #3e3e3e;
   }
+`;
+
+const ButtonsContainer = styled.div`
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  opacity: 1;
 `;
 
 const IconButton = styled.button`
@@ -238,15 +380,6 @@ const IconButton = styled.button`
   }
 `;
 
-const ButtonsContainer = styled.div`
-  display: flex;
-  gap: 5px;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-  opacity: 1;
-`;
-
 const Popup = styled.div`
   position: fixed;
   top: 50%;
@@ -284,12 +417,24 @@ const PopupButton = styled.button`
 
 function TradeJournal() {
   const [trades, setTrades] = useState([]);
-  const [filter, setFilter] = useState('all');
+  const [showFilterDropdown, setShowFilterDropdown] = useState(false);
+  const [showRangeDropdown, setShowRangeDropdown] = useState(false);
+  const [dateRange, setDateRange] = useState([null, null]);
+  const [startDate, endDate] = dateRange;
+  const [filterCriteria, setFilterCriteria] = useState({
+    pair: '',
+    session: '',
+    direction: '',
+    result: ''
+  });
   const [deletePopup, setDeletePopup] = useState(null);
+  
   const navigate = useNavigate();
   const location = useLocation();
   const hasRendered = useRef(false);
   const containerRef = useRef(null);
+  const filterButtonRef = useRef(null);
+  const rangeButtonRef = useRef(null);
 
   useEffect(() => {
     const loadTrades = async () => {
@@ -305,52 +450,42 @@ function TradeJournal() {
   }, []);
 
   useEffect(() => {
-    const resetScroll = () => {
-      // Скидаємо прокрутку для контейнера і вікна з затримкою
-      setTimeout(() => {
-        if (containerRef.current) {
-          containerRef.current.scrollTop = 0;
-        }
-        window.scrollTo(0, 0);
-      }, 100); // Затримка 100мс для гарантії завершення рендерингу
+    const handleClickOutside = (event) => {
+      // Перевіряємо, чи клік був не по дропдауну і не по кнопці
+      if (filterButtonRef.current && 
+          !filterButtonRef.current.contains(event.target) && 
+          !event.target.closest('.filter-dropdown')) {
+        setShowFilterDropdown(false);
+      }
+      if (rangeButtonRef.current && 
+          !rangeButtonRef.current.contains(event.target) && 
+          !event.target.closest('.range-dropdown')) {
+        setShowRangeDropdown(false);
+      }
     };
 
-    resetScroll();
-
-    if (location.state?.fromCreateTrade && !hasRendered.current) {
-      console.log('Returned from CreateTrade, ensuring full render');
-      const reloadTrades = async () => {
-        try {
-          const loadedTrades = await window.electronAPI.getTrades();
-          setTrades(loadedTrades || []);
-          hasRendered.current = true;
-          resetScroll(); // Скидаємо прокрутку після завантаження
-        } catch (error) {
-          console.error('Error reloading trades:', error);
-        }
-      };
-      reloadTrades();
-    }
-  }, [location]);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
   const filteredTrades = React.useMemo(() => {
-    const now = new Date();
     return trades.filter((trade) => {
-      const tradeDate = new Date(trade.date);
-      if (filter === 'week') {
-        const weekStart = new Date(now.setDate(now.getDate() - now.getDay()));
-        return tradeDate >= weekStart && tradeDate <= now;
-      } else if (filter === 'month') {
-        return (
-          tradeDate.getMonth() === now.getMonth() &&
-          tradeDate.getFullYear() === now.getFullYear()
-        );
-      } else if (filter === 'all') {
-        return true;
-      }
-      return false;
+      if (!trade) return false;
+      
+      const tradeDate = trade.date ? new Date(trade.date) : null;
+      
+      // Модифікуємо перевірку дат, щоб включати крайні дати
+      const inDateRange = startDate && endDate && tradeDate ? 
+        (tradeDate >= startDate && tradeDate <= new Date(endDate.setHours(23, 59, 59, 999))) : true;
+  
+      const matchesPair = !filterCriteria.pair || trade.pair === filterCriteria.pair;
+      const matchesSession = !filterCriteria.session || trade.session === filterCriteria.session;
+      const matchesDirection = !filterCriteria.direction || trade.direction === filterCriteria.direction;
+      const matchesResult = !filterCriteria.result || trade.result === filterCriteria.result;
+  
+      return inDateRange && matchesPair && matchesSession && matchesDirection && matchesResult;
     });
-  }, [trades, filter]);
+  }, [trades, filterCriteria, startDate, endDate]);
 
   const columns = React.useMemo(
     () => [
@@ -368,10 +503,26 @@ function TradeJournal() {
     []
   );
 
-  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ columns, data: filteredTrades });
+  const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ 
+    columns, 
+    data: filteredTrades 
+  });
 
-  const handleTradeClick = (tradeId) => {
-    navigate(`/trade/${tradeId}`);
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilterCriteria(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const handleFilterClear = () => {
+    setFilterCriteria({
+      pair: '',
+      session: '',
+      direction: '',
+      result: ''
+    });
   };
 
   const handleAddTrade = () => {
@@ -396,27 +547,124 @@ function TradeJournal() {
     }
   };
 
-  console.log('Rendering TradeJournal, trades:', trades, 'filter:', filter);
-
   return (
     <>
       <GlobalStyle />
+      <DatePickerStyles />
       <TradeJournalContainer ref={containerRef}>
         <Header>
           <BackButton onClick={handleBack} />
           <Title>Trading Journal</Title>
         </Header>
         <JournalContent>
-          {console.log('Rendering JournalHeader')}
           <JournalHeader>
             <ButtonGroup>
               <ActionButton primary onClick={handleAddTrade}>Add new Trade</ActionButton>
             </ButtonGroup>
             <ButtonGroup>
-              <ActionButton onClick={() => setFilter('week')}>Range</ActionButton>
-              <ActionButton onClick={() => setFilter('month')}>Filter</ActionButton>
+              <div style={{ position: 'relative' }}>
+                <ActionButton 
+                  ref={rangeButtonRef}
+                  onClick={() => setShowRangeDropdown(!showRangeDropdown)}
+                >
+                  Range
+                </ActionButton>
+                {showRangeDropdown && (
+                  <RangeDropdown className="range-dropdown">
+                    <StyledDatePicker
+                      selectsRange={true}
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={(update) => setDateRange(update)}
+                      isClearable={true}
+                      placeholderText="Select date range"
+                      dateFormat="yyyy-MM-dd"
+                    />
+                    <FilterButtonGroup>
+                      <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
+                      <FilterButton>Apply</FilterButton>
+                    </FilterButtonGroup>
+                  </RangeDropdown>
+                )}
+              </div>
+              
+              <div style={{ position: 'relative' }}>
+                <ActionButton 
+                  ref={filterButtonRef}
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                >
+                  Filter
+                </ActionButton>
+                {showFilterDropdown && (
+                  <FilterDropdown className="filter-dropdown">
+                    <FilterGroup>
+                      <FilterLabel>Pair</FilterLabel>
+                      <FilterSelect
+                        name="pair"
+                        value={filterCriteria.pair}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">All Pairs</option>
+                        <option value="EURUSD">EURUSD</option>
+                        <option value="GBPUSD">GBPUSD</option>
+                        <option value="USDJPY">USDJPY</option>
+                        <option value="GER40">GER40</option>
+                        <option value="XAUUSD">XAUUSD</option>
+                        <option value="XAGUSD">XAGUSD</option>
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterGroup>
+                      <FilterLabel>Session</FilterLabel>
+                      <FilterSelect
+                        name="session"
+                        value={filterCriteria.session}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">All Sessions</option>
+                        <option value="Asia">Asia</option>
+                        <option value="Frankfurt">Frankfurt</option>
+                        <option value="London">London</option>
+                        <option value="New York">New York</option>
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterGroup>
+                      <FilterLabel>Direction</FilterLabel>
+                      <FilterSelect
+                        name="direction"
+                        value={filterCriteria.direction}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">All Directions</option>
+                        <option value="Long">Long</option>
+                        <option value="Short">Short</option>
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterGroup>
+                      <FilterLabel>Result</FilterLabel>
+                      <FilterSelect
+                        name="result"
+                        value={filterCriteria.result}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">All Results</option>
+                        <option value="Win">Win</option>
+                        <option value="Loss">Loss</option>
+                      </FilterSelect>
+                    </FilterGroup>
+
+                    <FilterButtonGroup>
+                      <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
+                      <FilterButton>Apply</FilterButton>
+                    </FilterButtonGroup>
+                  </FilterDropdown>
+                )}
+              </div>
             </ButtonGroup>
           </JournalHeader>
+
           <TradeTable {...getTableProps()}>
             <thead>
               {headerGroups.map((headerGroup) => (
@@ -445,15 +693,24 @@ function TradeJournal() {
                         <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
                           {index === 0 ? (
                             <ButtonsContainer>
-                              <IconButton data-tooltip="Change your trade" onClick={() => handleEdit(row.original.id)}>
+                              <IconButton 
+                                data-tooltip="Change your trade" 
+                                onClick={() => handleEdit(row.original.id)}
+                              >
                                 <img src={EditIcon} alt="Edit" />
                               </IconButton>
-                              <IconButton data-tooltip="Move your trade to trash" onClick={() => setDeletePopup(row.original.id)}>
+                              <IconButton 
+                                data-tooltip="Move your trade to trash" 
+                                onClick={() => setDeletePopup(row.original.id)}
+                              >
                                 <img src={DeleteIcon} alt="Delete" />
                               </IconButton>
                             </ButtonsContainer>
                           ) : cell.column.Header === 'No.' ? (
-                            <Link to={`/trade/${row.original.id}`} style={{ color: '#fff', textDecoration: 'none' }}>
+                            <Link 
+                              to={`/trade/${row.original.id}`} 
+                              style={{ color: '#fff', textDecoration: 'none' }}
+                            >
                               {cell.render('Cell')}
                             </Link>
                           ) : (
@@ -467,6 +724,7 @@ function TradeJournal() {
               )}
             </tbody>
           </TradeTable>
+
           {deletePopup && (
             <Popup>
               <p>Want to delete?</p>

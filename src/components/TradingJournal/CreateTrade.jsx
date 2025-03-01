@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { createGlobalStyle } from 'styled-components';
 import DeleteIcon from '../../assets/icons/delete-icon.svg';;
 import EditIcon from '../../assets/icons/edit-icon.svg';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
@@ -495,6 +497,82 @@ const NotePopupButtons = styled.div`
   justify-content: center;
   width: 100%;
 `;
+const DatePickerStyles = createGlobalStyle`
+  .react-datepicker {
+    background-color: #2e2e2e;
+    border: 1px solid #5e2ca5;
+    font-family: inherit;
+  }
+
+  .react-datepicker__header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__current-month,
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    color: #fff;
+  }
+
+  .react-datepicker__day:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__day--selected,
+  .react-datepicker__day--keyboard-selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE);
+    color: #fff;
+  }
+
+  .react-datepicker__navigation {
+    top: 8px;
+  }
+
+  .react-datepicker__navigation-icon::before {
+    border-color: #B886EE;
+  }
+
+  .react-datepicker__time-container {
+    background-color: #2e2e2e;
+    border-left: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__time-box {
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item {
+    color: #fff;
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__time-list-item--selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE) !important;
+  }
+`;
+
+// Оновлюємо стиль для самого інпута DatePicker
+const StyledDatePicker = styled(DatePicker)`
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
 
 function CreateTrade() {
   const navigate = useNavigate();
@@ -702,6 +780,7 @@ function CreateTrade() {
 
   return (
     <CreateTradeContainer>
+      <DatePickerStyles />
       <Header>
         <BackButton onClick={handleBack} />
         <Title>New Trade</Title>
@@ -711,15 +790,21 @@ function CreateTrade() {
         <TablesContainer>
           <TradeTable>
             <FormRow>
-              <FormField>
-                <FormLabel>Date</FormLabel>
-                <FormInput
-                  type="date"
-                  name="date"
-                  value={trade.date}
-                  onChange={handleChange}
-                />
-              </FormField>
+            <FormField>
+              <FormLabel>Date</FormLabel>
+              <StyledDatePicker
+                selected={trade.date ? new Date(trade.date) : new Date()}
+                onChange={(date) => {
+                  const formattedDate = date.toISOString().split('T')[0];
+                  setTrade(prev => ({
+                    ...prev,
+                    date: formattedDate
+                  }));
+                }}
+                dateFormat="yyyy-MM-dd"
+                placeholderText="Select date"
+              />
+            </FormField>
               <FormField>
                 <FormLabel>Account</FormLabel>
                 <FormSelect name="account" value={trade.account} onChange={handleChange} disabled>
@@ -738,7 +823,7 @@ function CreateTrade() {
                   <option value="XAGUSD">XAGUSD</option>
                 </FormSelect>
               </FormField>
-            </FormRow>
+            </FormRow>  
             <FormRow>
               <FormField>
                 <FormLabel>Direction</FormLabel>
