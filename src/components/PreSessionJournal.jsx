@@ -1,15 +1,39 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
+import styled, { createGlobalStyle } from 'styled-components';
 import { useTable, usePagination } from 'react-table';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import EditIcon from '../assets/icons/edit-icon.svg';
+import DeleteIcon from '../assets/icons/delete-icon.svg';
+
+const GlobalStyle = createGlobalStyle`
+  html, body {
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    height: 100%;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+      display: none;
+    }
+  }
+`;
+
 
 const DailyRoutineContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
-  min-height: 100vh;
+  margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+  position: relative;
+  min-height: 100vh;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
 `;
 
 const Header = styled.header`
@@ -44,15 +68,18 @@ const BackButton = styled.button`
   top: 0;
   opacity: 0;
   transition: all 0.3s ease;
+
   &:hover {
     opacity: 1;
     transform: scale(1.1);
   }
+
   &:active {
     transform: scale(0.98);
   }
+
   &:before {
-    content: "Back";
+    content: 'Back';
     position: absolute;
     top: 50%;
     left: 50%;
@@ -61,6 +88,7 @@ const BackButton = styled.button`
     color: rgba(255, 255, 255, 0);
     transition: color 0.3s ease;
   }
+
   &:hover:before {
     color: #fff;
   }
@@ -74,10 +102,236 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
-const RoutineContent = styled.div`
+const ButtonContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  z-index: 999;
+  min-height: 50px;
+  flex-direction: row;
+  width: 100%;
   margin-top: 148px;
   padding-top: 20px;
-  overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
+`;
+
+const ActionButton = styled.button`
+  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 15px;
+  cursor: pointer;
+  font-size: 16px;
+  height: 40px;
+  width: ${props => props.primary ? '240px' : 'auto'};
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+
+  &:hover {
+    transform: scale(1.05);
+    opacity: 0.9;
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+const ButtonsContainer = styled.div`
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+  opacity: 1;
+`;
+
+const IconButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease, opacity 0.2s ease;
+  padding: 5px;
+  
+  &:hover {
+    transform: scale(1.1);
+    opacity: 0.9;
+  }
+
+  img {
+    width: 14px;
+    height: 14px;
+    filter: brightness(0) invert(1);
+  }
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #2e2e2e;
+  border: 2px solid #5e2ca5;
+`;
+
+const Th = styled.th`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  border: 1px solid #5e2ca5;
+  padding: 12px;
+  text-align: left;
+  color: #fff;
+  font-weight: bold;
+`;
+
+const Td = styled.td`
+  border: 1px solid #5e2ca5;
+  padding: 10px;
+  text-align: left;
+  color: #fff;
+  background-color: #2e2e2e;
+`;
+
+const TableRow = styled.tr`
+  &:nth-child(even) {
+    background-color: #2e2e2e;
+  }
+  &:nth-child(odd) {
+    background-color: #3e3e3e;
+  }
+`;
+
+const StyledSelect = styled.select`
+  width: 100%;
+  padding: 8px;
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  color: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#4ade80';
+      case 'Bearish':
+        return '#f87171';
+      case 'Win':
+        return '#4ade80';
+      case 'Loss':
+        return '#f87171';
+      case 'BE':
+        return '#fbbf24';
+      default:
+        return '#fff';
+    }
+  }};
+
+  option {
+    background: #3e3e3e;
+    color: #fff;
+    padding: 8px;
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
+const StyledOption = styled.option`
+  background: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#1a472a';
+      case 'Bearish':
+        return '#5c1919';
+      case 'Win':
+        return '#1a472a';
+      case 'Loss':
+        return '#5c1919';
+      case 'BE':
+        return '#714a14';
+      default:
+        return '#3e3e3e';
+    }
+  }};
+  color: ${props => {
+    switch (props.value) {
+      case 'Bullish':
+        return '#4ade80';
+      case 'Bearish':
+        return '#f87171';
+      case 'Win':
+        return '#4ade80';
+      case 'Loss':
+        return '#f87171';
+      case 'BE':
+        return '#fbbf24';
+      default:
+        return '#fff';
+    }
+  }};
+`;
+
+const Checkbox = styled.input`
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border: 2px solid #5e2ca5;
+  border-radius: 4px;
+  background-color: #2e2e2e;
+  cursor: pointer;
+  position: relative;
+  margin: 0 auto;
+  display: block;
+
+  &:checked {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE);
+    &:after {
+      content: '✓';
+      position: absolute;
+      color: white;
+      font-size: 14px;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+    }
+  }
+
+  &:hover {
+    border-color: #B886EE;
+  }
+`;
+
+const Popup = styled.div`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2e2e2e;
+  padding: 20px;
+  border-radius: 10px;
+  border: 2px solid #5e2ca5;
+  text-align: center;
+  z-index: 1000;
+  color: white;
+`;
+
+const PopupButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  color: white;
+  border: none;
+  padding: 8px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  margin: 0 10px;
+  transition: transform 0.2s ease;
+
+  &:hover {
+    transform: scale(1.05);
+  }
 `;
 
 const ButtonContainer = styled.div`
@@ -147,10 +401,15 @@ const Checkbox = styled.input`
 
 function PreSessionJournal() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([]);
+  const [deletePopup, setDeletePopup] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [newEntry, setNewEntry] = useState({
-    date: new Date().toISOString().split('T')[0], // 2025-02-27
-    weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }), // Monday
+    id: String(Date.now()),
+    date: new Date().toISOString().split('T')[0],
+    weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+
     pair: '',
     narrative: '',
     execution: '',
@@ -159,6 +418,123 @@ function PreSessionJournal() {
     addPair: false,
   });
 
+  useEffect(() => {
+    console.log('Current data in state:', data);
+  }, [data]);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const currentDate = new Date().toISOString().split('T')[0];
+      console.log('Loading data for date:', currentDate);
+      
+      const routine = await window.electronAPI.getDailyRoutine(currentDate);
+      console.log('Loaded routine:', routine);
+
+      if (routine && routine.preSession) {
+        const processedData = Array.isArray(routine.preSession) 
+          ? routine.preSession.map(entry => ({
+              ...entry,
+              id: String(entry.id || Date.now())
+            }))
+          : [];
+        
+        console.log('Processed data to set:', processedData);
+        setData(processedData);
+      } else {
+        console.log('No data found in routine, creating empty array');
+        setData([]);
+      }
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      setData([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadData();
+    console.log('Location changed, reloading data');
+  }, [location]);
+
+  const handleChange = async (field, value, rowId = null) => {
+    try {
+      if (rowId !== null) {
+        const updatedData = data.map(item =>
+          item.id === rowId ? { ...item, [field]: value } : item
+        );
+        setData(updatedData);
+        
+        await window.electronAPI.saveDailyRoutine({
+          date: new Date().toISOString().split('T')[0],
+          preSession: updatedData,
+          postSession: [],
+          emotions: [],
+          notes: [],
+        });
+      }
+    } catch (error) {
+      console.error('Error updating field:', error);
+    }
+  };
+
+  const handleEdit = async (id) => {
+    console.log('Edit clicked with id:', id);
+    console.log('Current data state:', data);
+    
+    if (!data || data.length === 0) {
+      console.log('Data is empty, trying to reload...');
+      await loadData();
+    }
+
+    const stringId = String(id);
+    console.log('Looking for entry with id:', stringId);
+    
+    const entryToEdit = data.find(entry => String(entry.id) === stringId);
+    console.log('Found entry:', entryToEdit);
+
+    if (entryToEdit) {
+      try {
+        navigate(`/daily-routine/pre-session/${stringId}`, { 
+          state: { 
+            sessionData: entryToEdit,
+            timestamp: Date.now()
+          } 
+        });
+      } catch (error) {
+        console.error('Navigation error:', error);
+      }
+    } else {
+      console.error('Entry not found with id:', id);
+      console.error('Current data state:', data);
+      alert('Unable to find the selected entry. Please try reloading the page.');
+    }
+  };
+
+  const handleAdd = async () => {
+    try {
+      const newRecord = {
+        ...newEntry,
+        id: String(Date.now())
+      };
+
+      console.log('Creating new record:', newRecord);
+
+      navigate(`/daily-routine/pre-session/${newRecord.id}`, {
+        state: { sessionData: newRecord }
+      });
+    } catch (error) {
+      console.error('Error adding pre-session entry:', error);
+      alert('Failed to add Pre-Session entry.');
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const updatedData = data.filter(entry => entry.id !== id);
+      setData(updatedData);
+      
   const columns = React.useMemo(
     () => [
       { Header: 'Date', accessor: 'date' },
@@ -281,6 +657,12 @@ function PreSessionJournal() {
         emotions: [],
         notes: [],
       });
+      
+      setDeletePopup(null);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+      alert('Failed to delete entry.');
+
       setNewEntry({
         date: new Date().toISOString().split('T')[0],
         weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
@@ -302,71 +684,230 @@ function PreSessionJournal() {
     navigate('/daily-routine');
   };
 
-  const {
+  const columns = React.useMemo(
+    () => [
+      {
+        Header: 'Actions',
+        accessor: 'actions',
+        width: 100,
+        Cell: ({ row }) => {
+          const rowId = String(row.original.id);
+          console.log('Rendering action cell for row:', row.original);
+          
+          if (!row.original || !rowId) {
+            console.error('Invalid row data:', row);
+            return null;
+          }
+
+          return (
+            <ButtonsContainer>
+              <IconButton
+                type="button"
+                data-tooltip="Edit entry"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Clicking edit for row id:', rowId);
+                  await handleEdit(rowId);
+                }}
+              >
+                <img src={EditIcon} alt="Edit" />
+              </IconButton>
+              <IconButton
+                type="button"
+                data-tooltip="Delete entry"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDeletePopup(rowId);
+                }}
+              >
+                <img src={DeleteIcon} alt="Delete" />
+              </IconButton>
+            </ButtonsContainer>
+          );
+        },
+      },
+      { Header: 'Date', accessor: 'date', width: 120 },
+      { Header: 'WeekDay', accessor: 'weekDay', width: 120 },
+      {
+        Header: 'Pair',
+        accessor: 'pair',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('pair', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="EUR/USD">EUR/USD</StyledOption>
+            <StyledOption value="GBP/USD">GBP/USD</StyledOption>
+            <StyledOption value="USD/JPY">USD/JPY</StyledOption>
+          </StyledSelect>
+        ),
+      },
+      {
+        Header: 'Narrative',
+        accessor: 'narrative',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('narrative', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="Bullish">Bullish</StyledOption>
+            <StyledOption value="Bearish">Bearish</StyledOption>
+            <StyledOption value="Neutral">Neutral</StyledOption>
+            <StyledOption value="Day off">Day off</StyledOption>
+          </StyledSelect>
+        ),
+      },
+      {
+        Header: 'Execution',
+        accessor: 'execution',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('execution', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="Day off">Day off</StyledOption>
+            <StyledOption value="No Trades">No Trades</StyledOption>
+            <StyledOption value="Skipped">Skipped</StyledOption>
+            <StyledOption value="Missed">Missed</StyledOption>
+            <StyledOption value="BE">BE</StyledOption>
+            <StyledOption value="Loss">Loss</StyledOption>
+            <StyledOption value="Win">Win</StyledOption>
+          </StyledSelect>
+        ),
+      },
+      {
+        Header: 'Outcome',
+        accessor: 'outcome',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <StyledSelect 
+            value={value || ''}
+            onChange={(e) => handleChange('outcome', e.target.value, row.original.id)}
+          >
+            <StyledOption value="">Select</StyledOption>
+            <StyledOption value="Bullish">Bullish</StyledOption>
+            <StyledOption value="Bearish">Bearish</StyledOption>
+            <StyledOption value="Neutral">Neutral</StyledOption>
+            <StyledOption value="Day off">Day off</StyledOption>
+          </StyledSelect>
+        ),
+      },
+      {
+        Header: 'Plan&Outcome',
+        accessor: 'planOutcome',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <Checkbox
+            type="checkbox"
+            checked={value || false}
+            onChange={(e) => handleChange('planOutcome', e.target.checked, row.original.id)}
+          />
+        ),
+      },
+      {
+        Header: 'Add. Pair',
+        accessor: 'addPair',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <Checkbox
+            type="checkbox"
+            checked={value || false}
+            onChange={(e) => handleChange('addPair', e.target.checked, row.original.id)}
+          />
+        ),
+      },
+    ],
+    []
+  );
+
+const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
     rows,
     prepareRow,
-  } = useTable({ columns, data }, usePagination);
+  } = useTable(
+    { 
+      columns, 
+      data,
+      initialState: { pageIndex: 0 }
+    },
+    usePagination
+  );
 
   return (
-    <DailyRoutineContainer>
-      <Header>
-        <BackButton onClick={handleBack} />
-        <Title>Pre-Session Analysis Journal</Title>
-      </Header>
-      <RoutineContent>
+    <>
+      <GlobalStyle />
+      <DailyRoutineContainer>
+        <Header>
+          <BackButton onClick={handleBack} />
+          <Title>Pre-Session Analysis Journal</Title>
+        </Header>
         <ButtonContainer>
-          <ActionButton onClick={handleAdd}>Add new Pre-Session</ActionButton>
-          <div>
-            <ActionButton style={{ marginRight: '10px' }}>Range</ActionButton>
+          <ActionButton primary onClick={handleAdd}>
+            Add new Pre-Session
+          </ActionButton>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <ActionButton>Range</ActionButton>
             <ActionButton>Filter</ActionButton>
           </div>
         </ButtonContainer>
-        <Table {...getTableProps()}>
-          <thead>
-            {headerGroups.map(headerGroup => (
-              <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map(column => (
-                  <Th {...column.getHeaderProps()}>{column.render('Header')}</Th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody {...getTableBodyProps()}>
-            {rows.length > 0 ? (
-              rows.map(row => {
+        {isLoading ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '20px',
+            color: '#fff' 
+          }}>
+            Loading...
+          </div>
+        ) : (
+          <Table {...getTableProps()}>
+            <thead>
+              {headerGroups.map(headerGroup => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map(column => (
+                    <Th {...column.getHeaderProps()} style={{ width: column.width }}>
+                      {column.render('Header')}
+                    </Th>
+                  ))}
+                </tr>
+              ))}
+            </thead>
+            <tbody {...getTableBodyProps()}>
+              {rows.map(row => {
                 prepareRow(row);
                 return (
-                  <tr {...row.getRowProps()}>
+                  <TableRow {...row.getRowProps()}>
                     {row.cells.map(cell => (
-                      <Td {...cell.getCellProps()}>{cell.render('Cell')}</Td>
+                      <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                        {cell.render('Cell')}
+                      </Td>
                     ))}
-                  </tr>
+                  </TableRow>
                 );
-              })
-            ) : (
-              <tr>
-                <Td colSpan={columns.length}>No data available</Td>
-              </tr>
-            )}
-            {/* Добавляем строку для новой записи */}
-            <tr>
-              {columns.map(column => (
-                <Td key={column.accessor}>
-                  {column.accessor === 'date' ? newEntry.date :
-                   column.accessor === 'weekDay' ? newEntry.weekDay :
-                   column.Cell ? (
-                     column.Cell({ value: newEntry[column.accessor] })
-                   ) : newEntry[column.accessor] || ''}
-                </Td>
-              ))}
-            </tr>
-          </tbody>
-        </Table>
-      </RoutineContent>
-    </DailyRoutineContainer>
+              })}
+            </tbody>
+          </Table>
+        )}
+
+        {deletePopup && (
+          <Popup>
+            <p>Want to delete?</p>
+            <PopupButton onClick={() => handleDelete(deletePopup)}>Yes</PopupButton>
+            <PopupButton onClick={() => setDeletePopup(null)}>No</PopupButton>
+          </Popup>
+        )}
+      </DailyRoutineContainer>
+    </>
+
   );
 }
 
