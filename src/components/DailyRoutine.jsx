@@ -43,6 +43,7 @@ const Header = styled.header`
   height: 128px;
   min-height: 6.67vh;
   max-height: 128px;
+
 `;
 
 const BackButton = styled(Link)`

@@ -1,7 +1,7 @@
 import React from 'react';
 import styled from 'styled-components';
-import EditIcon from '../assets/icons/edit-icon.svg';
-import DeleteIcon from '../assets/icons/delete-icon.svg';
+import EditIcon from '../../assets/icons/edit-icon.svg';
+import DeleteIcon from '../../assets/icons/delete-icon.svg';
 
 const ButtonsContainer = styled.div`
   display: flex;
