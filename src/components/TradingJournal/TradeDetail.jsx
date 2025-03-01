@@ -579,7 +579,7 @@ const StyledDatePicker = styled(DatePicker)`
 function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [tradeCount, setTradeCount] = useState(0);
+  const [trades, setTrades] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [trade, setTrade] = useState({
     date: '',
@@ -627,12 +627,10 @@ function TradeDetail() {
   useEffect(() => {
     const loadTradeData = async () => {
       try {
-        // Отримуємо всі трейди для визначення tradeCount
-        const trades = await window.electronAPI.getTrades();
-        setTradeCount(trades.length);
+        const loadedTrades = await window.electronAPI.getTrades();
+        setTrades(loadedTrades);
         
-        // Знаходимо потрібний трейд
-        const currentTrade = trades.find(t => t.id === id);
+        const currentTrade = loadedTrades.find(t => t.id === id);
         if (currentTrade) {
           setTrade(currentTrade);
           if (currentTrade.volumeConfirmation) {
@@ -683,8 +681,8 @@ function TradeDetail() {
   const handleCancel = () => {
     const loadTrade = async () => {
       try {
-        const trades = await window.electronAPI.getTrades();
-        const currentTrade = trades.find(t => t.id === id);
+        const loadedTrades = await window.electronAPI.getTrades();
+        const currentTrade = loadedTrades.find(t => t.id === id);
         if (currentTrade) {
           setTrade(currentTrade);
           if (currentTrade.volumeConfirmation) {
@@ -810,32 +808,34 @@ function TradeDetail() {
 
   return (
     <CreateTradeContainer>
-          <DatePickerStyles />
+      <DatePickerStyles />
       <Header>
         <BackButton onClick={handleBack} />
         <Title>Trade Details</Title>
       </Header>
       <TradeContent>
-        <TradeNumber>Trade number: {tradeCount}</TradeNumber>
+        <TradeNumber>
+          Trade number: {trades.findIndex(t => t.id === id) + 1}
+        </TradeNumber>
         <TablesContainer>
           <TradeTable>
             <FormRow>
-            <FormField>
-              <FormLabel>Date</FormLabel>
-              <StyledDatePicker
-                selected={trade.date ? new Date(trade.date) : null}
-                onChange={(date) => {
-                  const formattedDate = date.toISOString().split('T')[0];
-                  setTrade(prev => ({
-                    ...prev,
-                    date: formattedDate
-                  }));
-                }}
-                dateFormat="yyyy-MM-dd"
-                placeholderText="Select date"
-                disabled={!isEditing}
-              />
-            </FormField>
+              <FormField>
+                <FormLabel>Date</FormLabel>
+                <StyledDatePicker
+                  selected={trade.date ? new Date(trade.date) : null}
+                  onChange={(date) => {
+                    const formattedDate = date.toISOString().split('T')[0];
+                    setTrade(prev => ({
+                      ...prev,
+                      date: formattedDate
+                    }));
+                  }}
+                  dateFormat="yyyy-MM-dd"
+                  placeholderText="Select date"
+                  disabled={!isEditing}
+                />
+              </FormField>
               <FormField>
                 <FormLabel>Account</FormLabel>
                 <FormSelect name="account" value={trade.account} onChange={handleChange} disabled>

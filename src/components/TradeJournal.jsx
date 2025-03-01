@@ -641,7 +641,10 @@ function TradeJournal() {
         return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
       }
       if (sortConfig.field === 'no') {
-        return sortConfig.order === 'asc' ? a.id - b.id : b.id - a.id;
+        // Отримуємо індекс кожного трейду в оригінальному масиві
+        const aIndex = trades.findIndex(t => t.id === a.id);
+        const bIndex = trades.findIndex(t => t.id === b.id);
+        return sortConfig.order === 'asc' ? aIndex - bIndex : bIndex - aIndex;
       }
       return 0;
     });
