@@ -5,11 +5,11 @@ import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as Char
 import { Bar } from 'react-chartjs-2';
 import UpdateIcon from '../assets/icons/update-icon.svg';
 import SettingsIcon from '../assets/icons/settings-icon.svg';
+import HideMenuIcon from '../assets/icons/hide-menu-icon.svg';
+import ShowMenuIcon from '../assets/icons/show-menu-icon.svg';
 
-// Реєстрація компонентів Chart.js
 ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend);
 
-// Анімація для чартів і блоків (імітація завантаження)
 const fadeInScale = keyframes`
   from {
     opacity: 0;
@@ -21,7 +21,6 @@ const fadeInScale = keyframes`
   }
 `;
 
-// Анімація обертання іконки для кнопки "Update"
 const iconRotate = keyframes`
   from {
     transform: rotate(0deg);
@@ -35,21 +34,63 @@ const Sidebar = styled.div`
   position: fixed;
   top: 0;
   left: 0;
-  width: 300px; /* Фіксована ширина бічної панелі */
+  width: ${props => props.isCollapsed ? '0' : '300px'};
   height: 100vh;
   background-color: #1a1a1a;
-  padding: 20px;
+  padding: ${props => props.isCollapsed ? '0' : '20px'};
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 15px;
+  overflow: hidden;
+  transition: all 0.3s ease;
 `;
+
+const ToggleButton = styled.button`
+  position: fixed;
+  top: 20px;
+  left: ${props => props.isCollapsed ? '20px' : '320px'};
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  border: none;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  z-index: 1001;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  img {
+    width: 24px;
+    height: 24px;
+    filter: brightness(0) invert(1);
+  }
+`;
+
+const MainContent = styled.div`
+  margin-left: ${props => props.isCollapsed ? '50px' : '350px'};
+  padding: 20px;
+  background-color: #1a1a1a;
+  color: #fff;
+  margin-top: 35px;
+  margin-right: 30px;
+  margin-bottom: 30px;
+  transition: margin-left 0.3s ease;
+`;
+// ... Продовження попереднього коду
 
 const Header = styled.header`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   padding: 20px;
-  border-radius: 10px; /* Заокруглення на всі краї */
+  border-radius: 10px;
   color: #fff;
   margin-bottom: 20px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -57,12 +98,12 @@ const Header = styled.header`
 `;
 
 const TopRightButtons = styled.div`
-  position: fixed; /* Фіксуємо кнопки у верхньому правому куті */
-  top: 30px; /* Залишаємо збільшений відступ зверху на 10 пікселів (30) */
-  right: 20px; /* Відступ справа */
+  position: fixed;
+  top: 30px;
+  right: 20px;
   display: flex;
-  gap: 15px; /* Збільшений інтервал між кнопками */
-  z-index: 1001; /* Щоб бути над вмістом */
+  gap: 15px;
+  z-index: 1001;
 `;
 
 const Greeting = styled.h1`
@@ -101,16 +142,6 @@ const MenuButton = styled(Link)`
   }
 `;
 
-const MainContent = styled.div`
-  margin-left: 350px; /* Фіксований зсув для врахування бічної панелі (300px + 20px padding) */
-  padding: 20px;
-  background-color: #1a1a1a;
-  color: #fff;
-  margin-top: 35px; /* Доданий відступ зверху 35 пікселів */
-  margin-right: 30px; /* Доданий відступ справа 30 пікселів */
-  margin-bottom: 30px; /* Доданий відступ знизу 30 пікселів */
-`;
-
 const StatsContent = styled.div`
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -132,7 +163,7 @@ const StatCard = styled.div`
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  height: 200px; /* Фіксована висота для кращого вигляду */
+  height: 200px;
 
   ${({ isAnimating }) =>
     isAnimating &&
@@ -178,9 +209,9 @@ const IconButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
   cursor: pointer;
-  width: 36px; /* Залишаємо збільшений розмір */
-  height: 36px; /* Залишаємо збільшений розмір */
-  border-radius: 6px; /* Залишаємо збільшений радіус */
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -194,8 +225,8 @@ const IconButton = styled.button`
   transition: transform 0.2s ease;
 
   img {
-    width: 24px; /* Залишаємо збільшений розмір */
-    height: 24px; /* Залишаємо збільшений розмір */
+    width: 24px;
+    height: 24px;
   }
 
   &:hover::after {
@@ -215,11 +246,30 @@ const IconButton = styled.button`
   }
 
   &.update-button:active img {
-    animation: ${iconRotate} 0.5s linear; /* Анімація обертання іконки по колу */
+    animation: ${iconRotate} 0.5s linear;
   }
 `;
-
 function Home() {
+  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [tradeStats, setTradeStats] = useState({
+    totalTrades: 0,
+    winRate: 0,
+    profitFactor: 0,
+    averageWin: 0,
+    averageLoss: 0,
+    largestWin: 0,
+    largestLoss: 0,
+    bestPair: '',
+    bestSession: '',
+    monthlyData: {},
+    totalProfit: 0
+  });
+
+  const [isChartAnimating, setIsChartAnimating] = useState(false);
+  const [isStatsAnimating, setIsStatsAnimating] = useState(false);
+
+  const navigate = useNavigate();
+
   const galleryItems = [
     { title: 'Trading Journal', path: '/trade-journal', description: 'Analyze your future trades in one place using our advanced tools and indicators.' },
     { title: 'Daily Routine', path: '/daily-routine', description: 'Add your daily thoughts and plans.' },
@@ -237,30 +287,11 @@ function Home() {
     return 'Good Evening!';
   };
 
-  const [tradeStats, setTradeStats] = useState({
-    totalTrades: 0,
-    winRate: 0,
-    profitFactor: 0,
-    averageWin: 0,
-    averageLoss: 0,
-    largestWin: 0,
-    largestLoss: 0,
-    bestPair: '',
-    bestSession: '',
-    monthlyData: {},
-    totalProfit: 0
-  });
-
-  const [isChartAnimating, setIsChartAnimating] = useState(false);
-  const [isStatsAnimating, setIsStatsAnimating] = useState(false); // Новий стан для анімації блоків
-
-  const navigate = useNavigate();
-
   useEffect(() => {
     const fetchTradeData = async () => {
       try {
-        setIsChartAnimating(true); // Початок анімації при завантаженні
-        setIsStatsAnimating(true); // Початок анімації для блоків при завантаженні
+        setIsChartAnimating(true);
+        setIsStatsAnimating(true);
         const trades = await window.electronAPI.getTrades();
         if (trades && trades.length > 0) {
           const stats = calculateStats(trades);
@@ -268,8 +299,8 @@ function Home() {
         }
         setTimeout(() => {
           setIsChartAnimating(false);
-          setIsStatsAnimating(false); // Скидання анімації для блоків після 0.5s
-        }, 500); // Імітація анімації (0.5s)
+          setIsStatsAnimating(false);
+        }, 500);
       } catch (error) {
         console.error('Error fetching trade data:', error);
         setIsChartAnimating(false);
@@ -297,12 +328,10 @@ function Home() {
       };
     }
 
-    // Фільтруємо тільки валідні числові значення
     const validTrades = trades.filter(trade => !isNaN(parseFloat(trade.profitLoss)));
     const winningTrades = validTrades.filter(trade => parseFloat(trade.profitLoss) > 0);
     const losingTrades = validTrades.filter(trade => parseFloat(trade.profitLoss) < 0);
 
-    // Розрахунок статистики по парах
     const pairStats = validTrades.reduce((acc, trade) => {
       if (!acc[trade.pair]) {
         acc[trade.pair] = {
@@ -315,11 +344,9 @@ function Home() {
       return acc;
     }, {});
 
-    // Знаходження найкращої пари
     const bestPair = Object.entries(pairStats)
       .sort(([,a], [,b]) => b.profit - a.profit)[0]?.[0] || 'N/A';
 
-    // Статистика по сесіях
     const sessionStats = validTrades.reduce((acc, trade) => {
       if (!acc[trade.session]) {
         acc[trade.session] = {
@@ -332,11 +359,9 @@ function Home() {
       return acc;
     }, {});
 
-    // Знаходження найкращої сесії
     const bestSession = Object.entries(sessionStats)
       .sort(([,a], [,b]) => b.profit - a.profit)[0]?.[0] || 'N/A';
 
-    // Розрахунок місячної статистики
     const monthlyData = validTrades.reduce((acc, trade) => {
       if (trade.date) {
         const date = new Date(trade.date);
@@ -442,8 +467,8 @@ function Home() {
   const handleUpdate = () => {
     const fetchTradeData = async () => {
       try {
-        setIsChartAnimating(true); // Початок анімації для чартів
-        setIsStatsAnimating(true); // Початок анімації для блоків
+        setIsChartAnimating(true);
+        setIsStatsAnimating(true);
         const trades = await window.electronAPI.getTrades();
         if (trades && trades.length > 0) {
           const stats = calculateStats(trades);
@@ -451,8 +476,8 @@ function Home() {
         }
         setTimeout(() => {
           setIsChartAnimating(false);
-          setIsStatsAnimating(false); // Скидання анімації для блоків після 0.5s
-        }, 500); // Імітація анімації (0.5s)
+          setIsStatsAnimating(false);
+        }, 500);
       } catch (error) {
         console.error('Error fetching trade data:', error);
         setIsChartAnimating(false);
@@ -466,9 +491,13 @@ function Home() {
     navigate('/settings');
   };
 
+  const toggleSidebar = () => {
+    setIsCollapsed(!isCollapsed);
+  };
+
   return (
     <>
-      <Sidebar>
+      <Sidebar isCollapsed={isCollapsed}>
         <Header>
           <Greeting>{getGreeting()}</Greeting>
           <WorkPhrase>Let's get to work!</WorkPhrase>
@@ -479,7 +508,16 @@ function Home() {
           </MenuButton>
         ))}
       </Sidebar>
-      <MainContent>
+      <ToggleButton 
+        isCollapsed={isCollapsed} 
+        onClick={toggleSidebar}
+      >
+        <img 
+          src={isCollapsed ? ShowMenuIcon : HideMenuIcon} 
+          alt={isCollapsed ? "Show menu" : "Hide menu"}
+        />
+      </ToggleButton>
+      <MainContent isCollapsed={isCollapsed}>
         <TopRightButtons>
           <IconButton className="update-button" data-tooltip="Update Statistics" onClick={handleUpdate}>
             <img src={UpdateIcon} alt="Update" />

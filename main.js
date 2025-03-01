@@ -179,6 +179,10 @@ ipcMain.handle('deleteNote', async (event, id) => {
     });
   });
 });
+ipcMain.on('toggle-sidebar', (event, isCollapsed) => {
+  // Тут логіка для обробки стану сайдбару в головному процесі
+  mainWindow.webContents.send('sidebar-state-changed', isCollapsed);
+});
 ipcMain.handle('get-trade', async (event, id) => {
   // Отримання трейду з бази даних за id
   const trade = await db.get('SELECT * FROM trades WHERE id = ?', id);
