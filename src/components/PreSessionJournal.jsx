@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 import { useTable, usePagination } from 'react-table';
 import EditIcon from '../assets/icons/edit-icon.svg';
@@ -335,10 +335,12 @@ const PopupButton = styled.button`
 
 function PreSessionJournal() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [data, setData] = useState([]);
   const [deletePopup, setDeletePopup] = useState(null);
+  const [isLoading, setIsLoading] = useState(false);
   const [newEntry, setNewEntry] = useState({
-    id: null,
+    id: String(Date.now()),
     date: new Date().toISOString().split('T')[0],
     weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
     pair: '',
@@ -349,53 +351,112 @@ function PreSessionJournal() {
     addPair: false,
   });
 
-  const handleChange = (field, value, rowId = null) => {
-    if (rowId !== null) {
-      setData(prevData => prevData.map(item =>
-        item.id === rowId ? { ...item, [field]: value } : item
-      ));
-    } else {
-      setNewEntry(prev => ({
-        ...prev,
-        [field]: value,
-      }));
+  useEffect(() => {
+    console.log('Current data in state:', data);
+  }, [data]);
+
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const currentDate = new Date().toISOString().split('T')[0];
+      console.log('Loading data for date:', currentDate);
+      
+      const routine = await window.electronAPI.getDailyRoutine(currentDate);
+      console.log('Loaded routine:', routine);
+
+      if (routine && routine.preSession) {
+        const processedData = Array.isArray(routine.preSession) 
+          ? routine.preSession.map(entry => ({
+              ...entry,
+              id: String(entry.id || Date.now())
+            }))
+          : [];
+        
+        console.log('Processed data to set:', processedData);
+        setData(processedData);
+      } else {
+        console.log('No data found in routine, creating empty array');
+        setData([]);
+      }
+    } catch (error) {
+      console.error('Error in loadData:', error);
+      setData([]);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  const handleEdit = (id) => {
-    const entryToEdit = data.find(entry => entry.id === id);
+  useEffect(() => {
+    loadData();
+    console.log('Location changed, reloading data');
+  }, [location]);
+
+  const handleChange = async (field, value, rowId = null) => {
+    try {
+      if (rowId !== null) {
+        const updatedData = data.map(item =>
+          item.id === rowId ? { ...item, [field]: value } : item
+        );
+        setData(updatedData);
+        
+        await window.electronAPI.saveDailyRoutine({
+          date: new Date().toISOString().split('T')[0],
+          preSession: updatedData,
+          postSession: [],
+          emotions: [],
+          notes: [],
+        });
+      }
+    } catch (error) {
+      console.error('Error updating field:', error);
+    }
+  };
+
+  const handleEdit = async (id) => {
+    console.log('Edit clicked with id:', id);
+    console.log('Current data state:', data);
+    
+    if (!data || data.length === 0) {
+      console.log('Data is empty, trying to reload...');
+      await loadData();
+    }
+
+    const stringId = String(id);
+    console.log('Looking for entry with id:', stringId);
+    
+    const entryToEdit = data.find(entry => String(entry.id) === stringId);
+    console.log('Found entry:', entryToEdit);
+
     if (entryToEdit) {
-      navigate(`/daily-routine/pre-session/${id}`, { 
-        state: { sessionData: entryToEdit } 
-      });
+      try {
+        navigate(`/daily-routine/pre-session/${stringId}`, { 
+          state: { 
+            sessionData: entryToEdit,
+            timestamp: Date.now()
+          } 
+        });
+      } catch (error) {
+        console.error('Navigation error:', error);
+      }
+    } else {
+      console.error('Entry not found with id:', id);
+      console.error('Current data state:', data);
+      alert('Unable to find the selected entry. Please try reloading the page.');
     }
   };
 
   const handleAdd = async () => {
     try {
       const newRecord = {
-        id: Date.now(),
-        date: new Date().toISOString().split('T')[0],
-        weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
-        pair: '',
-        narrative: '',
-        execution: '',
-        outcome: '',
-        planOutcome: false,
-        addPair: false
+        ...newEntry,
+        id: String(Date.now())
       };
 
-      const updatedData = [...data, newRecord];
-      setData(updatedData);
-      await window.electronAPI.saveDailyRoutine({
-        date: newRecord.date,
-        preSession: updatedData,
-        postSession: [],
-        emotions: [],
-        notes: [],
-      });
+      console.log('Creating new record:', newRecord);
 
-      setNewEntry(newRecord);
+      navigate(`/daily-routine/pre-session/${newRecord.id}`, {
+        state: { sessionData: newRecord }
+      });
     } catch (error) {
       console.error('Error adding pre-session entry:', error);
       alert('Failed to add Pre-Session entry.');
@@ -432,22 +493,43 @@ function PreSessionJournal() {
         Header: 'Actions',
         accessor: 'actions',
         width: 100,
-        Cell: ({ row }) => (
-          <ButtonsContainer>
-            <IconButton
-              data-tooltip="Edit entry"
-              onClick={() => handleEdit(row.original.id)}
-            >
-              <img src={EditIcon} alt="Edit" />
-            </IconButton>
-            <IconButton
-              data-tooltip="Delete entry"
-              onClick={() => setDeletePopup(row.original.id)}
-            >
-              <img src={DeleteIcon} alt="Delete" />
-            </IconButton>
-          </ButtonsContainer>
-        ),
+        Cell: ({ row }) => {
+          const rowId = String(row.original.id);
+          console.log('Rendering action cell for row:', row.original);
+          
+          if (!row.original || !rowId) {
+            console.error('Invalid row data:', row);
+            return null;
+          }
+
+          return (
+            <ButtonsContainer>
+              <IconButton
+                type="button"
+                data-tooltip="Edit entry"
+                onClick={async (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  console.log('Clicking edit for row id:', rowId);
+                  await handleEdit(rowId);
+                }}
+              >
+                <img src={EditIcon} alt="Edit" />
+              </IconButton>
+              <IconButton
+                type="button"
+                data-tooltip="Delete entry"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setDeletePopup(rowId);
+                }}
+              >
+                <img src={DeleteIcon} alt="Delete" />
+              </IconButton>
+            </ButtonsContainer>
+          );
+        },
       },
       { Header: 'Date', accessor: 'date', width: 120 },
       { Header: 'WeekDay', accessor: 'weekDay', width: 120 },
@@ -493,7 +575,7 @@ function PreSessionJournal() {
             value={value || ''}
             onChange={(e) => handleChange('execution', e.target.value, row.original.id)}
           >
-                        <StyledOption value="">Select</StyledOption>
+            <StyledOption value="">Select</StyledOption>
             <StyledOption value="Day off">Day off</StyledOption>
             <StyledOption value="No Trades">No Trades</StyledOption>
             <StyledOption value="Skipped">Skipped</StyledOption>
@@ -549,27 +631,20 @@ function PreSessionJournal() {
     []
   );
 
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const routine = await window.electronAPI.getDailyRoutine(newEntry.date);
-        const preSessionData = routine.preSession || [];
-        setData(preSessionData);
-      } catch (error) {
-        console.error('Error fetching pre-session data:', error);
-        setData([]);
-      }
-    };
-    fetchData();
-  }, [newEntry.date]);
-
   const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
     rows,
     prepareRow,
-  } = useTable({ columns, data }, usePagination);
+  } = useTable(
+    { 
+      columns, 
+      data,
+      initialState: { pageIndex: 0 }
+    },
+    usePagination
+  );
 
   return (
     <>
@@ -588,33 +663,43 @@ function PreSessionJournal() {
             <ActionButton>Filter</ActionButton>
           </div>
         </ButtonContainer>
-        <Table {...getTableProps()}>
-          <thead>
-            {headerGroups.map(headerGroup => (
-              <tr {...headerGroup.getHeaderGroupProps()}>
-                {headerGroup.headers.map(column => (
-                  <Th {...column.getHeaderProps()} style={{ width: column.width }}>
-                    {column.render('Header')}
-                  </Th>
-                ))}
-              </tr>
-            ))}
-          </thead>
-          <tbody {...getTableBodyProps()}>
-            {rows.map(row => {
-              prepareRow(row);
-              return (
-                <TableRow {...row.getRowProps()}>
-                  {row.cells.map(cell => (
-                    <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                      {cell.render('Cell')}
-                    </Td>
+        {isLoading ? (
+          <div style={{ 
+            textAlign: 'center', 
+            padding: '20px',
+            color: '#fff' 
+          }}>
+            Loading...
+          </div>
+        ) : (
+          <Table {...getTableProps()}>
+            <thead>
+              {headerGroups.map(headerGroup => (
+                <tr {...headerGroup.getHeaderGroupProps()}>
+                  {headerGroup.headers.map(column => (
+                    <Th {...column.getHeaderProps()} style={{ width: column.width }}>
+                      {column.render('Header')}
+                    </Th>
                   ))}
-                </TableRow>
-              );
-            })}
-          </tbody>
-        </Table>
+                </tr>
+              ))}
+            </thead>
+            <tbody {...getTableBodyProps()}>
+              {rows.map(row => {
+                prepareRow(row);
+                return (
+                  <TableRow {...row.getRowProps()}>
+                    {row.cells.map(cell => (
+                      <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                        {cell.render('Cell')}
+                      </Td>
+                    ))}
+                  </TableRow>
+                );
+              })}
+            </tbody>
+          </Table>
+        )}
 
         {deletePopup && (
           <Popup>
