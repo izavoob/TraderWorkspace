@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
-import DeleteIcon from '../assets/icons/delete-icon.svg';
-import EditIcon from '../assets/icons/edit-icon.svg';
+import { useNavigate, useParams } from 'react-router-dom';
+import styled, { createGlobalStyle } from 'styled-components';
+import DeleteIcon from '../../assets/icons/delete-icon.svg';
+import EditIcon from '../../assets/icons/edit-icon.svg';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
@@ -127,11 +129,11 @@ const FormField = styled.div`
 `;
 
 const FormLabel = styled.label`
-  color: rgb(92, 157, 245); /* Змінюємо колір на синій */
+  color: rgb(92, 157, 245);
   margin-bottom: 5px;
   display: block;
   text-align: center;
-  font-size: 1.5em; /* Залишаємо розмір шрифта у 1.5 рази більшим */
+  font-size: 1.5em;
   width: 100%;
 `;
 
@@ -168,11 +170,11 @@ const FormCheckbox = styled.input`
 `;
 
 const FormCheckboxLabel = styled.label`
-  color: rgb(92, 157, 245); /* Змінюємо колір на синій для чекбоксів */
+  color: rgb(92, 157, 245);
   margin-bottom: 5px;
   display: flex;
   align-items: center;
-  font-size: 1.5em; /* Залишаємо розмір шрифта у 1.5 рази більшим */
+  font-size: 1.5em;
   text-align: center;
 `;
 
@@ -199,7 +201,7 @@ const FormButton = styled.button`
 const ButtonGroup = styled.div`
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  justify-content: center;
   margin-top: 20px;
   width: 100%;
 `;
@@ -305,6 +307,8 @@ const ScreenshotPreview = styled.img`
   margin-bottom: 10px;
   cursor: pointer;
 `;
+
+
 
 const TextArea = styled.textarea`
   width: 100%;
@@ -495,12 +499,90 @@ const NotePopupButtons = styled.div`
   justify-content: center;
   width: 100%;
 `;
+const DatePickerStyles = createGlobalStyle`
+  .react-datepicker {
+    background-color: #2e2e2e;
+    border: 1px solid #5e2ca5;
+    font-family: inherit;
+  }
 
-function CreateTrade() {
+  .react-datepicker__header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__current-month,
+  .react-datepicker__day-name,
+  .react-datepicker__day,
+  .react-datepicker__time-name {
+    color: #fff;
+  }
+
+  .react-datepicker__day:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__day--selected,
+  .react-datepicker__day--keyboard-selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE);
+    color: #fff;
+  }
+
+  .react-datepicker__time-container {
+    background-color: #2e2e2e;
+    border-left: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__time-box {
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item {
+    color: #fff;
+    background-color: #2e2e2e;
+    
+    &:hover {
+      background: linear-gradient(45deg, #7425C9, #B886EE);
+    }
+  }
+
+  .react-datepicker__time-list-item--selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE) !important;
+    color: #fff;
+  }
+
+  .react-datepicker__navigation {
+    top: 8px;
+  }
+
+  .react-datepicker__navigation-icon::before {
+    border-color: #B886EE;
+  }
+`;
+
+const StyledDatePicker = styled(DatePicker)`
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
+function TradeDetail() {
   const navigate = useNavigate();
-  const [tradeCount, setTradeCount] = useState(0);
+  const { id } = useParams();
+  const [trades, setTrades] = useState([]);
+  const [isEditing, setIsEditing] = useState(false);
   const [trade, setTrade] = useState({
-    date: new Date().toISOString().split('T')[0],
+    date: '',
     account: '',
     pair: '',
     direction: '',
@@ -533,6 +615,7 @@ function CreateTrade() {
     conclusion: { videoLink: '', text: '' },
     notes: [],
   });
+
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [tempVolumeConfirmation, setTempVolumeConfirmation] = useState([]);
   const [showNotePopup, setShowNotePopup] = useState(false);
@@ -542,13 +625,28 @@ function CreateTrade() {
   const [fullscreenImage, setFullscreenImage] = useState(null);
 
   useEffect(() => {
-    window.electronAPI.getTrades().then((trades) => {
-      setTradeCount(trades.length + 1);
-    }).catch((error) => {
-      console.error('Error fetching trade count:', error);
-      setTradeCount(1);
-    });
-  }, []);
+    const loadTradeData = async () => {
+      try {
+        const loadedTrades = await window.electronAPI.getTrades();
+        setTrades(loadedTrades);
+        
+        const currentTrade = loadedTrades.find(t => t.id === id);
+        if (currentTrade) {
+          setTrade(currentTrade);
+          if (currentTrade.volumeConfirmation) {
+            setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading trade:', error);
+      }
+    };
+    loadTradeData();
+  }, [id]);
+
+  const handleBack = () => {
+    navigate(-1);
+  };
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -565,6 +663,40 @@ function CreateTrade() {
     });
   };
 
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      await window.electronAPI.updateTrade(id, trade);
+      setIsEditing(false);
+      navigate(-1);
+    } catch (error) {
+      console.error('Error updating trade:', error);
+      alert('Failed to update trade. Please try again.');
+    }
+  };
+
+  const handleCancel = () => {
+    const loadTrade = async () => {
+      try {
+        const loadedTrades = await window.electronAPI.getTrades();
+        const currentTrade = loadedTrades.find(t => t.id === id);
+        if (currentTrade) {
+          setTrade(currentTrade);
+          if (currentTrade.volumeConfirmation) {
+            setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
+          }
+        }
+      } catch (error) {
+        console.error('Error loading trade:', error);
+      }
+    };
+    loadTrade();
+    setIsEditing(false);
+  };
+
   const handleVolumeOptionClick = (option) => {
     setTempVolumeConfirmation((prev) =>
       prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option]
@@ -572,7 +704,7 @@ function CreateTrade() {
   };
 
   const handleVolumeConfirm = () => {
-    setTrade((prev) => ({ ...prev, volumeConfirmation: tempVolumeConfirmation }));
+    setTrade((prev) => ({ ...prev, volumeConfirmation: tempVolumeConfirmation.join(', ') }));
     setShowVolumePopup(false);
   };
 
@@ -674,50 +806,34 @@ function CreateTrade() {
     setEditNoteIndex(null);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const tradeData = {
-        id: Date.now().toString(),
-        ...trade,
-        risk: trade.risk ? `${trade.risk}%` : '',
-        rr: trade.rr ? `${trade.rr}RR` : '',
-        volumeConfirmation: trade.volumeConfirmation.join(', '),
-      };
-      const result = await window.electronAPI.saveTrade(tradeData);
-      if (result) {
-        navigate('/trade-journal', { state: { fromCreateTrade: true } });
-      } else {
-        throw new Error('Failed to save trade');
-      }
-    } catch (error) {
-      console.error('Error saving trade:', error);
-      alert('Failed to save trade. Please try again.');
-    }
-  };
-
-  const handleBack = () => {
-    navigate(-1); // Повернення назад по історії
-  };
-
   return (
     <CreateTradeContainer>
+      <DatePickerStyles />
       <Header>
         <BackButton onClick={handleBack} />
-        <Title>New Trade</Title>
+        <Title>Trade Details</Title>
       </Header>
       <TradeContent>
-        <TradeNumber>Trade number: {tradeCount}</TradeNumber>
+        <TradeNumber>
+          Trade number: {trades.findIndex(t => t.id === id) + 1}
+        </TradeNumber>
         <TablesContainer>
           <TradeTable>
             <FormRow>
               <FormField>
                 <FormLabel>Date</FormLabel>
-                <FormInput
-                  type="date"
-                  name="date"
-                  value={trade.date}
-                  onChange={handleChange}
+                <StyledDatePicker
+                  selected={trade.date ? new Date(trade.date) : null}
+                  onChange={(date) => {
+                    const formattedDate = date.toISOString().split('T')[0];
+                    setTrade(prev => ({
+                      ...prev,
+                      date: formattedDate
+                    }));
+                  }}
+                  dateFormat="yyyy-MM-dd"
+                  placeholderText="Select date"
+                  disabled={!isEditing}
                 />
               </FormField>
               <FormField>
@@ -728,7 +844,12 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>Pair</FormLabel>
-                <FormSelect name="pair" value={trade.pair} onChange={handleChange}>
+                <FormSelect 
+                  name="pair" 
+                  value={trade.pair} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Pair</option>
                   <option value="EURUSD">EURUSD</option>
                   <option value="GBPUSD">GBPUSD</option>
@@ -742,7 +863,12 @@ function CreateTrade() {
             <FormRow>
               <FormField>
                 <FormLabel>Direction</FormLabel>
-                <FormSelect name="direction" value={trade.direction} onChange={handleChange}>
+                <FormSelect 
+                  name="direction" 
+                  value={trade.direction} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Direction</option>
                   <option value="Long" style={{ backgroundColor: '#00ff00', color: '#000' }}>Long</option>
                   <option value="Short" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Short</option>
@@ -750,10 +876,15 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>Position Type</FormLabel>
-                <FormSelect name="positionType" value={trade.positionType} onChange={handleChange}>
+                <FormSelect 
+                  name="positionType" 
+                  value={trade.positionType} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Position Type</option>
-                  <option value="Intraday">Intraday</option>
                   <option value="Swing">Swing</option>
+                  <option value="Intraday">Intraday</option>
                 </FormSelect>
               </FormField>
               <FormField>
@@ -765,13 +896,19 @@ function CreateTrade() {
                   onChange={handleChange}
                   placeholder="Enter risk"
                   step="0.01"
+                  readOnly={!isEditing}
                 />
               </FormField>
             </FormRow>
             <FormRow>
               <FormField>
                 <FormLabel>Result</FormLabel>
-                <FormSelect name="result" value={trade.result} onChange={handleChange}>
+                <FormSelect 
+                  name="result" 
+                  value={trade.result} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Result</option>
                   <option value="Win" style={{ backgroundColor: '#00ff00', color: '#000' }}>Win</option>
                   <option value="Loss" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Loss</option>
@@ -786,6 +923,7 @@ function CreateTrade() {
                   onChange={handleChange}
                   placeholder="Enter RR"
                   step="0.01"
+                  readOnly={!isEditing}
                 />
               </FormField>
               <FormField>
@@ -815,6 +953,7 @@ function CreateTrade() {
                     name="followingPlan"
                     checked={trade.followingPlan}
                     onChange={handleChange}
+                    disabled={!isEditing}
                   />
                   Following the Plan?
                 </FormCheckboxLabel>
@@ -826,6 +965,7 @@ function CreateTrade() {
                     name="bestTrade"
                     checked={trade.bestTrade}
                     onChange={handleChange}
+                    disabled={!isEditing}
                   />
                   Best Trade?
                 </FormCheckboxLabel>
@@ -836,7 +976,12 @@ function CreateTrade() {
             <FormRow>
               <FormField>
                 <FormLabel>Session</FormLabel>
-                <FormSelect name="session" value={trade.session} onChange={handleChange}>
+                <FormSelect 
+                  name="session" 
+                  value={trade.session} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Session</option>
                   <option value="Asia" style={{ backgroundColor: '#0000ff', color: '#fff' }}>Asia</option>
                   <option value="Frankfurt" style={{ backgroundColor: '#ff69b4', color: '#fff' }}>Frankfurt</option>
@@ -846,7 +991,12 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>Point A</FormLabel>
-                <FormSelect name="pointA" value={trade.pointA} onChange={handleChange}>
+                <FormSelect 
+                  name="pointA" 
+                  value={trade.pointA} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Point A</option>
                   <option value="Fractal Raid">Fractal Raid</option>
                   <option value="FVG">FVG</option>
@@ -856,7 +1006,12 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>Trigger</FormLabel>
-                <FormSelect name="trigger" value={trade.trigger} onChange={handleChange}>
+                <FormSelect 
+                  name="trigger" 
+                  value={trade.trigger} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Trigger</option>
                   <option value="Fractal Swing">Fractal Swing</option>
                   <option value="FVG">FVG</option>
@@ -868,10 +1023,13 @@ function CreateTrade() {
               <FormField>
                 <FormLabel>Volume Confirmation</FormLabel>
                 <VolumeConfirmationContainer>
-                  <VolumeConfirmationButton onClick={() => setShowVolumePopup(true)}>
-                    {trade.volumeConfirmation.length > 0 ? trade.volumeConfirmation.join(', ') : 'Select'}
+                  <VolumeConfirmationButton 
+                    onClick={() => isEditing && setShowVolumePopup(true)}
+                    style={{ cursor: isEditing ? 'pointer' : 'default' }}
+                  >
+                    {trade.volumeConfirmation || 'Select'}
                   </VolumeConfirmationButton>
-                  {showVolumePopup && (
+                  {showVolumePopup && isEditing && (
                     <VolumeConfirmationPopup>
                       {['Inversion', 'FVG', 'SNR'].map((option) => (
                         <VolumeOption
@@ -889,7 +1047,12 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>Entry Model</FormLabel>
-                <FormSelect name="entryModel" value={trade.entryModel} onChange={handleChange}>
+                <FormSelect 
+                  name="entryModel" 
+                  value={trade.entryModel} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Entry Model</option>
                   <option value="Inversion">Inversion</option>
                   <option value="Displacement">Displacement</option>
@@ -899,7 +1062,12 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>Entry TF</FormLabel>
-                <FormSelect name="entryTF" value={trade.entryTF} onChange={handleChange}>
+                <FormSelect 
+                  name="entryTF" 
+                  value={trade.entryTF} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select Entry TF</option>
                   <option value="3m">3m</option>
                   <option value="5m">5m</option>
@@ -912,7 +1080,12 @@ function CreateTrade() {
             <FormRow>
               <FormField>
                 <FormLabel>FTA</FormLabel>
-                <FormSelect name="fta" value={trade.fta} onChange={handleChange}>
+                <FormSelect 
+                  name="fta" 
+                  value={trade.fta} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select FTA</option>
                   <option value="Fractal Swing">Fractal Swing</option>
                   <option value="FVG">FVG</option>
@@ -922,7 +1095,12 @@ function CreateTrade() {
               </FormField>
               <FormField>
                 <FormLabel>SL Position</FormLabel>
-                <FormSelect name="slPosition" value={trade.slPosition} onChange={handleChange}>
+                <FormSelect 
+                  name="slPosition" 
+                  value={trade.slPosition} 
+                  onChange={handleChange}
+                  disabled={!isEditing}
+                >
                   <option value="">Select SL Position</option>
                   <option value="LTF/Lunch Manipulation">LTF/Lunch Manipulation</option>
                   <option value="30m Raid">30m Raid</option>
@@ -939,6 +1117,7 @@ function CreateTrade() {
                   value={trade.score}
                   onChange={handleChange}
                   placeholder="Enter score"
+                  readOnly={!isEditing}
                 />
               </FormField>
             </FormRow>
@@ -961,7 +1140,7 @@ function CreateTrade() {
           {trade.topDownAnalysis.map((item, index) => (
             <ScreenshotField key={index}>
               <ScreenshotTitle>{item.title}</ScreenshotTitle>
-              {!item.screenshot && (
+              {!item.screenshot && isEditing && (
                 <ScreenshotInput
                   type="text"
                   placeholder="Paste screenshot here (Ctrl+V)"
@@ -969,21 +1148,27 @@ function CreateTrade() {
                 />
               )}
               {item.screenshot && (
-                <ScreenshotPreview
-                  src={item.screenshot}
-                  alt="Screenshot"
-                  onClick={() => openFullscreen(item.screenshot)}
-                />
+                <>
+                  <ScreenshotPreview
+                    src={item.screenshot}
+                    alt="Screenshot"
+                    onClick={() => openFullscreen(item.screenshot)}
+                  />
+                  {isEditing && (
+                    <DeleteScreenshotButton 
+                      className="delete-screenshot" 
+                      onClick={() => deleteScreenshot('topDownAnalysis', index)}
+                    >
+                      <img src={DeleteIcon} alt="Delete" />
+                    </DeleteScreenshotButton>
+                  )}
+                </>
               )}
               <TextArea
                 value={item.text}
                 onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
+                readOnly={!isEditing}
               />
-              {item.screenshot && (
-                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('topDownAnalysis', index)}>
-                  <img src={DeleteIcon} alt="Delete" />
-                </DeleteScreenshotButton>
-              )}
             </ScreenshotField>
           ))}
         </ScreenshotContainer>
@@ -993,7 +1178,7 @@ function CreateTrade() {
             <SectionTitle>Execution</SectionTitle>
             <ScreenshotField>
               <ScreenshotTitle>Exit Moment</ScreenshotTitle>
-              {!trade.execution.screenshot && (
+              {!trade.execution.screenshot && isEditing && (
                 <ScreenshotInput
                   type="text"
                   placeholder="Paste screenshot here (Ctrl+V)"
@@ -1001,28 +1186,34 @@ function CreateTrade() {
                 />
               )}
               {trade.execution.screenshot && (
-                <ScreenshotPreview
-                  src={trade.execution.screenshot}
-                  alt="Screenshot"
-                  onClick={() => openFullscreen(trade.execution.screenshot)}
-                />
+                <>
+                  <ScreenshotPreview
+                    src={trade.execution.screenshot}
+                    alt="Screenshot"
+                    onClick={() => openFullscreen(trade.execution.screenshot)}
+                  />
+                  {isEditing && (
+                    <DeleteScreenshotButton 
+                      className="delete-screenshot" 
+                      onClick={() => deleteScreenshot('execution', 0)}
+                    >
+                      <img src={DeleteIcon} alt="Delete" />
+                    </DeleteScreenshotButton>
+                  )}
+                </>
               )}
               <TextArea
                 value={trade.execution.text}
                 onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
+                readOnly={!isEditing}
               />
-              {trade.execution.screenshot && (
-                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('execution', 0)}>
-                  <img src={DeleteIcon} alt="Delete" />
-                </DeleteScreenshotButton>
-              )}
             </ScreenshotField>
           </div>
           <div style={{ flex: 1 }}>
             <SectionTitle>Management</SectionTitle>
             <ScreenshotField>
               <ScreenshotTitle>First Trouble Area</ScreenshotTitle>
-              {!trade.management.screenshot && (
+              {!trade.management.screenshot && isEditing && (
                 <ScreenshotInput
                   type="text"
                   placeholder="Paste screenshot here (Ctrl+V)"
@@ -1030,21 +1221,27 @@ function CreateTrade() {
                 />
               )}
               {trade.management.screenshot && (
-                <ScreenshotPreview
-                  src={trade.management.screenshot}
-                  alt="Screenshot"
-                  onClick={() => openFullscreen(trade.management.screenshot)}
-                />
+                <>
+                  <ScreenshotPreview
+                    src={trade.management.screenshot}
+                    alt="Screenshot"
+                    onClick={() => openFullscreen(trade.management.screenshot)}
+                  />
+                  {isEditing && (
+                    <DeleteScreenshotButton 
+                      className="delete-screenshot" 
+                      onClick={() => deleteScreenshot('management', 0)}
+                    >
+                      <img src={DeleteIcon} alt="Delete" />
+                    </DeleteScreenshotButton>
+                  )}
+                </>
               )}
               <TextArea
                 value={trade.management.text}
                 onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
+                readOnly={!isEditing}
               />
-              {trade.management.screenshot && (
-                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('management', 0)}>
-                  <img src={DeleteIcon} alt="Delete" />
-                </DeleteScreenshotButton>
-              )}
             </ScreenshotField>
           </div>
         </Row>
@@ -1054,15 +1251,17 @@ function CreateTrade() {
             <SectionTitle>Conclusion</SectionTitle>
             <ScreenshotField>
               <ScreenshotTitle>Daily Performance Analysis</ScreenshotTitle>
-              <ScreenshotInput
+              <FormInput
                 type="text"
-                placeholder="YouTube video link"
                 value={trade.conclusion.videoLink}
                 onChange={(e) => handleScreenshotChange('conclusion', 0, 'videoLink', e.target.value)}
+                placeholder="Video link"
+                readOnly={!isEditing}
               />
               <TextArea
                 value={trade.conclusion.text}
                 onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
+                readOnly={!isEditing}
               />
             </ScreenshotField>
           </div>
@@ -1070,59 +1269,78 @@ function CreateTrade() {
             <SectionTitle>Notes & Mistakes</SectionTitle>
             <NoteContainer>
               {trade.notes.map((note, index) => (
-                <NoteItem key={index} onClick={() => openNotePopup(index)}>
+                <NoteItem key={index} onClick={() => isEditing && openNotePopup(index)}>
                   <NoteText>{note.title}</NoteText>
-                  <IconButton className="edit" onClick={(e) => { e.stopPropagation(); openNotePopup(index); }}>
-                    <img src={EditIcon} alt="Edit" /> 
-                  </IconButton>
-                  <IconButton className="delete" onClick={(e) => { e.stopPropagation(); deleteNote(index); }}>
-                    <img src={DeleteIcon} alt="Delete" />
-                  </IconButton>
+                  <NoteText>{note.text}</NoteText>
+                  {isEditing && (
+                    <>
+                      <IconButton className="edit" onClick={(e) => {
+                        e.stopPropagation();
+                        openNotePopup(index);
+                      }}>
+                        <img src={EditIcon} alt="Edit" />
+                      </IconButton>
+                      <IconButton className="delete" onClick={(e) => {
+                        e.stopPropagation();
+                        deleteNote(index);
+                      }}>
+                        <img src={DeleteIcon} alt="Delete" />
+                      </IconButton>
+                    </>
+                  )}
                 </NoteItem>
               ))}
-              <FormButton onClick={() => openNotePopup()}>Add Note or Mistake</FormButton>
+              {isEditing && (
+                <FormButton onClick={() => openNotePopup()}>Add Note</FormButton>
+              )}
             </NoteContainer>
           </div>
         </Row>
 
+        {fullscreenImage && (
+          <FullscreenModal onClick={closeFullscreen}>
+            <FullscreenImage src={fullscreenImage} alt="Fullscreen Screenshot" />
+            <CloseButton onClick={closeFullscreen}>X</CloseButton>
+          </FullscreenModal>
+        )}
+
         {showNotePopup && (
           <NotePopup>
-            <NotePopupTitle>Adding Notes & Mistakes</NotePopupTitle>
+            <NotePopupTitle>{editNoteIndex !== null ? 'Edit Note' : 'Add Note'}</NotePopupTitle>
             <NotePopupInput
               type="text"
-              placeholder="Enter note title"
+              placeholder="Note Title"
               value={noteTitle}
               onChange={(e) => setNoteTitle(e.target.value)}
             />
             <NotePopupTextArea
-              placeholder="Enter note text"
+              placeholder="Note Text"
               value={noteText}
               onChange={(e) => setNoteText(e.target.value)}
             />
             <NotePopupButtons>
               <FormButton onClick={saveNote}>Save</FormButton>
               <FormButton onClick={cancelNote}>Cancel</FormButton>
-              {editNoteIndex !== null && (
-                <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
-              )}
             </NotePopupButtons>
           </NotePopup>
         )}
 
-        {fullscreenImage && (
-          <FullscreenModal onClick={closeFullscreen}>
-            <FullscreenImage src={fullscreenImage} alt="Fullscreen Screenshot" />
-            <CloseButton>X</CloseButton>
-          </FullscreenModal>
-        )}
-
         <ButtonGroup>
-          <FormButton type="submit" onClick={handleSubmit}>Save Trade</FormButton>
-          <FormButton type="button" onClick={handleBack}>Cancel</FormButton>
+          {!isEditing ? (
+            <>
+              <FormButton onClick={handleEdit}>Edit Trade</FormButton>
+              <FormButton onClick={handleBack}>Back</FormButton>
+            </>
+          ) : (
+            <>
+              <FormButton onClick={handleSave}>Save Changes</FormButton>
+              <FormButton onClick={handleCancel}>Cancel</FormButton>
+            </>
+          )}
         </ButtonGroup>
       </TradeContent>
     </CreateTradeContainer>
   );
 }
 
-export default CreateTrade;
+export default TradeDetail;

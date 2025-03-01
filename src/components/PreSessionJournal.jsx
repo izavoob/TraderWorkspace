@@ -19,6 +19,7 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
+
 const DailyRoutineContainer = styled.div`
   max-width: 1820px;
   margin: 0 auto;
@@ -333,6 +334,71 @@ const PopupButton = styled.button`
   }
 `;
 
+const ButtonContainer = styled.div`
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 20px;
+`;
+
+const ActionButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Совпадает с Header */
+  color: #fff;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 5px;
+  cursor: pointer;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Как в Header */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Как в Header */
+  transition: transform 0.2s ease;
+  &:hover {
+    transform: scale(1.05);
+    background: conic-gradient(from 45deg, #B886EE, #7425C9); /* Изменяем градиент для эффекта */
+  }
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  background-color: #1a1a1a; /* Темный фон, как основной */
+  border-radius: 5px; /* Лёгкое скругление */
+`;
+
+const Th = styled.th`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE); /* Индивидуальный градиент для каждого заголовка */
+  color: #fff;
+  padding: 10px;
+  text-align: left;
+  border: 1px solid #fff; /* Белая граница для контраста */
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3); /* Как в Header */
+`;
+
+const Td = styled.td`
+  padding: 10px;
+  border: 1px solid #fff; /* Белая граница для контраста */
+  background-color: #1a1a1a; /* Темный фон для ячеек, чтобы сохранить контраст */
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3); /* Лёгкая тень для читаемости */
+`;
+
+const Select = styled.select`
+  background-color: #1a1a1a;
+  color: #fff;
+  border: 1px solid #fff; /* Белая граница для контраста */
+  padding: 5px;
+  border-radius: 3px;
+  &:focus {
+    outline: none;
+    border-color: #B886EE; /* Фиолетовый акцент при фокусе */
+  }
+`;
+
+const Checkbox = styled.input`
+  background-color: #1a1a1a;
+  border: 1px solid #fff; /* Белая граница для контраста */
+`;
+
 function PreSessionJournal() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -343,6 +409,7 @@ function PreSessionJournal() {
     id: String(Date.now()),
     date: new Date().toISOString().split('T')[0],
     weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+
     pair: '',
     narrative: '',
     execution: '',
@@ -468,6 +535,121 @@ function PreSessionJournal() {
       const updatedData = data.filter(entry => entry.id !== id);
       setData(updatedData);
       
+  const columns = React.useMemo(
+    () => [
+      { Header: 'Date', accessor: 'date' },
+      { Header: 'WeekDay', accessor: 'weekDay' },
+      {
+        Header: 'Pair',
+        accessor: 'pair',
+        Cell: ({ value }) => (
+          <Select value={value || ''} onChange={(e) => handleChange('pair', e.target.value)}>
+            <option value="">Select</option>
+            <option value="EUR/USD">EUR/USD</option>
+            <option value="GBP/USD">GBP/USD</option>
+            <option value="USD/JPY">USD/JPY</option>
+          </Select>
+        ),
+      },
+      {
+        Header: 'Narrative',
+        accessor: 'narrative',
+        Cell: ({ value }) => (
+          <Select value={value || ''} onChange={(e) => handleChange('narrative', e.target.value)}>
+            <option value="">Select</option>
+            <option value="Bullish">Bullish</option>
+            <option value="Bearish">Bearish</option>
+            <option value="Neutral">Neutral</option>
+          </Select>
+        ),
+      },
+      {
+        Header: 'Execution',
+        accessor: 'execution',
+        Cell: ({ value }) => (
+          <Select value={value || ''} onChange={(e) => handleChange('execution', e.target.value)}>
+            <option value="">Select</option>
+            <option value="Manual">Manual</option>
+            <option value="Automated">Automated</option>
+          </Select>
+        ),
+      },
+      {
+        Header: 'Outcome',
+        accessor: 'outcome',
+        Cell: ({ value }) => (
+          <Select value={value || ''} onChange={(e) => handleChange('outcome', e.target.value)}>
+            <option value="">Select</option>
+            <option value="Profit">Profit</option>
+            <option value="Loss">Loss</option>
+            <option value="Break Even">Break Even</option>
+          </Select>
+        ),
+      },
+      {
+        Header: 'Plan&Outcome',
+        accessor: 'planOutcome',
+        Cell: ({ value }) => (
+          <Checkbox
+            type="checkbox"
+            checked={value || false}
+            onChange={(e) => handleChange('planOutcome', e.target.checked)}
+          />
+        ),
+      },
+      {
+        Header: 'Add. Pair',
+        accessor: 'addPair',
+        Cell: ({ value }) => (
+          <Checkbox
+            type="checkbox"
+            checked={value || false}
+            onChange={(e) => handleChange('addPair', e.target.checked)}
+          />
+        ),
+      },
+    ],
+    []
+  );
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        const routine = await window.electronAPI.getDailyRoutine(newEntry.date);
+        const preSessionData = routine.preSession || [];
+        // Убедимся, что данные — это массив объектов с нужными полями
+        const normalizedData = Array.isArray(preSessionData)
+          ? preSessionData.map(item => ({
+              date: item.date || newEntry.date,
+              weekDay: item.weekDay || newEntry.weekDay,
+              pair: item.pair || '',
+              narrative: item.narrative || '',
+              execution: item.execution || '',
+              outcome: item.outcome || '',
+              planOutcome: item.planOutcome || false,
+              addPair: item.addPair || false,
+            }))
+          : [];
+        setData(normalizedData);
+      } catch (error) {
+        console.error('Error fetching pre-session data:', error);
+        setData([]); // Устанавливаем пустой массив в случае ошибки
+      }
+    };
+    fetchData();
+  }, [newEntry.date]);
+
+  const handleChange = (field, value) => {
+    setNewEntry(prev => ({
+      ...prev,
+      [field]: typeof value === 'string' ? value : Boolean(value),
+    }));
+  };
+
+  const handleAdd = async () => {
+    try {
+      const updatedData = [...data, { ...newEntry }]; // Создаём копию, чтобы избежать мутации
+      setData(updatedData);
       await window.electronAPI.saveDailyRoutine({
         date: newEntry.date,
         preSession: updatedData,
@@ -480,6 +662,21 @@ function PreSessionJournal() {
     } catch (error) {
       console.error('Error deleting entry:', error);
       alert('Failed to delete entry.');
+
+      setNewEntry({
+        date: new Date().toISOString().split('T')[0],
+        weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+        pair: '',
+        narrative: '',
+        execution: '',
+        outcome: '',
+        planOutcome: false,
+        addPair: false,
+      });
+      alert('Pre-Session entry added successfully!');
+    } catch (error) {
+      console.error('Error adding pre-session entry:', error);
+      alert('Failed to add Pre-Session entry.');
     }
   };
 
@@ -631,7 +828,7 @@ function PreSessionJournal() {
     []
   );
 
-  const {
+const {
     getTableProps,
     getTableBodyProps,
     headerGroups,
@@ -710,6 +907,7 @@ function PreSessionJournal() {
         )}
       </DailyRoutineContainer>
     </>
+
   );
 }
 

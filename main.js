@@ -5,6 +5,7 @@ const fs = require('fs').promises;
 
 let db = null;
 let vaultPath = null;
+let mainWindow = null;
 
 async function initializeDatabase() {
   if (vaultPath && db) return;
@@ -17,7 +18,6 @@ async function initializeDatabase() {
       console.log('SQLite database initialized at:', dbPath);
     });
 
-    // Таблиця trades
     db.run(`
       CREATE TABLE IF NOT EXISTS trades (
         id TEXT PRIMARY KEY,
@@ -52,7 +52,6 @@ async function initializeDatabase() {
       if (err) throw new Error(`Table trades creation failed: ${err.message}`);
     });
 
-    // Таблиця notes
     db.run(`
       CREATE TABLE IF NOT EXISTS notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -65,7 +64,6 @@ async function initializeDatabase() {
       if (err) throw new Error(`Table notes creation failed: ${err.message}`);
     });
 
-    // Таблиця learning_notes
     db.run(`
       CREATE TABLE IF NOT EXISTS learning_notes (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -78,7 +76,6 @@ async function initializeDatabase() {
       if (err) throw new Error(`Table learning_notes creation failed: ${err.message}`);
     });
 
-    // Таблиця daily_routines
     db.run(`
       CREATE TABLE IF NOT EXISTS daily_routines (
         date TEXT PRIMARY KEY,
@@ -97,20 +94,33 @@ async function initializeDatabase() {
 }
 
 function createWindow() {
-  const win = new BrowserWindow({
+  mainWindow = new BrowserWindow({
     width: 1920,
     height: 1080,
+    show: false,
+    backgroundColor: '#1a1a1a',
     webPreferences: {
       nodeIntegration: false,
       contextIsolation: true,
       preload: path.join(__dirname, 'preload.js'),
     },
   });
-  win.loadFile('index.html');
+
+  mainWindow.once('ready-to-show', () => {
+    mainWindow.show();
+  });
+
+  mainWindow.loadFile('index.html');
   initializeDatabase().catch(console.error);
 }
 
-app.whenReady().then(createWindow);
+app.whenReady().then(() => {
+  createWindow();
+
+  app.on('activate', () => {
+    if (BrowserWindow.getAllWindows().length === 0) createWindow();
+  });
+});
 
 app.on('window-all-closed', () => {
   if (db) db.close((err) => {
@@ -120,22 +130,16 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('activate', () => {
-  if (BrowserWindow.getAllWindows().length === 0) createWindow();
-});
-
 const ensureDatabaseInitialized = async () => {
   if (!db) {
     await initializeDatabase();
   }
   if (!db) throw new Error('Database not initialized');
 };
-
 ipcMain.handle('saveNote', async (event, note) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     if (note.id) {
-      // Оновлення існуючої нотатки
       db.run(
         'UPDATE learning_notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
         [note.title, note.content, note.id],
@@ -149,7 +153,6 @@ ipcMain.handle('saveNote', async (event, note) => {
         }
       );
     } else {
-      // Створення нової нотатки
       db.run(
         'INSERT INTO learning_notes (title, content) VALUES (?, ?)',
         [note.title, note.content],
@@ -180,11 +183,21 @@ ipcMain.handle('deleteNote', async (event, id) => {
   });
 });
 
+ipcMain.on('toggle-sidebar', (event, isCollapsed) => {
+  mainWindow.webContents.send('sidebar-state-changed', isCollapsed);
+});
+
+ipcMain.handle('get-trade', async (event, id) => {
+  const trade = await db.get('SELECT * FROM trades WHERE id = ?', id);
+  return trade;
+});
+
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     db.run(
-      `INSERT OR REPLACE INTO trades (id, date, account, pair, direction, positionType, risk, result, rr, profitLoss, gainedPoints, followingPlan, bestTrade, session, pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition, score, category, topDownAnalysis, execution, management, conclusion) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO trades (id, date, account, pair, direction, positionType, risk, result, rr, profitLoss, gainedPoints, followingPlan, bestTrade, session, pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition, score, category, topDownAnalysis, execution, management, conclusion) 
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         trade.id,
         trade.date || '',
@@ -348,7 +361,6 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
     );
   });
 });
-
 ipcMain.handle('delete-trade', async (event, tradeId) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
@@ -434,4 +446,8 @@ ipcMain.handle('get-daily-routine', async (event, date) => {
       }
     });
   });
+});
+
+ipcMain.handle('app-ready', () => {
+  return true;
 });

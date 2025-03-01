@@ -1,10 +1,10 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 import Home from './components/Home.jsx';
 import TradeJournal from './components/TradeJournal.jsx';
-import TradeDetail from './components/TradeDetail.jsx';
-import CreateTrade from './components/CreateTrade.jsx';
+import TradeDetail from './components/TradingJournal/TradeDetail.jsx';
+import CreateTrade from './components/TradingJournal/CreateTrade.jsx';
 import DailyRoutine from './components/DailyRoutine.jsx';
 import PreSessionJournal from './components/PreSessionJournal.jsx';
 import PreSessionFull from './components/PreSessionFull.jsx';
@@ -23,6 +23,7 @@ import Statistics from './components/Statistics.jsx';
 import RiskManagement from './components/RiskManagement.jsx';
 import ReportingSystem from './components/ReportingSystem.jsx';
 import Settings from './components/Settings.jsx';
+import LoadingScreen from './components/LoadingScreen.jsx';
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -41,7 +42,7 @@ const GlobalStyle = createGlobalStyle`
   }
 
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 4px;
   }
 
   ::-webkit-scrollbar-track {
@@ -89,6 +90,8 @@ const AppContainer = styled.div`
   box-sizing: border-box;
   width: 100%;
   overflow-x: hidden;
+  opacity: ${props => props.isLoading ? 0 : 1};
+  transition: opacity 0.3s ease-in-out;
 `;
 
 const NavigationButtons = styled.div`
@@ -173,9 +176,18 @@ const PageTitle = styled.h2`
 `;
 
 function App() {
+  const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/';
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleBack = () => {
     navigate(-1);
@@ -227,6 +239,10 @@ function App() {
     }
   };
 
+  if (isLoading) {
+    return <LoadingScreen />;
+  }
+
   return (
     <>
       <GlobalStyle />
@@ -234,6 +250,7 @@ function App() {
         {!isHome && (
           <PageTitle>{getSectionTitle(location.pathname)}</PageTitle>
         )}
+
         <NavigationButtons className={isHome ? 'hidden' : ''}>
           <NavButton 
             onClick={handleBack} 
@@ -272,6 +289,44 @@ function App() {
       </AppContainer>
     </>
   );
+}
+
+
+function getSectionTitle(path) {
+  switch (path) {
+    case '/daily-routine/pre-session':
+      return 'PRE-SESSION JOURNAL';
+    case '/daily-routine/post-session':
+      return 'POST-SESSION JOURNAL';
+    case '/learning-section/strategy':
+      return 'STRATEGY DEVELOPMENT';
+    case '/learning-section/trading-psychology':
+      return 'TRADING PSYCHOLOGY';
+    case '/notes':
+      return 'NOTES';
+    case '/daily-routine':
+      return 'DAILY ROUTINE';
+    case '/#daily-routine':
+      return 'DAILY ROUTINE';
+    case '/performance-analysis':
+      return 'PERFORMANCE ANALYSIS';
+    case '/statistics':
+      return 'STATISTICS';
+    case '/risk-management':
+      return 'RISK MANAGEMENT';
+    case '/learning-section':
+      return 'LEARNING SECTION';
+    case '/reporting-system':
+      return 'REPORTING SYSTEM';
+    case '/settings':
+      return 'SETTINGS';
+    case '/trade/:id':
+      return 'TRADE DETAIL';
+    case '/create-trade':
+      return 'CREATE TRADE';
+    default:
+      return '';
+  }
 }
 
 export default App;
