@@ -340,6 +340,7 @@ const TableCell = styled.td`
   text-align: left;
   color: #fff;
   background-color: #2e2e2e;
+  position: relative;
 `;
 
 const TableRow = styled.tr`
@@ -348,6 +349,23 @@ const TableRow = styled.tr`
   }
   &:nth-child(odd) {
     background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
+  }
+`;
+
+const AdditionalRow = styled(TableRow)`
+  background-color: rgba(92, 157, 245, 0.05) !important;
+
+  & > td {
+    background-color: rgba(92, 157, 245, 0.05) !important;
+    border-left: 2px solid #5C9DF5;
+    padding-left: 20px !important;
+  }
+
+  & > td:first-child::before {
+    content: '↳';
+    position: absolute;
+    left: 5px;
+    color: #5C9DF5;
   }
 `;
 
@@ -481,6 +499,7 @@ function PreSessionJournal() {
   const [selectedEntries, setSelectedEntries] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [additionalPairs, setAdditionalPairs] = useState({});
 
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -527,6 +546,18 @@ function PreSessionJournal() {
               id: String(entry.id || Date.now())
             }))
           : [];
+        
+        const additionalPairsState = {};
+        processedData.forEach(entry => {
+          if (entry.isAdditional && entry.parentId) {
+            if (!additionalPairsState[entry.parentId]) {
+              additionalPairsState[entry.parentId] = [];
+            }
+            additionalPairsState[entry.parentId].push(entry);
+          }
+        });
+        
+        setAdditionalPairs(additionalPairsState);
         setData(processedData);
       } else {
         setData([]);
@@ -537,6 +568,35 @@ function PreSessionJournal() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleAddPair = (originalRow) => {
+    const newId = `${originalRow.id}_additional_${Date.now()}`;
+    const newRow = {
+      id: newId,
+      date: originalRow.date,
+      weekDay: originalRow.weekDay,
+      pair: '',
+      narrative: '',
+      execution: '',
+      outcome: '',
+      planOutcome: false,
+      isAdditional: true,
+      parentId: originalRow.id
+    };
+
+    setAdditionalPairs(prev => ({
+      ...prev,
+      [originalRow.id]: [...(prev[originalRow.id] || []), newRow]
+    }));
+
+    const updatedData = [...data, newRow];
+    window.electronAPI.saveDailyRoutine({
+      date: new Date().toISOString().split('T')[0],
+      preSession: updatedData,
+    }).then(() => {
+      setData(updatedData);
+    });
   };
 
   const handleFilterChange = (e) => {
@@ -584,15 +644,24 @@ function PreSessionJournal() {
 
   const handleDeleteSelected = async () => {
     try {
-      const currentRoutine = await window.electronAPI.getDailyRoutine(new Date().toISOString().split('T')[0]);
-      const updatedPreSession = data.filter(entry => !selectedEntries.includes(entry.id));
-      
+      const updatedData = data.filter(entry => !selectedEntries.includes(entry.id));
       await window.electronAPI.saveDailyRoutine({
-        ...currentRoutine,
-        preSession: updatedPreSession
+        date: new Date().toISOString().split('T')[0],
+        preSession: updatedData
       });
 
-      setData(updatedPreSession);
+      const updatedAdditionalPairs = { ...additionalPairs };
+      selectedEntries.forEach(id => {
+        delete updatedAdditionalPairs[id];
+        Object.keys(updatedAdditionalPairs).forEach(parentId => {
+          updatedAdditionalPairs[parentId] = updatedAdditionalPairs[parentId].filter(
+            child => !selectedEntries.includes(child.id)
+          );
+        });
+      });
+
+      setAdditionalPairs(updatedAdditionalPairs);
+      setData(updatedData);
       setSelectedEntries([]);
       setShowDeleteConfirmation(false);
     } catch (error) {
@@ -613,6 +682,8 @@ function PreSessionJournal() {
       addPair: false
     };
 
+    setData(prevData => [newRecord, ...prevData]);
+    
     navigate(`/daily-routine/pre-session/${newRecord.id}`, {
       state: { sessionData: newRecord }
     });
@@ -632,15 +703,34 @@ function PreSessionJournal() {
 
   const handleDelete = async (id) => {
     try {
-      const updatedPreSession = data.filter(entry => entry.id !== id);
-      setData(updatedPreSession);
+      let updatedData = [...data];
+      const entryToDelete = data.find(entry => entry.id === id);
 
-      const currentDate = new Date().toISOString().split('T')[0];
-      const routine = await window.electronAPI.getDailyRoutine(currentDate);
-      
+      if (entryToDelete) {
+        if (entryToDelete.isAdditional) {
+          updatedData = data.filter(entry => entry.id !== id);
+          const updatedAdditionalPairs = { ...additionalPairs };
+          Object.keys(updatedAdditionalPairs).forEach(parentId => {
+            updatedAdditionalPairs[parentId] = updatedAdditionalPairs[parentId]?.filter(
+              child => child.id !== id
+            ) || [];
+          });
+          setAdditionalPairs(updatedAdditionalPairs);
+        } else {
+          const childrenIds = additionalPairs[id]?.map(child => child.id) || [];
+          updatedData = data.filter(entry => 
+            entry.id !== id && !childrenIds.includes(entry.id)
+          );
+          const updatedAdditionalPairs = { ...additionalPairs };
+          delete updatedAdditionalPairs[id];
+          setAdditionalPairs(updatedAdditionalPairs);
+        }
+      }
+
+      setData(updatedData);
       await window.electronAPI.saveDailyRoutine({
-        ...routine,
-        preSession: updatedPreSession
+        date: new Date().toISOString().split('T')[0],
+        preSession: updatedData
       });
 
       setDeletePopup(null);
@@ -672,9 +762,7 @@ function PreSessionJournal() {
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = React.useMemo(() => {
-    const filtered = filteredEntries;
-    
-    return [...filtered].sort((a, b) => {
+    return [...filteredEntries].sort((a, b) => {
       if (sortConfig.field === 'date') {
         const dateA = new Date(a.date);
         const dateB = new Date(b.date);
@@ -688,7 +776,7 @@ function PreSessionJournal() {
     () => [
       { 
         Header: 'Action', 
-        accessor: 'action', 
+        accessor: 'action',
         width: 20,
         Cell: ({ row }) => (
           <ButtonsContainer>
@@ -698,13 +786,11 @@ function PreSessionJournal() {
               onClick={(e) => e.stopPropagation()}
             />
             <IconButton 
-              data-tooltip="Edit entry" 
               onClick={() => handleEdit(row.original.id)}
             >
               <img src={EditIcon} alt="Edit" />
             </IconButton>
             <IconButton 
-              data-tooltip="Delete entry" 
               onClick={() => setDeletePopup(row.original.id)}
             >
               <img src={DeleteIcon} alt="Delete" />
@@ -751,7 +837,6 @@ function PreSessionJournal() {
               const newNarrative = e.target.value;
               const currentOutcome = row.original.outcome;
               
-              // Определяем, должен ли быть отмечен Plan&Outcome
               let shouldCheck = false;
               if (newNarrative !== 'Neutral' && newNarrative !== 'Day off') {
                 shouldCheck = newNarrative === currentOutcome;
@@ -824,7 +909,6 @@ function PreSessionJournal() {
               const newOutcome = e.target.value;
               const currentNarrative = row.original.narrative;
               
-              // Определяем, должен ли быть отмечен Plan&Outcome
               let shouldCheck = false;
               if (currentNarrative !== 'Neutral' && currentNarrative !== 'Day off') {
                 shouldCheck = newOutcome === currentNarrative;
@@ -865,7 +949,7 @@ function PreSessionJournal() {
             type="checkbox"
             checked={value || false}
             disabled={true}
-            onChange={() => {}} // Пустой обработчик, так как чекбокс отключен
+            onChange={() => {}}
           />
         ),
       },
@@ -873,26 +957,41 @@ function PreSessionJournal() {
         Header: 'Add. Pair',
         accessor: 'addPair',
         width: 120,
-        Cell: ({ row, value }) => (
-          <Checkbox
-            type="checkbox"
-            checked={value || false}
-            onChange={(e) => {
-              const updatedData = data.map(item =>
-                item.id === row.original.id ? { ...item, addPair: e.target.checked } : item
-              );
-              window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                preSession: updatedData,
-              }).then(() => {
-                setData(updatedData);
-              });
-            }}
-          />
-        ),
+        Cell: ({ row }) => {
+          const isAdditional = row.original.isAdditional;
+          
+          if (isAdditional) {
+            return (
+              <div style={{ 
+                color: '#B886EE', 
+                textAlign: 'center',
+                fontSize: '12px',
+                fontStyle: 'italic'
+              }}>
+                Additional Pair
+              </div>
+            );
+          }
+          
+          return (
+            <div style={{ display: 'flex', justifyContent: 'center' }}>
+              <ActionButton
+                style={{
+                  padding: '4px 8px',
+                  height: 'auto',
+                  fontSize: '12px',
+                  background: '#5C9DF5'
+                }}
+                onClick={() => handleAddPair(row.original)}
+              >
+                Add
+              </ActionButton>
+            </div>
+          );
+        },
       },
     ],
-    [data, selectedEntries]
+    [data, selectedEntries, additionalPairs]
   );
 
   const {
@@ -952,7 +1051,7 @@ function PreSessionJournal() {
               </div>
               
               <div style={{ position: 'relative' }}>
-              <ActionButton 
+                <ActionButton 
                   ref={filterButtonRef}
                   onClick={() => setShowFilterDropdown(!showFilterDropdown)}
                 >
@@ -1096,14 +1195,52 @@ function PreSessionJournal() {
                 rows.map(row => {
                   prepareRow(row);
                   const isSelected = selectedEntries.includes(row.original.id);
+                  const isAdditional = row.original.isAdditional;
+
+                  if (isAdditional) {
+                    return null;
+                  }
+
                   return (
-                    <TableRow {...row.getRowProps()} selected={isSelected}>
-                      {row.cells.map(cell => (
-                        <TableCell {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                          {cell.render('Cell')}
-                        </TableCell>
+                    <React.Fragment key={row.original.id}>
+                      <TableRow {...row.getRowProps()} selected={isSelected}>
+                        {row.cells.map(cell => (
+                          <TableCell {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                            {cell.render('Cell')}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      {additionalPairs[row.original.id]?.map((additionalRow) => (
+                        <AdditionalRow key={additionalRow.id} selected={isSelected}>
+                          {columns.map((column, index) => {
+                            // Для даты и дня недели используем значения из родительской строки
+                            if (column.Header === 'Date' || column.Header === 'WeekDay') {
+                              return (
+                                <TableCell 
+                                  key={index} 
+                                  style={{ width: column.width }}
+                                >
+                                  {row.original[column.accessor]}
+                                </TableCell>
+                              );
+                            }
+                            
+                            // Для остальных колонок используем компонент Cell с данными дочерней строки
+                            return (
+                              <TableCell 
+                                key={index} 
+                                style={{ width: column.width }}
+                              >
+                                {column.Cell?.({ 
+                                  row: { original: additionalRow },
+                                  value: additionalRow[column.accessor]
+                                }) ?? additionalRow[column.accessor]}
+                              </TableCell>
+                            );
+                          })}
+                        </AdditionalRow>
                       ))}
-                    </TableRow>
+                    </React.Fragment>
                   );
                 })
               )}
