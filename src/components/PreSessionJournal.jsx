@@ -421,6 +421,11 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
       transform: rotate(45deg);
     }
   }
+
+  &:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
 `;
 
 const DeleteSelectedButton = styled(ActionButton)`
@@ -489,464 +494,487 @@ function PreSessionJournal() {
   useEffect(() => {
     const handleClickOutside = (event) => {
       if (filterButtonRef.current && 
-        !filterButtonRef.current.contains(event.target) && 
-        !event.target.closest('.filter-dropdown')) {
-      setShowFilterDropdown(false);
-    }
-    if (rangeButtonRef.current && 
-        !rangeButtonRef.current.contains(event.target) && 
-        !event.target.closest('.range-dropdown')) {
-      setShowRangeDropdown(false);
-    }
-    if (sortButtonRef.current && 
-        !sortButtonRef.current.contains(event.target) && 
-        !event.target.closest('.sort-dropdown')) {
-      setShowSortDropdown(false);
-    }
-  };
+          !filterButtonRef.current.contains(event.target) && 
+          !event.target.closest('.filter-dropdown')) {
+        setShowFilterDropdown(false);
+      }
+      if (rangeButtonRef.current && 
+          !rangeButtonRef.current.contains(event.target) && 
+          !event.target.closest('.range-dropdown')) {
+        setShowRangeDropdown(false);
+      }
+      if (sortButtonRef.current && 
+          !sortButtonRef.current.contains(event.target) && 
+          !event.target.closest('.sort-dropdown')) {
+        setShowSortDropdown(false);
+      }
+    };
 
-  document.addEventListener('mousedown', handleClickOutside);
-  return () => document.removeEventListener('mousedown', handleClickOutside);
-}, []);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
 
-const loadData = async () => {
-  setIsLoading(true);
-  try {
-    const currentDate = new Date().toISOString().split('T')[0];
-    const routine = await window.electronAPI.getDailyRoutine(currentDate);
-    
-    if (routine && routine.preSession) {
-      const processedData = Array.isArray(routine.preSession) 
-        ? routine.preSession.map(entry => ({
-            ...entry,
-            id: String(entry.id || Date.now())
-          }))
-        : [];
-      setData(processedData);
-    } else {
+  const loadData = async () => {
+    setIsLoading(true);
+    try {
+      const currentDate = new Date().toISOString().split('T')[0];
+      const routine = await window.electronAPI.getDailyRoutine(currentDate);
+      
+      if (routine && routine.preSession) {
+        const processedData = Array.isArray(routine.preSession) 
+          ? routine.preSession.map(entry => ({
+              ...entry,
+              id: String(entry.id || Date.now())
+            }))
+          : [];
+        setData(processedData);
+      } else {
+        setData([]);
+      }
+    } catch (error) {
+      console.error('Error in loadData:', error);
       setData([]);
+    } finally {
+      setIsLoading(false);
     }
-  } catch (error) {
-    console.error('Error in loadData:', error);
-    setData([]);
-  } finally {
-    setIsLoading(false);
-  }
-};
-
-const handleFilterChange = (e) => {
-  const { name, value } = e.target;
-  setFilterCriteria(prev => ({
-    ...prev,
-    [name]: value
-  }));
-};
-
-const handleFilterClear = () => {
-  setFilterCriteria({
-    pair: '',
-    narrative: '',
-    execution: '',
-    outcome: ''
-  });
-};
-
-const handleFilterApply = () => {
-  setShowFilterDropdown(false);
-};
-
-const handleRangeApply = () => {
-  setShowRangeDropdown(false);
-};
-
-const handleSelectEntry = (entryId) => {
-  setSelectedEntries(prev => {
-    if (prev.includes(entryId)) {
-      return prev.filter(id => id !== entryId);
-    } else {
-      return [...prev, entryId];
-    }
-  });
-};
-
-const handleSelectAll = (e) => {
-  if (e.target.checked) {
-    setSelectedEntries(sortedAndFilteredEntries.map(entry => entry.id));
-  } else {
-    setSelectedEntries([]);
-  }
-};
-
-const handleDeleteSelected = async () => {
-  try {
-    const currentRoutine = await window.electronAPI.getDailyRoutine(new Date().toISOString().split('T')[0]);
-    const updatedPreSession = data.filter(entry => !selectedEntries.includes(entry.id));
-    
-    await window.electronAPI.saveDailyRoutine({
-      ...currentRoutine,
-      preSession: updatedPreSession
-    });
-
-    setData(updatedPreSession);
-    setSelectedEntries([]);
-    setShowDeleteConfirmation(false);
-  } catch (error) {
-    console.error('Error deleting entries:', error);
-  }
-};
-
-const handleAdd = () => {
-  const newRecord = {
-    id: String(Date.now()),
-    date: new Date().toISOString().split('T')[0],
-    weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
-    pair: '',
-    narrative: '',
-    execution: '',
-    outcome: '',
-    planOutcome: false,
-    addPair: false
   };
 
-  navigate(`/daily-routine/pre-session/${newRecord.id}`, {
-    state: { sessionData: newRecord }
-  });
-};
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilterCriteria(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
 
-const handleEdit = (id) => {
-  const entryToEdit = data.find(entry => String(entry.id) === String(id));
-  if (entryToEdit) {
-    navigate(`/daily-routine/pre-session/${id}`, { 
-      state: { 
-        sessionData: entryToEdit,
-        timestamp: Date.now()
-      } 
+  const handleFilterClear = () => {
+    setFilterCriteria({
+      pair: '',
+      narrative: '',
+      execution: '',
+      outcome: ''
     });
-  }
-};
+  };
 
-const handleDelete = async (id) => {
-  try {
-    const updatedPreSession = data.filter(entry => entry.id !== id);
-    setData(updatedPreSession);
+  const handleFilterApply = () => {
+    setShowFilterDropdown(false);
+  };
 
-    const currentDate = new Date().toISOString().split('T')[0];
-    const routine = await window.electronAPI.getDailyRoutine(currentDate);
-    
-    await window.electronAPI.saveDailyRoutine({
-      ...routine,
-      preSession: updatedPreSession
+  const handleRangeApply = () => {
+    setShowRangeDropdown(false);
+  };
+
+  const handleSelectEntry = (entryId) => {
+    setSelectedEntries(prev => {
+      if (prev.includes(entryId)) {
+        return prev.filter(id => id !== entryId);
+      } else {
+        return [...prev, entryId];
+      }
     });
+  };
 
-    setDeletePopup(null);
-  } catch (error) {
-    console.error('Error deleting entry:', error);
-  }
-};
-
-const handleBack = () => {
-  navigate('/daily-routine');
-};
-
-const filteredEntries = React.useMemo(() => {
-  return data.filter((entry) => {
-    if (!entry) return false;
-    
-    const entryDate = entry.date ? new Date(entry.date) : null;
-    
-    const inDateRange = startDate && endDate && entryDate ? 
-      (entryDate >= startDate && entryDate <= new Date(endDate.setHours(23, 59, 59, 999))) : true;
-
-    const matchesPair = !filterCriteria.pair || entry.pair === filterCriteria.pair;
-    const matchesNarrative = !filterCriteria.narrative || entry.narrative === filterCriteria.narrative;
-    const matchesExecution = !filterCriteria.execution || entry.execution === filterCriteria.execution;
-    const matchesOutcome = !filterCriteria.outcome || entry.outcome === filterCriteria.outcome;
-
-    return inDateRange && matchesPair && matchesNarrative && matchesExecution && matchesOutcome;
-  });
-}, [data, filterCriteria, startDate, endDate]);
-
-const sortedAndFilteredEntries = React.useMemo(() => {
-  const filtered = filteredEntries;
-  
-  return [...filtered].sort((a, b) => {
-    if (sortConfig.field === 'date') {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
-      return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
+  const handleSelectAll = (e) => {
+    if (e.target.checked) {
+      setSelectedEntries(sortedAndFilteredEntries.map(entry => entry.id));
+    } else {
+      setSelectedEntries([]);
     }
-    return 0;
-  });
-}, [filteredEntries, sortConfig]);
+  };
 
-const columns = React.useMemo(
-  () => [
-    { 
-      Header: 'Action', 
-      accessor: 'action', 
-      width: 20,
-      Cell: ({ row }) => (
-        <ButtonsContainer>
+  const handleDeleteSelected = async () => {
+    try {
+      const currentRoutine = await window.electronAPI.getDailyRoutine(new Date().toISOString().split('T')[0]);
+      const updatedPreSession = data.filter(entry => !selectedEntries.includes(entry.id));
+      
+      await window.electronAPI.saveDailyRoutine({
+        ...currentRoutine,
+        preSession: updatedPreSession
+      });
+
+      setData(updatedPreSession);
+      setSelectedEntries([]);
+      setShowDeleteConfirmation(false);
+    } catch (error) {
+      console.error('Error deleting entries:', error);
+    }
+  };
+
+  const handleAdd = () => {
+    const newRecord = {
+      id: String(Date.now()),
+      date: new Date().toISOString().split('T')[0],
+      weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+      pair: '',
+      narrative: '',
+      execution: '',
+      outcome: '',
+      planOutcome: false,
+      addPair: false
+    };
+
+    navigate(`/daily-routine/pre-session/${newRecord.id}`, {
+      state: { sessionData: newRecord }
+    });
+  };
+
+  const handleEdit = (id) => {
+    const entryToEdit = data.find(entry => String(entry.id) === String(id));
+    if (entryToEdit) {
+      navigate(`/daily-routine/pre-session/${id}`, { 
+        state: { 
+          sessionData: entryToEdit,
+          timestamp: Date.now()
+        } 
+      });
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      const updatedPreSession = data.filter(entry => entry.id !== id);
+      setData(updatedPreSession);
+
+      const currentDate = new Date().toISOString().split('T')[0];
+      const routine = await window.electronAPI.getDailyRoutine(currentDate);
+      
+      await window.electronAPI.saveDailyRoutine({
+        ...routine,
+        preSession: updatedPreSession
+      });
+
+      setDeletePopup(null);
+    } catch (error) {
+      console.error('Error deleting entry:', error);
+    }
+  };
+
+  const handleBack = () => {
+    navigate('/daily-routine');
+  };
+
+  const filteredEntries = React.useMemo(() => {
+    return data.filter((entry) => {
+      if (!entry) return false;
+      
+      const entryDate = entry.date ? new Date(entry.date) : null;
+      
+      const inDateRange = startDate && endDate && entryDate ? 
+        (entryDate >= startDate && entryDate <= new Date(endDate.setHours(23, 59, 59, 999))) : true;
+
+      const matchesPair = !filterCriteria.pair || entry.pair === filterCriteria.pair;
+      const matchesNarrative = !filterCriteria.narrative || entry.narrative === filterCriteria.narrative;
+      const matchesExecution = !filterCriteria.execution || entry.execution === filterCriteria.execution;
+      const matchesOutcome = !filterCriteria.outcome || entry.outcome === filterCriteria.outcome;
+
+      return inDateRange && matchesPair && matchesNarrative && matchesExecution && matchesOutcome;
+    });
+  }, [data, filterCriteria, startDate, endDate]);
+
+  const sortedAndFilteredEntries = React.useMemo(() => {
+    const filtered = filteredEntries;
+    
+    return [...filtered].sort((a, b) => {
+      if (sortConfig.field === 'date') {
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      return 0;
+    });
+  }, [filteredEntries, sortConfig]);
+
+  const columns = React.useMemo(
+    () => [
+      { 
+        Header: 'Action', 
+        accessor: 'action', 
+        width: 20,
+        Cell: ({ row }) => (
+          <ButtonsContainer>
+            <Checkbox
+              checked={selectedEntries.includes(row.original.id)}
+              onChange={() => handleSelectEntry(row.original.id)}
+              onClick={(e) => e.stopPropagation()}
+            />
+            <IconButton 
+              data-tooltip="Edit entry" 
+              onClick={() => handleEdit(row.original.id)}
+            >
+              <img src={EditIcon} alt="Edit" />
+            </IconButton>
+            <IconButton 
+              data-tooltip="Delete entry" 
+              onClick={() => setDeletePopup(row.original.id)}
+            >
+              <img src={DeleteIcon} alt="Delete" />
+            </IconButton>
+          </ButtonsContainer>
+        )
+      },
+      { Header: 'Date', accessor: 'date', width: 120 },
+      { Header: 'WeekDay', accessor: 'weekDay', width: 120 },
+      {
+        Header: 'Pair',
+        accessor: 'pair',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <EditableSelect
+            value={value || ''}
+            onChange={(e) => {
+              const updatedData = data.map(item =>
+                item.id === row.original.id ? { ...item, pair: e.target.value } : item
+              );
+              window.electronAPI.saveDailyRoutine({
+                date: new Date().toISOString().split('T')[0],
+                preSession: updatedData,
+              }).then(() => {
+                setData(updatedData);
+              });
+            }}
+          >
+            <option value="">Select</option>
+            <option value="EUR/USD">EUR/USD</option>
+            <option value="GBP/USD">GBP/USD</option>
+            <option value="USD/JPY">USD/JPY</option>
+          </EditableSelect>
+        ),
+      },
+      {
+        Header: 'Narrative',
+        accessor: 'narrative',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <EditableSelect
+            value={value || ''}
+            onChange={(e) => {
+              const newNarrative = e.target.value;
+              const currentOutcome = row.original.outcome;
+              
+              // Определяем, должен ли быть отмечен Plan&Outcome
+              let shouldCheck = false;
+              if (newNarrative !== 'Neutral' && newNarrative !== 'Day off') {
+                shouldCheck = newNarrative === currentOutcome;
+              }
+
+              const updatedData = data.map(item =>
+                item.id === row.original.id 
+                  ? { 
+                      ...item, 
+                      narrative: newNarrative,
+                      planOutcome: shouldCheck 
+                    } 
+                  : item
+              );
+              
+              window.electronAPI.saveDailyRoutine({
+                date: new Date().toISOString().split('T')[0],
+                preSession: updatedData,
+              }).then(() => {
+                setData(updatedData);
+              });
+            }}
+          >
+            <option value="">Select</option>
+            <option value="Bullish">Bullish</option>
+            <option value="Bearish">Bearish</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Day off">Day off</option>
+          </EditableSelect>
+        ),
+      },
+      {
+        Header: 'Execution',
+        accessor: 'execution',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <EditableSelect
+            value={value || ''}
+            onChange={(e) => {
+              const updatedData = data.map(item =>
+                item.id === row.original.id ? { ...item, execution: e.target.value } : item
+              );
+              window.electronAPI.saveDailyRoutine({
+                date: new Date().toISOString().split('T')[0],
+                preSession: updatedData,
+              }).then(() => {
+                setData(updatedData);
+              });
+            }}
+          >
+            <option value="">Select</option>
+            <option value="Day off">Day off</option>
+            <option value="No Trades">No Trades</option>
+            <option value="Skipped">Skipped</option>
+            <option value="Missed">Missed</option>
+            <option value="BE">BE</option>
+            <option value="Loss">Loss</option>
+            <option value="Win">Win</option>
+          </EditableSelect>
+        ),
+      },
+      {
+        Header: 'Outcome',
+        accessor: 'outcome',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <EditableSelect
+            value={value || ''}
+            onChange={(e) => {
+              const newOutcome = e.target.value;
+              const currentNarrative = row.original.narrative;
+              
+              // Определяем, должен ли быть отмечен Plan&Outcome
+              let shouldCheck = false;
+              if (currentNarrative !== 'Neutral' && currentNarrative !== 'Day off') {
+                shouldCheck = newOutcome === currentNarrative;
+              }
+
+              const updatedData = data.map(item =>
+                item.id === row.original.id 
+                  ? { 
+                      ...item, 
+                      outcome: newOutcome,
+                      planOutcome: shouldCheck 
+                    } 
+                  : item
+              );
+              
+              window.electronAPI.saveDailyRoutine({
+                date: new Date().toISOString().split('T')[0],
+                preSession: updatedData,
+              }).then(() => {
+                setData(updatedData);
+              });
+            }}
+          >
+            <option value="">Select</option>
+            <option value="Bullish">Bullish</option>
+            <option value="Bearish">Bearish</option>
+            <option value="Neutral">Neutral</option>
+            <option value="Day off">Day off</option>
+          </EditableSelect>
+        ),
+      },
+      {
+        Header: 'Plan&Outcome',
+        accessor: 'planOutcome',
+        width: 120,
+        Cell: ({ row, value }) => (
           <Checkbox
-            checked={selectedEntries.includes(row.original.id)}
-            onChange={() => handleSelectEntry(row.original.id)}
-            onClick={(e) => e.stopPropagation()}
+            type="checkbox"
+            checked={value || false}
+            disabled={true}
+            onChange={() => {}} // Пустой обработчик, так как чекбокс отключен
           />
-          <IconButton 
-            data-tooltip="Edit entry" 
-            onClick={() => handleEdit(row.original.id)}
-          >
-            <img src={EditIcon} alt="Edit" />
-          </IconButton>
-          <IconButton 
-            data-tooltip="Delete entry" 
-            onClick={() => setDeletePopup(row.original.id)}
-          >
-            <img src={DeleteIcon} alt="Delete" />
-          </IconButton>
-        </ButtonsContainer>
-      )
-    },
-    { Header: 'Date', accessor: 'date', width: 120 },
-    { Header: 'WeekDay', accessor: 'weekDay', width: 120 },
-    {
-      Header: 'Pair',
-      accessor: 'pair',
-      width: 120,
-      Cell: ({ row, value }) => (
-        <EditableSelect
-          value={value || ''}
-          onChange={(e) => {
-            const updatedData = data.map(item =>
-              item.id === row.original.id ? { ...item, pair: e.target.value } : item
-            );
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            }).then(() => {
-              setData(updatedData);
-            });
-          }}
-        >
-          <option value="">Select</option>
-          <option value="EUR/USD">EUR/USD</option>
-          <option value="GBP/USD">GBP/USD</option>
-          <option value="USD/JPY">USD/JPY</option>
-        </EditableSelect>
-      ),
-    },
-    {
-      Header: 'Narrative',
-      accessor: 'narrative',
-      width: 120,
-      Cell: ({ row, value }) => (
-        <EditableSelect
-          value={value || ''}
-          onChange={(e) => {
-            const updatedData = data.map(item =>
-              item.id === row.original.id ? { ...item, narrative: e.target.value } : item
-            );
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            }).then(() => {
-              setData(updatedData);
-            });
-          }}
-        >
-          <option value="">Select</option>
-          <option value="Bullish">Bullish</option>
-          <option value="Bearish">Bearish</option>
-          <option value="Neutral">Neutral</option>
-          <option value="Day off">Day off</option>
-        </EditableSelect>
-      ),
-    },
-    {
-      Header: 'Execution',
-      accessor: 'execution',
-      width: 120,
-      Cell: ({ row, value }) => (
-        <EditableSelect
-          value={value || ''}
-          onChange={(e) => {
-            const updatedData = data.map(item =>
-              item.id === row.original.id ? { ...item, execution: e.target.value } : item
-            );
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            }).then(() => {
-              setData(updatedData);
-            });
-          }}
-        >
-          <option value="">Select</option>
-          <option value="Day off">Day off</option>
-          <option value="No Trades">No Trades</option>
-          <option value="Skipped">Skipped</option>
-          <option value="Missed">Missed</option>
-          <option value="BE">BE</option>
-          <option value="Loss">Loss</option>
-          <option value="Win">Win</option>
-        </EditableSelect>
-      ),
-    },
-    {
-      Header: 'Outcome',
-      accessor: 'outcome',
-      width: 120,
-      Cell: ({ row, value }) => (
-        <EditableSelect
-          value={value || ''}
-          onChange={(e) => {
-            const updatedData = data.map(item =>
-              item.id === row.original.id ? { ...item, outcome: e.target.value } : item
-            );
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            }).then(() => {
-              setData(updatedData);
-            });
-          }}
-        >
-          <option value="">Select</option>
-          <option value="Bullish">Bullish</option>
-          <option value="Bearish">Bearish</option>
-          <option value="Neutral">Neutral</option>
-          <option value="Day off">Day off</option>
-        </EditableSelect>
-      ),
-    },
-    {
-      Header: 'Plan&Outcome',
-      accessor: 'planOutcome',
-      width: 120,
-      Cell: ({ row, value }) => (
-        <Checkbox
-          type="checkbox"
-          checked={value || false}
-          onChange={(e) => {
-            const updatedData = data.map(item =>
-              item.id === row.original.id ? { ...item, planOutcome: e.target.checked } : item
-            );
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            }).then(() => {
-              setData(updatedData);
-            });
-          }}
-        />
-      ),
-    },
-    {
-      Header: 'Add. Pair',
-      accessor: 'addPair',
-      width: 120,
-      Cell: ({ row, value }) => (
-        <Checkbox
-          type="checkbox"
-          checked={value || false}
-          onChange={(e) => {
-            const updatedData = data.map(item =>
-              item.id === row.original.id ? { ...item, addPair: e.target.checked } : item
-            );
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            }).then(() => {
-              setData(updatedData);
-            });
-          }}
-        />
-      ),
-    },
-  ],
-  [data, selectedEntries]
-);
+        ),
+      },
+      {
+        Header: 'Add. Pair',
+        accessor: 'addPair',
+        width: 120,
+        Cell: ({ row, value }) => (
+          <Checkbox
+            type="checkbox"
+            checked={value || false}
+            onChange={(e) => {
+              const updatedData = data.map(item =>
+                item.id === row.original.id ? { ...item, addPair: e.target.checked } : item
+              );
+              window.electronAPI.saveDailyRoutine({
+                date: new Date().toISOString().split('T')[0],
+                preSession: updatedData,
+              }).then(() => {
+                setData(updatedData);
+              });
+            }}
+          />
+        ),
+      },
+    ],
+    [data, selectedEntries]
+  );
 
-const {
-  getTableProps,
-  getTableBodyProps,
-  headerGroups,
-  rows,
-  prepareRow,
-} = useTable({ 
-  columns, 
-  data: sortedAndFilteredEntries 
-});
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    rows,
+    prepareRow,
+  } = useTable({ 
+    columns, 
+    data: sortedAndFilteredEntries 
+  });
 
-return (
-  <>
-    <GlobalStyle />
-    <DatePickerStyles />
-    <DailyRoutineContainer ref={containerRef}>
-      <Header>
-        <BackButton onClick={handleBack} />
-        <Title>Pre-Session Analysis Journal</Title>
-      </Header>
-      <JournalContent>
-        <JournalHeader>
-          <ButtonGroup>
-            <ActionButton primary onClick={handleAdd}>
-              Add new Pre-Session
-            </ActionButton>
-          </ButtonGroup>
-          <ButtonGroup>
-            <div style={{ position: 'relative' }}>
-              <ActionButton 
-                ref={rangeButtonRef}
-                onClick={() => setShowRangeDropdown(!showRangeDropdown)}
-              >
-                Range
+  return (
+    <>
+      <GlobalStyle />
+      <DatePickerStyles />
+      <DailyRoutineContainer ref={containerRef}>
+        <Header>
+          <BackButton onClick={handleBack} />
+          <Title>Pre-Session Analysis Journal</Title>
+        </Header>
+        <JournalContent>
+          <JournalHeader>
+            <ButtonGroup>
+              <ActionButton primary onClick={handleAdd}>
+                Add new Pre-Session
               </ActionButton>
-              {showRangeDropdown && (
-                <RangeDropdown className="range-dropdown">
-                  <StyledDatePicker
-                    selectsRange={true}
-                    startDate={startDate}
-                    endDate={endDate}
-                    onChange={(update) => setDateRange(update)}
-                    isClearable={true}
-                    placeholderText="Select date range"
-                    dateFormat="yyyy-MM-dd"
-                  />
-                  <FilterButtonGroup>
-                    <FilterButton clear onClick={() => setDateRange([null, null])}>
-                      Clear
-                    </FilterButton>
-                    <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
-                  </FilterButtonGroup>
-                </RangeDropdown>
-              )}
-            </div>
-            
-            <div style={{ position: 'relative' }}>
+            </ButtonGroup>
+            <ButtonGroup>
+              <div style={{ position: 'relative' }}>
+                <ActionButton 
+                  ref={rangeButtonRef}
+                  onClick={() => setShowRangeDropdown(!showRangeDropdown)}
+                >
+                  Range
+                </ActionButton>
+                {showRangeDropdown && (
+                  <RangeDropdown className="range-dropdown">
+                    <StyledDatePicker
+                      selectsRange={true}
+                      startDate={startDate}
+                      endDate={endDate}
+                      onChange={(update) => setDateRange(update)}
+                      isClearable={true}
+                      placeholderText="Select date range"
+                      dateFormat="yyyy-MM-dd"
+                    />
+                    <FilterButtonGroup>
+                      <FilterButton clear onClick={() => setDateRange([null, null])}>
+                        Clear
+                      </FilterButton>
+                      <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
+                    </FilterButtonGroup>
+                  </RangeDropdown>
+                )}
+              </div>
+              
+              <div style={{ position: 'relative' }}>
               <ActionButton 
-                ref={filterButtonRef}
-                onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-              >
-                Filter
-              </ActionButton>
-              {showFilterDropdown && (
-                <FilterDropdown className="filter-dropdown">
-                  <FilterGroup>
-                    <FilterLabel>Pair</FilterLabel>
-                    <FilterSelect
-                      name="pair"
-                      value={filterCriteria.pair}
-                      onChange={handleFilterChange}
-                    >
-                      <option value="">All Pairs</option>
-                      <option value="EUR/USD">EUR/USD</option>
-                      <option value="GBP/USD">GBP/USD</option>
-                      <option value="USD/JPY">USD/JPY</option>
-                    </FilterSelect>
-                  </FilterGroup>
+                  ref={filterButtonRef}
+                  onClick={() => setShowFilterDropdown(!showFilterDropdown)}
+                >
+                  Filter
+                </ActionButton>
+                {showFilterDropdown && (
+                  <FilterDropdown className="filter-dropdown">
+                    <FilterGroup>
+                      <FilterLabel>Pair</FilterLabel>
+                      <FilterSelect
+                        name="pair"
+                        value={filterCriteria.pair}
+                        onChange={handleFilterChange}
+                      >
+                        <option value="">All Pairs</option>
+                        <option value="EUR/USD">EUR/USD</option>
+                        <option value="GBP/USD">GBP/USD</option>
+                        <option value="USD/JPY">USD/JPY</option>
+                      </FilterSelect>
+                    </FilterGroup>
 
-                  <FilterGroup>
+                    <FilterGroup>
                       <FilterLabel>Narrative</FilterLabel>
                       <FilterSelect
                         name="narrative"
