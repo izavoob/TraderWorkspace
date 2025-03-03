@@ -540,12 +540,20 @@ function PreSessionJournal() {
       const routine = await window.electronAPI.getDailyRoutine(currentDate);
       
       if (routine && routine.preSession) {
-        const processedData = Array.isArray(routine.preSession) 
+        let processedData = Array.isArray(routine.preSession) 
           ? routine.preSession.map(entry => ({
               ...entry,
               id: String(entry.id || Date.now())
             }))
           : [];
+
+        // Разделяем и сортируем записи
+        const mainEntries = processedData.filter(entry => !entry.isAdditional)
+          .sort((a, b) => new Date(b.date) - new Date(a.date));
+        const additionalEntries = processedData.filter(entry => entry.isAdditional);
+        
+        // Объединяем обратно в отсортированном порядке
+        processedData = [...mainEntries, ...additionalEntries];
         
         const additionalPairsState = {};
         processedData.forEach(entry => {
@@ -590,7 +598,16 @@ function PreSessionJournal() {
       [originalRow.id]: [...(prev[originalRow.id] || []), newRow]
     }));
 
-    const updatedData = [...data, newRow];
+    // Получаем все основные записи и сортируем их
+    const mainEntries = data.filter(item => !item.isAdditional)
+      .sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // Получаем все дополнительные записи
+    const additionalEntries = data.filter(item => item.isAdditional);
+    
+    // Добавляем новую дополнительную запись
+    const updatedData = [...mainEntries, ...additionalEntries, newRow];
+    
     window.electronAPI.saveDailyRoutine({
       date: new Date().toISOString().split('T')[0],
       preSession: updatedData,
@@ -762,14 +779,32 @@ function PreSessionJournal() {
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = React.useMemo(() => {
-    return [...filteredEntries].sort((a, b) => {
-      if (sortConfig.field === 'date') {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
-      }
-      return 0;
+    // Сначала получаем все основные записи (не дополнительные)
+    const mainEntries = filteredEntries.filter(entry => !entry.isAdditional);
+    
+    // Сортируем их по дате в обратном порядке (новые сверху)
+    const sortedMainEntries = [...mainEntries].sort((a, b) => {
+      const dateA = new Date(a.date);
+      const dateB = new Date(b.date);
+      return dateB - dateA;  // Всегда сортируем новые записи сверху
     });
+
+    // Получаем все дополнительные записи
+    const additionalEntriesData = filteredEntries.filter(entry => entry.isAdditional);
+
+    // Объединяем основные записи с их дополнительными парами
+    return sortedMainEntries.reduce((acc, mainEntry) => {
+      // Добавляем основную запись
+      acc.push(mainEntry);
+      
+      // Находим и добавляем все дополнительные записи для этой основной записи
+      const relatedAdditional = additionalEntriesData.filter(
+        entry => entry.parentId === mainEntry.id
+      );
+      acc.push(...relatedAdditional);
+      
+      return acc;
+    }, []);
   }, [filteredEntries, sortConfig]);
 
   const columns = React.useMemo(
@@ -808,14 +843,29 @@ function PreSessionJournal() {
           <EditableSelect
             value={value || ''}
             onChange={(e) => {
-              const updatedData = data.map(item =>
-                item.id === row.original.id ? { ...item, pair: e.target.value } : item
-              );
+              const updatedData = data.map(item => {
+                if (item.id === row.original.id) {
+                  return { ...item, pair: e.target.value };
+                }
+                return item;
+              });
+              
+              setData(updatedData);
+              
+              // Обновляем также additionalPairs, если это дочерняя строка
+              if (row.original.isAdditional && row.original.parentId) {
+                setAdditionalPairs(prev => {
+                  const updated = { ...prev };
+                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
+                    child.id === row.original.id ? { ...child, pair: e.target.value } : child
+                  );
+                  return updated;
+                });
+              }
+
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
-              }).then(() => {
-                setData(updatedData);
               });
             }}
           >
@@ -842,21 +892,37 @@ function PreSessionJournal() {
                 shouldCheck = newNarrative === currentOutcome;
               }
 
-              const updatedData = data.map(item =>
-                item.id === row.original.id 
-                  ? { 
-                      ...item, 
+              const updatedData = data.map(item => {
+                if (item.id === row.original.id) {
+                  return { 
+                    ...item, 
+                    narrative: newNarrative,
+                    planOutcome: shouldCheck 
+                  };
+                }
+                return item;
+              });
+              
+              setData(updatedData);
+              
+              // Обновляем также additionalPairs, если это дочерняя строка
+              if (row.original.isAdditional && row.original.parentId) {
+                setAdditionalPairs(prev => {
+                  const updated = { ...prev };
+                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
+                    child.id === row.original.id ? { 
+                      ...child, 
                       narrative: newNarrative,
                       planOutcome: shouldCheck 
-                    } 
-                  : item
-              );
-              
+                    } : child
+                  );
+                  return updated;
+                });
+              }
+
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
-              }).then(() => {
-                setData(updatedData);
               });
             }}
           >
@@ -876,14 +942,29 @@ function PreSessionJournal() {
           <EditableSelect
             value={value || ''}
             onChange={(e) => {
-              const updatedData = data.map(item =>
-                item.id === row.original.id ? { ...item, execution: e.target.value } : item
-              );
+              const updatedData = data.map(item => {
+                if (item.id === row.original.id) {
+                  return { ...item, execution: e.target.value };
+                }
+                return item;
+              });
+              
+              setData(updatedData);
+              
+              // Обновляем также additionalPairs, если это дочерняя строка
+              if (row.original.isAdditional && row.original.parentId) {
+                setAdditionalPairs(prev => {
+                  const updated = { ...prev };
+                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
+                    child.id === row.original.id ? { ...child, execution: e.target.value } : child
+                  );
+                  return updated;
+                });
+              }
+
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
-              }).then(() => {
-                setData(updatedData);
               });
             }}
           >
@@ -914,21 +995,37 @@ function PreSessionJournal() {
                 shouldCheck = newOutcome === currentNarrative;
               }
 
-              const updatedData = data.map(item =>
-                item.id === row.original.id 
-                  ? { 
-                      ...item, 
+              const updatedData = data.map(item => {
+                if (item.id === row.original.id) {
+                  return { 
+                    ...item, 
+                    outcome: newOutcome,
+                    planOutcome: shouldCheck 
+                  };
+                }
+                return item;
+              });
+              
+              setData(updatedData);
+              
+              // Обновляем также additionalPairs, если это дочерняя строка
+              if (row.original.isAdditional && row.original.parentId) {
+                setAdditionalPairs(prev => {
+                  const updated = { ...prev };
+                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
+                    child.id === row.original.id ? { 
+                      ...child, 
                       outcome: newOutcome,
                       planOutcome: shouldCheck 
-                    } 
-                  : item
-              );
-              
+                    } : child
+                  );
+                  return updated;
+                });
+              }
+
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
-              }).then(() => {
-                setData(updatedData);
               });
             }}
           >
@@ -944,14 +1041,53 @@ function PreSessionJournal() {
         Header: 'Plan&Outcome',
         accessor: 'planOutcome',
         width: 120,
-        Cell: ({ row, value }) => (
-          <Checkbox
-            type="checkbox"
-            checked={value || false}
-            disabled={true}
-            onChange={() => {}}
-          />
-        ),
+        Cell: ({ row }) => {
+          // Автоматическая проверка совпадения narrative и outcome
+          const shouldBeChecked = (() => {
+            const narrative = row.original.narrative;
+            const outcome = row.original.outcome;
+            
+            if (!narrative || !outcome || 
+                narrative === 'Neutral' || 
+                narrative === 'Day off') {
+              return false;
+            }
+            
+            return narrative === outcome;
+          })();
+
+          // Если состояние должно измениться, обновляем данные
+          if (shouldBeChecked !== row.original.planOutcome) {
+            const updatedData = data.map(item => {
+              if (item.id === row.original.id) {
+                return { 
+                  ...item, 
+                  planOutcome: shouldBeChecked,
+                  planOutcomeMatch: {
+                    checked: shouldBeChecked,
+                    timestamp: shouldBeChecked ? new Date().toISOString() : null
+                  }
+                };
+              }
+              return item;
+            });
+            
+            setData(updatedData);
+            window.electronAPI.saveDailyRoutine({
+              date: new Date().toISOString().split('T')[0],
+              preSession: updatedData,
+            });
+          }
+
+          return (
+            <Checkbox
+              type="checkbox"
+              checked={shouldBeChecked}
+              disabled={true}
+              onChange={() => {}}
+            />
+          );
+        },
       },
       {
         Header: 'Add. Pair',
