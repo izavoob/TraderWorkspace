@@ -7,86 +7,126 @@ let db = null;
 let vaultPath = null;
 let mainWindow = null;
 
+async function reorderTradeNumbers() {
+  return new Promise((resolve, reject) => {
+    db.all('SELECT id FROM trades ORDER BY date DESC', [], async (err, rows) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      
+      for (let i = 0; i < rows.length; i++) {
+        await new Promise((updateResolve, updateReject) => {
+          db.run('UPDATE trades SET no = ? WHERE id = ?', [i + 1, rows[i].id], (updateErr) => {
+            if (updateErr) updateReject(updateErr);
+            else updateResolve();
+          });
+        });
+      }
+      resolve();
+    });
+  });
+}
+
 async function initializeDatabase() {
   if (vaultPath && db) return;
+  
   vaultPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault');
   const dbPath = path.join(vaultPath, 'trades.db');
+  
   try {
     await fs.mkdir(vaultPath, { recursive: true });
+    
     db = new sqlite3.Database(dbPath, (err) => {
       if (err) throw new Error(`Database connection failed: ${err.message}`);
       console.log('SQLite database initialized at:', dbPath);
     });
 
-    db.run(`
-      CREATE TABLE IF NOT EXISTS trades (
-        id TEXT PRIMARY KEY,
-        date TEXT,
-        account TEXT,
-        pair TEXT,
-        direction TEXT,
-        positionType TEXT,
-        risk TEXT,
-        result TEXT,
-        rr TEXT,
-        profitLoss TEXT,
-        gainedPoints TEXT,
-        followingPlan INTEGER,
-        bestTrade INTEGER,
-        session TEXT,
-        pointA TEXT,
-        trigger TEXT,
-        volumeConfirmation TEXT,
-        entryModel TEXT,
-        entryTF TEXT,
-        fta TEXT,
-        slPosition TEXT,
-        score TEXT,
-        category TEXT,
-        topDownAnalysis TEXT,
-        execution TEXT,
-        management TEXT,
-        conclusion TEXT
-      )
-    `, (err) => {
-      if (err) throw new Error(`Table trades creation failed: ${err.message}`);
+    // Створюємо всі таблиці одразу в правильному порядку
+    await new Promise((resolve, reject) => {
+      db.serialize(() => {
+        // 1. Створюємо основну таблицю trades
+        db.run(`
+          CREATE TABLE IF NOT EXISTS trades (
+            id TEXT PRIMARY KEY,
+            no INTEGER,
+            date TEXT,
+            account TEXT,
+            pair TEXT,
+            direction TEXT,
+            positionType TEXT,
+            risk TEXT,
+            result TEXT,
+            rr TEXT,
+            profitLoss TEXT,
+            gainedPoints TEXT,
+            followingPlan INTEGER,
+            bestTrade INTEGER,
+            session TEXT,
+            pointA TEXT,
+            trigger TEXT,
+            volumeConfirmation TEXT,
+            entryModel TEXT,
+            entryTF TEXT,
+            fta TEXT,
+            slPosition TEXT,
+            score TEXT,
+            category TEXT,
+            topDownAnalysis TEXT,
+            execution TEXT,
+            management TEXT,
+            conclusion TEXT,
+            notes TEXT
+          )
+        `, (err) => {
+          if (err) reject(new Error(`Table trades creation failed: ${err.message}`));
+        });
+
+        // 2. Створюємо таблицю notes
+        db.run(`
+          CREATE TABLE IF NOT EXISTS notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            tradeId TEXT,
+            title TEXT,
+            text TEXT,
+            FOREIGN KEY (tradeId) REFERENCES trades(id)
+          )
+        `, (err) => {
+          if (err) reject(new Error(`Table notes creation failed: ${err.message}`));
+        });
+
+        // 3. Створюємо інші таблиці
+        db.run(`
+          CREATE TABLE IF NOT EXISTS learning_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `, (err) => {
+          if (err) reject(new Error(`Table learning_notes creation failed: ${err.message}`));
+        });
+
+        db.run(`
+          CREATE TABLE IF NOT EXISTS daily_routines (
+            date TEXT PRIMARY KEY,
+            preSession TEXT,
+            postSession TEXT,
+            emotions TEXT,
+            notes TEXT
+          )
+        `, (err) => {
+          if (err) reject(new Error(`Table daily_routines creation failed: ${err.message}`));
+        });
+
+        resolve();
+      });
     });
 
-    db.run(`
-      CREATE TABLE IF NOT EXISTS notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        tradeId TEXT,
-        title TEXT,
-        text TEXT,
-        FOREIGN KEY (tradeId) REFERENCES trades(id)
-      )
-    `, (err) => {
-      if (err) throw new Error(`Table notes creation failed: ${err.message}`);
-    });
+    // Перенумеровуємо trades після створення всіх таблиць
+    await reorderTradeNumbers();
 
-    db.run(`
-      CREATE TABLE IF NOT EXISTS learning_notes (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        title TEXT NOT NULL,
-        content TEXT,
-        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-      )
-    `, (err) => {
-      if (err) throw new Error(`Table learning_notes creation failed: ${err.message}`);
-    });
-
-    db.run(`
-      CREATE TABLE IF NOT EXISTS daily_routines (
-        date TEXT PRIMARY KEY,
-        preSession TEXT,
-        postSession TEXT,
-        emotions TEXT,
-        notes TEXT
-      )
-    `, (err) => {
-      if (err) throw new Error(`Table daily_routines creation failed: ${err.message}`);
-    });
   } catch (error) {
     console.error('Error initializing database:', error);
     throw new Error('Database initialization failed');
@@ -189,80 +229,150 @@ ipcMain.on('toggle-sidebar', (event, isCollapsed) => {
 });
 
 ipcMain.handle('get-trade', async (event, id) => {
-  const trade = await db.get('SELECT * FROM trades WHERE id = ?', id);
-  return trade;
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM trades WHERE id = ?', [id], (err, trade) => {
+      if (err) {
+        console.error('Error fetching trade:', err);
+        reject(err);
+        return;
+      }
+      if (trade) {
+        // Перетворюємо JSON рядки в об'єкти
+        trade.topDownAnalysis = JSON.parse(trade.topDownAnalysis || '[]');
+        trade.execution = JSON.parse(trade.execution || '{}');
+        trade.management = JSON.parse(trade.management || '{}');
+        trade.conclusion = JSON.parse(trade.conclusion || '{}');
+        trade.notes = JSON.parse(trade.notes || '[]');
+        
+        // Переконуємося що no існує
+        if (!trade.no) {
+          trade.no = id; // Використовуємо id як запасний варіант
+        }
+        
+        resolve(trade);
+      } else {
+        resolve(null);
+      }
+    });
+  });
 });
 
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
-    db.run(
-      `INSERT OR REPLACE INTO trades (id, date, account, pair, direction, positionType, risk, result, rr, profitLoss, gainedPoints, followingPlan, bestTrade, session, pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition, score, category, topDownAnalysis, execution, management, conclusion) 
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-      [
-        trade.id,
-        trade.date || '',
-        trade.account || '',
-        trade.pair || '',
-        trade.direction || '',
-        trade.positionType || '',
-        trade.risk || '',
-        trade.result || '',
-        trade.rr || '',
-        trade.profitLoss || '',
-        trade.gainedPoints || '',
-        trade.followingPlan ? 1 : 0,
-        trade.bestTrade ? 1 : 0,
-        trade.session || '',
-        trade.pointA || '',
-        trade.trigger || '',
-        trade.volumeConfirmation || '',
-        trade.entryModel || '',
-        trade.entryTF || '',
-        trade.fta || '',
-        trade.slPosition || '',
-        trade.score || '',
-        trade.category || '',
-        JSON.stringify(trade.topDownAnalysis) || '[]',
-        JSON.stringify(trade.execution) || '{}',
-        JSON.stringify(trade.management) || '{}',
-        JSON.stringify(trade.conclusion) || '{}',
-      ],
-      async (err) => {
-        if (err) {
-          console.error('Error saving trade:', err);
-          reject(err);
-          return;
-        }
-        if (trade.notes && trade.notes.length > 0) {
-          for (const note of trade.notes) {
-            await new Promise((noteResolve, noteReject) => {
-              db.run(
-                'INSERT INTO notes (tradeId, title, text) VALUES (?, ?, ?)',
-                [trade.id, note.title, note.text],
-                (noteErr) => {
-                  if (noteErr) noteReject(noteErr);
-                  else noteResolve();
-                }
-              );
+    db.get('SELECT MAX(no) as maxNo FROM trades', [], (err, row) => {
+      if (err) {
+        reject(err);
+        return;
+      }
+      
+      const nextNo = (row.maxNo || 0) + 1;
+      
+      db.run(
+        `INSERT OR REPLACE INTO trades (
+          id, no, date, account, pair, direction, positionType, 
+          risk, result, rr, profitLoss, gainedPoints, 
+          followingPlan, bestTrade, session, pointA, trigger, 
+          volumeConfirmation, entryModel, entryTF, fta, 
+          slPosition, score, category, topDownAnalysis, 
+          execution, management, conclusion, notes
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        [
+          trade.id,
+          nextNo,
+          trade.date || '',
+          trade.account || '',
+          trade.pair || '',
+          trade.direction || '',
+          trade.positionType || '',
+          trade.risk || '',
+          trade.result || '',
+          trade.rr || '',
+          trade.profitLoss || '',
+          trade.gainedPoints || '',
+          trade.followingPlan ? 1 : 0,
+          trade.bestTrade ? 1 : 0,
+          trade.session || '',
+          trade.pointA || '',
+          trade.trigger || '',
+          trade.volumeConfirmation || '',
+          trade.entryModel || '',
+          trade.entryTF || '',
+          trade.fta || '',
+          trade.slPosition || '',
+          trade.score || '',
+          trade.category || '',
+          JSON.stringify(trade.topDownAnalysis || []),
+          JSON.stringify(trade.execution || {}),
+          JSON.stringify(trade.management || {}),
+          JSON.stringify(trade.conclusion || {}),
+          JSON.stringify(trade.notes || [])
+        ],
+        async function(err) {
+          if (err) {
+            console.error('Error saving trade:', err);
+            reject(err);
+            return;
+          }
+
+          // Видаляємо старі нотатки перед додаванням нових
+          try {
+            await new Promise((resolve, reject) => {
+              db.run('DELETE FROM notes WHERE tradeId = ?', [trade.id], (err) => {
+                if (err) reject(err);
+                else resolve();
+              });
             });
+
+            // Додаємо нові нотатки
+            if (trade.notes && trade.notes.length > 0) {
+              for (const note of trade.notes) {
+                await new Promise((resolve, reject) => {
+                  db.run(
+                    'INSERT INTO notes (tradeId, title, text) VALUES (?, ?, ?)',
+                    [trade.id, note.title, note.text],
+                    (err) => {
+                      if (err) reject(err);
+                      else resolve();
+                    }
+                  );
+                });
+              }
+            }
+            
+            resolve(true);
+          } catch (error) {
+            console.error('Error handling notes:', error);
+            reject(error);
           }
         }
-        resolve(true);
-      }
-    );
+      );
+    });
   });
 });
 
 ipcMain.handle('get-trades', async () => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM trades', (err, tradeRows) => {
+    // Додаємо параметризований запит з можливістю сортування
+    const query = `
+      SELECT * FROM trades 
+      ORDER BY 
+      CASE 
+        WHEN no IS NULL THEN 1 
+        ELSE 0 
+      END,
+      CAST(no AS INTEGER) DESC
+    `;
+    
+    db.all(query, [], async (err, tradeRows) => {
       if (err) {
         console.error('Error fetching trades:', err);
         reject(err);
         return;
       }
+
       const trades = tradeRows.map(row => ({
         ...row,
         topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
@@ -271,11 +381,14 @@ ipcMain.handle('get-trades', async () => {
         conclusion: JSON.parse(row.conclusion || '{}'),
         notes: [],
       }));
-      const tradeIds = trades.map(trade => trade.id);
-      if (tradeIds.length === 0) {
+
+      if (trades.length === 0) {
         resolve(trades);
         return;
       }
+
+      // Отримуємо нотатки для трейдів
+      const tradeIds = trades.map(trade => trade.id);
       db.all(
         'SELECT * FROM notes WHERE tradeId IN (' + tradeIds.map(() => '?').join(',') + ')',
         tradeIds,
@@ -285,12 +398,13 @@ ipcMain.handle('get-trades', async () => {
             reject(err);
             return;
           }
+
           trades.forEach(trade => {
             trade.notes = noteRows
               .filter(note => note.tradeId === trade.id)
               .map(note => ({ title: note.title, text: note.text }));
           });
-          resolve(trades || []);
+          resolve(trades);
         }
       );
     });
@@ -301,7 +415,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE trades SET date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?, topDownAnalysis = ?, execution = ?, management = ?, conclusion = ? WHERE id = ?`,
+      `UPDATE trades SET date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?, topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, notes = ? WHERE id = ?`,
       [
         updatedTrade.date || '',
         updatedTrade.account || '',
@@ -329,6 +443,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         JSON.stringify(updatedTrade.execution) || '{}',
         JSON.stringify(updatedTrade.management) || '{}',
         JSON.stringify(updatedTrade.conclusion) || '{}',
+        JSON.stringify(updatedTrade.notes) || '[]',
         tradeId,
       ],
       async (err) => {
@@ -362,6 +477,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
     );
   });
 });
+
 ipcMain.handle('delete-trade', async (event, tradeId) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
