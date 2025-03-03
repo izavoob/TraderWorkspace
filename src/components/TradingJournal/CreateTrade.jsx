@@ -1,10 +1,32 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import DeleteIcon from '../../assets/icons/delete-icon.svg';;
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const slideIn = keyframes`
+  from {
+    transform: translateX(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
+`;
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
@@ -90,7 +112,7 @@ const TradeNumber = styled.p`
 `;
 
 const TradeContent = styled.div`
-  margin-top: 148px;
+  margin-top: 20px; // Змінено з 148px на 20px
   padding-top: 20px;
   display: flex;
   flex-direction: column;
@@ -110,6 +132,14 @@ const TradeTable = styled.div`
   padding: 20px;
   border-radius: 5px;
   border: 2px solid #5e2ca5;
+  animation: ${slideIn} 0.5s ease;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(116, 37, 201, 0.2);
+    transform: translateY(-2px);
+  }
 `;
 
 const FormRow = styled.div`
@@ -129,12 +159,15 @@ const FormField = styled.div`
 `;
 
 const FormLabel = styled.label`
-  color: rgb(92, 157, 245); /* Змінюємо колір на синій */
+  color: #fff; // Змінено з rgb(92, 157, 245) на #fff
   margin-bottom: 5px;
   display: block;
   text-align: center;
-  font-size: 1.5em; /* Залишаємо розмір шрифта у 1.5 рази більшим */
+  font-size: 1em;
   width: 100%;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  letter-spacing: 0.3px;
 `;
 
 const FormInput = styled.input`
@@ -146,6 +179,14 @@ const FormInput = styled.input`
   width: 100%;
   text-align: center;
   box-sizing: border-box;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
+  }
 `;
 
 const FormSelect = styled.select`
@@ -170,11 +211,11 @@ const FormCheckbox = styled.input`
 `;
 
 const FormCheckboxLabel = styled.label`
-  color: rgb(92, 157, 245); /* Змінюємо колір на синій для чекбоксів */
+  color: #fff; // Змінено з rgb(92, 157, 245) на #fff
   margin-bottom: 5px;
   display: flex;
   align-items: center;
-  font-size: 1.5em; /* Залишаємо розмір шрифта у 1.5 рази більшим */
+  font-size: 1em;
   text-align: center;
 `;
 
@@ -277,6 +318,13 @@ const ScreenshotField = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
+  animation: ${fadeIn} 0.5s ease;
+  transition: all 0.3s ease;
+
+  &:hover {
+    box-shadow: 0 6px 20px rgba(116, 37, 201, 0.2);
+    transform: translateY(-2px);
+  }
 
   &:hover .delete-screenshot {
     opacity: 1;
@@ -317,6 +365,15 @@ const TextArea = styled.textarea`
   border-radius: 5px;
   min-height: 100px;
   text-align: center;
+  font-family: 'Inter', sans-serif;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+  
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
+  }
 `;
 
 const Row = styled.div`
@@ -718,22 +775,34 @@ function CreateTrade() {
     setShowNotePopup(true);
   };
 
-  const saveNote = () => {
+  const saveNote = async () => {
     if (noteTitle && noteText) {
-      const note = { title: noteTitle, text: noteText };
-      setTrade((prev) => {
-        if (editNoteIndex !== null) {
-          const updatedNotes = [...prev.notes];
-          updatedNotes[editNoteIndex] = note;
-          return { ...prev, notes: updatedNotes };
-        } else {
-          return { ...prev, notes: [...prev.notes, note] };
-        }
-      });
-      setShowNotePopup(false);
-      setNoteTitle('');
-      setNoteText('');
-      setEditNoteIndex(null);
+      const note = {
+        title: noteTitle,
+        text: noteText,
+        // tradeId буде додано після створення трейду
+      };
+
+      try {
+        setTrade((prev) => {
+          if (editNoteIndex !== null) {
+            const updatedNotes = [...prev.notes];
+            updatedNotes[editNoteIndex] = note;
+            return { ...prev, notes: updatedNotes };
+          } else {
+            return { ...prev, notes: [...prev.notes, note] };
+          }
+        });
+
+        setShowNotePopup(false);
+        setNoteTitle('');
+        setNoteText('');
+        setEditNoteIndex(null);
+        
+      } catch (error) {
+        console.error('Error saving note:', error);
+        alert('Failed to save note');
+      }
     }
   };
 
@@ -755,15 +824,29 @@ function CreateTrade() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      const tradeId = Date.now().toString();
       const tradeData = {
-        id: Date.now().toString(),
+        id: tradeId,
         ...trade,
         risk: trade.risk ? `${trade.risk}%` : '',
         rr: trade.rr ? `${trade.rr}RR` : '',
         volumeConfirmation: trade.volumeConfirmation.join(', '),
       };
+
+      // Зберігаємо трейд
       const result = await window.electronAPI.saveTrade(tradeData);
+
       if (result) {
+        // Зберігаємо нотатки з посиланням на трейд
+        if (trade.notes && trade.notes.length > 0) {
+          for (const note of trade.notes) {
+            await window.electronAPI.saveNoteWithTrade({
+              ...note,
+              tradeId: tradeId
+            });
+          }
+        }
+        
         navigate('/trade-journal', { state: { fromCreateTrade: true } });
       } else {
         throw new Error('Failed to save trade');

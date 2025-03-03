@@ -1,13 +1,31 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import styled, { keyframes } from 'styled-components';
-import { PulseLoader } from 'react-spinners';
 
-const fadeIn = keyframes`
-  from {
+const fadeInOut = keyframes`
+  0% {
     opacity: 0;
+    transform: translateY(-20px);
+  }
+  20% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  80% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+`;
+
+const spin = keyframes`
+  from {
+    transform: rotate(0deg);
   }
   to {
-    opacity: 1;
+    transform: rotate(360deg);
   }
 `;
 
@@ -17,45 +35,58 @@ const LoadingScreenContainer = styled.div`
   left: 0;
   width: 100%;
   height: 100%;
-  background-color: #1a1a1a;
+  background: conic-gradient(from 45deg, rgb(116, 37, 201), rgb(184, 134, 238));
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  gap: 20px;
   z-index: 9999;
-  animation: ${fadeIn} 0.5s ease-in;
 `;
 
-const LoadingText = styled.h2`
-  color: #fff;
-  font-size: 24px;
-  margin-bottom: 20px;
-  text-align: center;
-  font-weight: 500;
+const ContentWrapper = styled.div`
+  animation: ${fadeInOut} 3s ease-in-out forwards;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
 `;
 
-const SubText = styled.p`
-  color: #B886EE;
-  font-size: 16px;
-  margin-top: 20px;
-  text-align: center;
-  max-width: 80%;
-  line-height: 1.5;
+const Title = styled.h1`
+  color: white;
+  font-size: 2.5em;
+  margin: 0;
+  text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+`;
+
+const Spinner = styled.div`
+  width: 50px;
+  height: 50px;
+  border: 4px solid rgba(255, 255, 255, 0.3);
+  border-top: 4px solid #fff;
+  border-radius: 50%;
+  animation: ${spin} 1s linear infinite;
 `;
 
 const LoadingScreen = () => {
+  const [isVisible, setIsVisible] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsVisible(false);
+    }, 3000);
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (!isVisible) return null;
+
   return (
     <LoadingScreenContainer>
-      <LoadingText>Loading Trader Workspace</LoadingText>
-      <PulseLoader 
-        color="#7425C9"
-        size={15}
-        margin={2}
-        speedMultiplier={0.8}
-      />
-      <SubText>
-        Please wait while we're preparing your trading environment...
-      </SubText>
+      <ContentWrapper>
+        <Title>Trader Workspace</Title>
+        <Spinner />
+      </ContentWrapper>
     </LoadingScreenContainer>
   );
 };
