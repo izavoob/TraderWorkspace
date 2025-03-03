@@ -42,7 +42,6 @@ async function initializeDatabase() {
       console.log('SQLite database initialized at:', dbPath);
     });
 
-    // Створюємо всі таблиці одразу в правильному порядку
     await new Promise((resolve, reject) => {
       db.serialize(() => {
         // 1. Створюємо основну таблицю trades
@@ -78,11 +77,31 @@ async function initializeDatabase() {
             conclusion TEXT,
             notes TEXT
           )
-        `, (err) => {
-          if (err) reject(new Error(`Table trades creation failed: ${err.message}`));
+        `);
+
+        // 2. Створюємо таблицю learning_notes з правильними полями
+        db.run(`
+          CREATE TABLE IF NOT EXISTS learning_notes (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT NOT NULL,
+            content TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            tradeId TEXT,
+            FOREIGN KEY (tradeId) REFERENCES trades(id)
+          )
+        `);
+
+        // Перевіряємо чи існує стовпець tradeId
+        db.all("PRAGMA table_info(learning_notes)", [], (err, rows) => {
+          if (!err) {
+            const hasTradeId = rows.some(row => row.name === 'tradeId');
+            if (!hasTradeId) {
+              db.run("ALTER TABLE learning_notes ADD COLUMN tradeId TEXT REFERENCES trades(id)");
+            }
+          }
         });
 
-        // 2. Створюємо таблицю notes
         db.run(`
           CREATE TABLE IF NOT EXISTS notes (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -93,19 +112,6 @@ async function initializeDatabase() {
           )
         `, (err) => {
           if (err) reject(new Error(`Table notes creation failed: ${err.message}`));
-        });
-
-        // 3. Створюємо інші таблиці
-        db.run(`
-          CREATE TABLE IF NOT EXISTS learning_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `, (err) => {
-          if (err) reject(new Error(`Table learning_notes creation failed: ${err.message}`));
         });
 
         db.run(`
@@ -560,6 +566,49 @@ ipcMain.handle('get-daily-routine', async (event, date) => {
           emotions: [],
           notes: [],
         });
+      }
+    });
+  });
+});
+
+ipcMain.handle('saveNoteWithTrade', async (event, note) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    const query = `
+      INSERT INTO learning_notes (title, content, tradeId) 
+      VALUES (?, ?, ?)
+    `;
+    
+    db.run(query, [note.title, note.text, note.tradeId], function(err) {
+      if (err) {
+        console.error('Error saving note with trade:', err);
+        reject(err);
+      } else {
+        resolve(this.lastID);
+      }
+    });
+  });
+});
+
+ipcMain.handle('getAllNotes', async () => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    const query = `
+      SELECT 
+        ln.*,
+        t.no as tradeNo,
+        t.date as tradeDate
+      FROM learning_notes ln
+      LEFT JOIN trades t ON ln.tradeId = t.id
+      ORDER BY ln.created_at DESC
+    `;
+    
+    db.all(query, [], (err, rows) => {
+      if (err) {
+        console.error('Error fetching all notes:', err);
+        reject(err);
+      } else {
+        resolve(rows);
       }
     });
   });

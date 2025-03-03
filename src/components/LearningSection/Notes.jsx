@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
 const NotesContainer = styled.div`
@@ -82,245 +82,137 @@ const Title = styled.h1`
 `;
 
 const Content = styled.div`
-  margin-top: 148px;
+  margin-top: 178px; // Змінено з 148px на 178px (148 + 30)
   padding: 20px;
-  height: calc(100vh - 148px);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-`;
-
-const EditorContainer = styled.div`
-  display: flex;
-  gap: 20px;
   width: 100%;
   max-width: 1200px;
-  margin: 0 auto;
-  height: 100%;
+  margin-left: auto;
+  margin-right: auto;
 `;
 
-const Sidebar = styled.div`
-  width: 300px;
-  background: rgba(116, 37, 201, 0.1);
-  border-radius: 15px;
-  padding: 20px;
-  overflow-y: auto;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  border: 2px solid #5e2ca5;
-  
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-  
-  &::-webkit-scrollbar-track {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 4px;
-  }
-  
-  &::-webkit-scrollbar-thumb {
-    background: rgba(116, 37, 201, 0.5);
-    border-radius: 4px;
-  }
-`;
-
-const MainContent = styled.div`
-  flex: 1;
-  background: rgba(116, 37, 201, 0.1);
-  border-radius: 15px;
-  padding: 20px;
+const NotesList = styled.div`
   display: flex;
   flex-direction: column;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  gap: 15px;
+  width: 100%;
+`;
+
+const NoteCard = styled.div`
+  background: rgba(116, 37, 201, 0.1);
   border: 2px solid #5e2ca5;
-`;
-
-const NoteItem = styled.div`
-  padding: 15px;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 8px;
-  margin-bottom: 10px;
-  cursor: pointer;
+  border-radius: 15px;
+  padding: 20px;
   transition: all 0.2s ease;
   
   &:hover {
-    background: rgba(255, 255, 255, 0.1);
     transform: translateY(-2px);
-  }
-
-  h3 {
-    color: white;
-    margin: 0 0 5px 0;
-    font-size: 1.1em;
-  }
-
-  small {
-    color: #888;
-    font-size: 0.9em;
+    box-shadow: 0 4px 12px rgba(94, 44, 165, 0.2);
   }
 `;
 
-const Input = styled.input`
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  border-radius: 8px;
-  padding: 12px;
-  color: white;
-  width: 100%;
-  margin-bottom: 15px;
-  font-size: 1.1em;
-  
-  &:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
-
-const TextArea = styled.textarea`
-  background: rgba(255, 255, 255, 0.05);
-  border: none;
-  border-radius: 8px;
-  padding: 12px;
-  color: white;
-  width: 100%;
-  flex: 1;
-  resize: none;
-  font-size: 1em;
-  line-height: 1.5;
-  
-  &:focus {
-    outline: none;
-    background: rgba(255, 255, 255, 0.1);
-  }
-`;
-
-const ButtonsContainer = styled.div`
+const NoteHeader = styled.div`
   display: flex;
-  gap: 10px;
   justify-content: space-between;
-  margin-top: 15px;
+  align-items: center;
+  margin-bottom: 15px;
+  border-bottom: 1px solid rgba(94, 44, 165, 0.3);
+  padding-bottom: 10px;
 `;
 
-const Button = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  color: white;
-  border: none;
-  border-radius: 8px;
-  padding: 12px 24px;
+const NoteTitle = styled.h3`
+  color: #fff;
+  margin: 0;
+  font-size: 1.2em;
+`;
+
+const TradeLink = styled.div`
+  color: #b886ee;
   cursor: pointer;
-  transition: all 0.2s ease;
-  font-size: 1em;
+  font-size: 0.9em;
+  padding: 5px 10px;
+  border-radius: 8px;
+  background: rgba(116, 37, 201, 0.2);
   
   &:hover {
-    opacity: 0.9;
-    transform: scale(1.02);
+    background: rgba(116, 37, 201, 0.3);
   }
-  
-  &:active {
-    transform: scale(0.98);
-  }
-
-  ${props => props.danger && `
-    background: #ff4444;
-  `}
 `;
 
-// ... Rest of the component logic remains the same ...
+const NoteContent = styled.p`
+  color: #fff;
+  margin: 0;
+  line-height: 1.5;
+  white-space: pre-wrap;
+`;
+
+const NoNotesMessage = styled.div`
+  color: #fff;
+  text-align: center;
+  padding: 40px;
+  font-size: 1.2em;
+  background: rgba(116, 37, 201, 0.1);
+  border-radius: 15px;
+  margin-top: 20px;
+`;
 
 function Notes() {
   const [notes, setNotes] = useState([]);
-  const [selectedNote, setSelectedNote] = useState(null);
-  const [title, setTitle] = useState('');
-  const [content, setContent] = useState('');
+  const navigate = useNavigate();
 
-  const handleNewNote = () => {
-    setSelectedNote(null);
-    setTitle('');
-    setContent('');
-  };
+  useEffect(() => {
+    loadNotes();
+  }, []);
 
-  const handleSaveNote = () => {
-    if (!title.trim()) return;
-
-    const newNote = {
-      id: selectedNote?.id || Date.now(),
-      title: title.trim(),
-      content: content.trim(),
-      date: new Date().toISOString()
-    };
-
-    if (selectedNote) {
-      setNotes(notes.map(note => 
-        note.id === selectedNote.id ? newNote : note
-      ));
-    } else {
-      setNotes([newNote, ...notes]);
+  const loadNotes = async () => {
+    try {
+      const allNotes = await window.electronAPI.getAllNotes();
+      const linkedNotes = allNotes.filter(note => note.tradeId); // Фільтруємо тільки пов'язані з трейдами нотатки
+      setNotes(linkedNotes.map(note => ({
+        id: note.id,
+        title: note.title,
+        content: note.content,
+        tradeId: note.tradeId,
+        tradeNo: note.tradeNo,
+        tradeDate: note.tradeDate,
+        date: note.created_at
+      })));
+    } catch (error) {
+      console.error('Error loading notes:', error);
     }
   };
 
-  const handleDeleteNote = () => {
-    if (!selectedNote) return;
-    setNotes(notes.filter(note => note.id !== selectedNote.id));
-    handleNewNote();
+  const handleTradeClick = (tradeId) => {
+    if (tradeId) {
+      navigate(`/trade/${tradeId}`);
+    }
   };
 
   return (
     <NotesContainer>
       <Header>
         <BackButton to="/learning-section" title="Back" aria-label="Back" />
-        <Title>Notes</Title>
+        <Title>Trade Notes</Title>
       </Header>
       <Content>
-        <EditorContainer>
-          <Sidebar>
-            <ButtonsContainer>
-              <Button onClick={handleNewNote}>New Note</Button>
-            </ButtonsContainer>
-            {notes.map(note => (
-              <NoteItem
-                key={note.id}
-                onClick={() => {
-                  setSelectedNote(note);
-                  setTitle(note.title);
-                  setContent(note.content);
-                }}
-                style={{
-                  background: selectedNote?.id === note.id 
-                    ? 'rgba(255, 255, 255, 0.1)' 
-                    : 'rgba(255, 255, 255, 0.05)'
-                }}
-              >
-                <h3 style={{ color: 'white', margin: '0 0 5px 0' }}>{note.title}</h3>
-                <small style={{ color: '#888' }}>
-                  {new Date(note.date).toLocaleString()}
-                </small>
-              </NoteItem>
-            ))}
-          </Sidebar>
-          <MainContent>
-            <Input
-              type="text"
-              placeholder="Note Title"
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-            />
-            <TextArea
-              placeholder="Write your note here..."
-              value={content}
-              onChange={(e) => setContent(e.target.value)}
-            />
-            <ButtonsContainer style={{ marginTop: '10px' }}>
-              {selectedNote && (
-                <Button onClick={handleDeleteNote} style={{ background: '#ff4444' }}>
-                  Delete
-                </Button>
-              )}
-              <Button onClick={handleSaveNote}>
-                {selectedNote ? 'Update' : 'Save'}
-              </Button>
-            </ButtonsContainer>
-          </MainContent>
-        </EditorContainer>
+        <NotesList>
+          {notes.length > 0 ? (
+            notes.map(note => (
+              <NoteCard key={note.id}>
+                <NoteHeader>
+                  <NoteTitle>{note.title}</NoteTitle>
+                  <TradeLink onClick={() => handleTradeClick(note.tradeId)}>
+                    Trade #{note.tradeNo} - {new Date(note.tradeDate).toLocaleDateString()}
+                  </TradeLink>
+                </NoteHeader>
+                <NoteContent>{note.content}</NoteContent>
+              </NoteCard>
+            ))
+          ) : (
+            <NoNotesMessage>
+              No trade notes available. Add notes while creating or editing trades.
+            </NoNotesMessage>
+          )}
+        </NotesList>
       </Content>
     </NotesContainer>
   );

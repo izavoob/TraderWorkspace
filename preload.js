@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDailyRoutine: (date) => ipcRenderer.invoke('get-daily-routine', date),
   getTrade: (id) => ipcRenderer.invoke('get-trade', id),
   toggleSidebar: (isCollapsed) => ipcRenderer.send('toggle-sidebar', isCollapsed),
-
+  saveNoteWithTrade: (note) => ipcRenderer.invoke('saveNoteWithTrade', note),
+  getAllNotes: () => ipcRenderer.invoke('getAllNotes'),
 
 });

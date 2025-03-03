@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useLocation, useNavigate } from 'react-router-dom';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import Home from './components/Home.jsx';
 import TradeJournal from './components/TradeJournal.jsx';
 import TradeDetail from './components/TradingJournal/TradeDetail.jsx';
@@ -49,6 +49,17 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
+const fadeInAnimation = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const AppContainer = styled.div`
   text-align: center;
   position: relative;
@@ -61,7 +72,8 @@ const AppContainer = styled.div`
   width: 100%;
   overflow-x: hidden;
   opacity: ${props => props.isLoading ? 0 : 1};
-  transition: opacity 0.3s ease-in-out;
+  transform: translateY(${props => props.isLoading ? '-20px' : '0'});
+  transition: opacity 1.5s ease-out, transform 1.5s ease-out;
 `;
 
 const NavigationButtons = styled.div`
@@ -143,9 +155,10 @@ function App() {
   const isHome = location.pathname === '/';
 
   useEffect(() => {
+    // Показуємо LoadingScreen на 3 секунди
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
+    }, 3000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -200,94 +213,56 @@ function App() {
     }
   };
 
-  if (isLoading) {
-    return <LoadingScreen />;
-  }
-
   return (
     <>
       <GlobalStyle />
-      <AppContainer>
-        {!isHome && (
-          <PageTitle>{getSectionTitle(location.pathname)}</PageTitle>
-        )}
+      {isLoading ? (
+        <LoadingScreen />
+      ) : (
+        <AppContainer isLoading={isLoading}>
+          {!isHome && (
+            <PageTitle>{getSectionTitle(location.pathname)}</PageTitle>
+          )}
 
-        <NavigationButtons className={isHome ? 'hidden' : ''}>
-          <NavButton 
-            onClick={handleBack} 
-            className="back" 
-            aria-label="Back"
-          />
-          <NavButton 
-            onClick={handleForward} 
-            className="forward" 
-            aria-label="Forward"
-          />
-        </NavigationButtons>
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/trade-journal" element={<TradeJournal />} />
-          <Route path="/trade/:id" element={<TradeDetail />} />
-          <Route path="/create-trade" element={<CreateTrade />} />
-          <Route path="/daily-routine" element={<DailyRoutine />} />
-          <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
-          <Route path="/daily-routine/pre-session/:id" element={<PreSessionFull />} />
-          <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
-          <Route path="/learning-section" element={<LearningSection />} />
-          <Route path="/learning-section/strategy" element={<Strategy />} />
-          <Route path="/learning-section/trading-psychology" element={<TradingPsychology />} />
-          <Route path="/learning-section/notes" element={<Notes />} />
-          <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
-          <Route path="/performance-analysis/wpa" element={<WPA />} />
-          <Route path="/performance-analysis/mpa" element={<MPA />} />
-          <Route path="/performance-analysis/qpa" element={<QPA />} />
-          <Route path="/performance-analysis/ypa" element={<YPA />} />
-          <Route path="/statistics" element={<Statistics />} />
-          <Route path="/risk-management" element={<RiskManagement />} />
-          <Route path="/reporting-system" element={<ReportingSystem />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </AppContainer>
+          <NavigationButtons className={isHome ? 'hidden' : ''}>
+            <NavButton 
+              onClick={handleBack} 
+              className="back" 
+              aria-label="Back"
+            />
+            <NavButton 
+              onClick={handleForward} 
+              className="forward" 
+              aria-label="Forward"
+            />
+          </NavigationButtons>
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/trade-journal" element={<TradeJournal />} />
+            <Route path="/trade/:id" element={<TradeDetail />} />
+            <Route path="/create-trade" element={<CreateTrade />} />
+            <Route path="/daily-routine" element={<DailyRoutine />} />
+            <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
+            <Route path="/daily-routine/pre-session/:id" element={<PreSessionFull />} />
+            <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
+            <Route path="/learning-section" element={<LearningSection />} />
+            <Route path="/learning-section/strategy" element={<Strategy />} />
+            <Route path="/learning-section/trading-psychology" element={<TradingPsychology />} />
+            <Route path="/learning-section/notes" element={<Notes />} />
+            <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
+            <Route path="/performance-analysis/wpa" element={<WPA />} />
+            <Route path="/performance-analysis/mpa" element={<MPA />} />
+            <Route path="/performance-analysis/qpa" element={<QPA />} />
+            <Route path="/performance-analysis/ypa" element={<YPA />} />
+            <Route path="/statistics" element={<Statistics />} />
+            <Route path="/risk-management" element={<RiskManagement />} />
+            <Route path="/reporting-system" element={<ReportingSystem />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </AppContainer>
+      )}
     </>
   );
-}
-
-
-function getSectionTitle(path) {
-  switch (path) {
-    case '/daily-routine/pre-session':
-      return 'PRE-SESSION JOURNAL';
-    case '/daily-routine/post-session':
-      return 'POST-SESSION JOURNAL';
-    case '/learning-section/strategy':
-      return 'STRATEGY DEVELOPMENT';
-    case '/learning-section/trading-psychology':
-      return 'TRADING PSYCHOLOGY';
-    case '/notes':
-      return 'NOTES';
-    case '/daily-routine':
-      return 'DAILY ROUTINE';
-    case '/#daily-routine':
-      return 'DAILY ROUTINE';
-    case '/performance-analysis':
-      return 'PERFORMANCE ANALYSIS';
-    case '/statistics':
-      return 'STATISTICS';
-    case '/risk-management':
-      return 'RISK MANAGEMENT';
-    case '/learning-section':
-      return 'LEARNING SECTION';
-    case '/reporting-system':
-      return 'REPORTING SYSTEM';
-    case '/settings':
-      return 'SETTINGS';
-    case '/trade/:id':
-      return 'TRADE DETAIL';
-    case '/create-trade':
-      return 'CREATE TRADE';
-    default:
-      return '';
-  }
 }
 
 export default App;
