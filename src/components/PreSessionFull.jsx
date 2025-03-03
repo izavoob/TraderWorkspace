@@ -3,65 +3,114 @@ import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle } from 'styled-components';
 
 const GlobalStyle = createGlobalStyle`
-  html, body {
+  body, html {
     margin: 0;
     padding: 0;
     height: 100%;
+    width: 100%;
+    background-color: #1a1a1a;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5e2ca5;
   }
 `;
 
 const Container = styled.div`
-  max-width: 100%;
+  max-width: 1820px;
   margin: 0 auto;
   background-color: #1a1a1a;
+  padding: 20px;
+  position: relative;
   min-height: 100vh;
-  color: white;
   overflow-y: auto;
-  padding-bottom: 40px;
-
-  /* Стилизация скроллбара */
-  &::-webkit-scrollbar {
-    width: 8px;
-  }
-
-  &::-webkit-scrollbar-track {
-    background: #2e2e2e;
-    border-radius: 4px;
-  }
-
-  &::-webkit-scrollbar-thumb {
-    background: #5e2ca5;
-    border-radius: 4px;
-    
-    &:hover {
-      background: #7425C9;
-    }
-  }
+  overflow-x: hidden;
 `;
 
 const Header = styled.header`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   padding: 20px 0;
-  position: sticky;
+  border-radius: 10px 10px 0 0;
+  color: #fff;
+  position: fixed;
   top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
-  display: flex;
-  justify-content: center;
-  align-items: center;
   height: 128px;
   min-height: 6.67vh;
+  max-height: 128px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+`;
+
+const BackButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  border: none;
+  padding: 0;
+  width: 200px;
+  height: 100%;
+  border-radius: 0;
+  cursor: pointer;
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
+  transition: all 0.3s ease;
+
+  &:hover {
+    opacity: 1;
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.98);
+  }
+
+  &:before {
+    content: 'Back';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2em;
+    color: rgba(255, 255, 255, 0);
+    transition: color 0.3s ease;
+  }
+
+  &:hover:before {
+    color: #fff;
+  }
 `;
 
 const Title = styled.h1`
-  margin: 0;
+  margin: 0 auto;
+  font-size: 2.5em;
   color: #fff;
   text-align: center;
+  z-index: 1;
 `;
 
 const Content = styled.div`
-  max-width: 1200px;
-  margin: 0 auto;
-  padding: 20px;
+  margin-top: 148px;
+  padding-top: 20px;
+  position: relative;
+  min-height: calc(100vh - 168px);
+  width: 100%;
+  overflow-y: visible;
 `;
 
 const Form = styled.form`
@@ -71,7 +120,8 @@ const Form = styled.form`
   padding: 20px;
   background: #2e2e2e;
   border-radius: 10px;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  border: 2px solid #5e2ca5;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 `;
 
 const FormGroup = styled.div`
@@ -83,16 +133,18 @@ const FormGroup = styled.div`
 const Label = styled.label`
   color: #fff;
   font-size: 16px;
+  font-weight: 500;
 `;
 
 const Input = styled.input`
-  padding: 10px;
+  padding: 12px;
   background: #3e3e3e;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   color: #fff;
   width: 100%;
   box-sizing: border-box;
+  transition: border-color 0.2s ease;
 
   &:focus {
     outline: none;
@@ -101,17 +153,19 @@ const Input = styled.input`
 `;
 
 const Select = styled.select`
-  padding: 10px;
+  padding: 12px;
   background: #3e3e3e;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   color: #fff;
   width: 100%;
   cursor: pointer;
+  transition: border-color 0.2s ease;
 
   option {
     background: #3e3e3e;
     color: #fff;
+    padding: 8px;
   }
 
   &:focus {
@@ -131,11 +185,11 @@ const Checkbox = styled.input`
   width: 20px;
   height: 20px;
   cursor: pointer;
-  position: relative;
   appearance: none;
-  background: #3e3e3e;
   border: 2px solid #5e2ca5;
   border-radius: 4px;
+  background-color: #3e3e3e;
+  transition: all 0.2s ease;
 
   &:checked {
     background: conic-gradient(from 45deg, #7425C9, #B886EE);
@@ -149,6 +203,10 @@ const Checkbox = styled.input`
       transform: translate(-50%, -50%);
     }
   }
+
+  &:hover {
+    border-color: #B886EE;
+  }
 `;
 
 const ButtonGroup = styled.div`
@@ -160,14 +218,15 @@ const ButtonGroup = styled.div`
 `;
 
 const Button = styled.button`
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 12px 24px;
+  border-radius: 15px;
   border: none;
   cursor: pointer;
   font-size: 16px;
   color: white;
   background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
   transition: transform 0.2s ease, opacity 0.2s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
 
   &:hover {
     transform: scale(1.05);
@@ -177,6 +236,21 @@ const Button = styled.button`
   &:active {
     transform: scale(0.95);
   }
+`;
+
+const LoadingOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: white;
+  font-size: 1.5em;
+  z-index: 1000;
 `;
 
 function PreSessionFull() {
@@ -197,12 +271,9 @@ function PreSessionFull() {
           const currentDate = new Date().toISOString().split('T')[0];
           const routine = await window.electronAPI.getDailyRoutine(currentDate);
           
-          console.log('Loaded routine:', routine);
-          
           if (routine && routine.preSession) {
             const entry = routine.preSession.find(e => String(e.id) === String(id));
             if (entry) {
-              console.log('Loaded entry from storage:', entry);
               setSessionData(entry);
             }
           }
@@ -227,6 +298,7 @@ function PreSessionFull() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    setIsLoading(true);
     try {
       const currentDate = new Date().toISOString().split('T')[0];
       const routine = await window.electronAPI.getDailyRoutine(currentDate);
@@ -255,11 +327,21 @@ function PreSessionFull() {
       navigate('/daily-routine/pre-session');
     } catch (error) {
       console.error('Error saving session data:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
-  if (isLoading || !sessionData) {
-    return <div>Loading...</div>;
+  const handleBack = () => {
+    navigate('/daily-routine/pre-session');
+  };
+
+  if (isLoading) {
+    return <LoadingOverlay>Loading...</LoadingOverlay>;
+  }
+
+  if (!sessionData) {
+    return <LoadingOverlay>No data found</LoadingOverlay>;
   }
 
   return (
@@ -267,7 +349,8 @@ function PreSessionFull() {
       <GlobalStyle />
       <Container>
         <Header>
-          <Title>Pre-Session Analysis Entry</Title>
+          <BackButton onClick={handleBack} />
+          <Title>Pre-Session Details</Title>
         </Header>
         <Content>
           <Form onSubmit={handleSubmit}>
@@ -366,7 +449,7 @@ function PreSessionFull() {
             </FormGroup>
 
             <ButtonGroup>
-              <Button type="button" onClick={() => navigate('/daily-routine/pre-session')}>
+              <Button type="button" onClick={handleBack}>
                 Cancel
               </Button>
               <Button type="submit" primary>
