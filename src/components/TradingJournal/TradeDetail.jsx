@@ -579,9 +579,11 @@ const StyledDatePicker = styled(DatePicker)`
 function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
+  const [isLoading, setIsLoading] = useState(true);
   const [trades, setTrades] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [trade, setTrade] = useState({
+    no: '',
     date: '',
     account: '',
     pair: '',
@@ -626,19 +628,47 @@ function TradeDetail() {
 
   useEffect(() => {
     const loadTradeData = async () => {
+      setIsLoading(true);
       try {
-        const loadedTrades = await window.electronAPI.getTrades();
-        setTrades(loadedTrades);
-        
-        const currentTrade = loadedTrades.find(t => t.id === id);
+        const currentTrade = await window.electronAPI.getTrade(id);
         if (currentTrade) {
-          setTrade(currentTrade);
-          if (currentTrade.volumeConfirmation) {
-            setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
+          const defaultTopDownAnalysis = [
+            { title: 'Daily Timeframe', screenshot: '', text: '' },
+            { title: '4h Timeframe', screenshot: '', text: '' },
+            { title: '1h Timeframe', screenshot: '', text: '' },
+            { title: '15/5m Timeframe', screenshot: '', text: '' },
+          ];
+
+          // Перевіряємо чи є topDownAnalysis рядком JSON і парсимо його
+          let parsedTopDownAnalysis;
+          try {
+            parsedTopDownAnalysis = typeof currentTrade.topDownAnalysis === 'string' 
+              ? JSON.parse(currentTrade.topDownAnalysis)
+              : currentTrade.topDownAnalysis;
+          } catch (e) {
+            console.error('Error parsing topDownAnalysis:', e);
+            parsedTopDownAnalysis = defaultTopDownAnalysis;
+          }
+
+          const processedTrade = {
+            ...trade,
+            ...currentTrade,
+            topDownAnalysis: parsedTopDownAnalysis || defaultTopDownAnalysis,
+            execution: currentTrade.execution || { screenshot: '', text: '' },
+            management: currentTrade.management || { screenshot: '', text: '' },
+            conclusion: currentTrade.conclusion || { videoLink: '', text: '' },
+            notes: currentTrade.notes || []
+          };
+
+          setTrade(processedTrade);
+          if (processedTrade.volumeConfirmation) {
+            setTempVolumeConfirmation(processedTrade.volumeConfirmation.split(', ').filter(Boolean));
           }
         }
       } catch (error) {
         console.error('Error loading trade:', error);
+      } finally {
+        setIsLoading(false);
       }
     };
     loadTradeData();
@@ -814,530 +844,536 @@ function TradeDetail() {
         <Title>Trade Details</Title>
       </Header>
       <TradeContent>
-        <TradeNumber>
-          Trade number: {trades.findIndex(t => t.id === id) + 1}
-        </TradeNumber>
-        <TablesContainer>
-          <TradeTable>
-            <FormRow>
-              <FormField>
-                <FormLabel>Date</FormLabel>
-                <StyledDatePicker
-                  selected={trade.date ? new Date(trade.date) : null}
-                  onChange={(date) => {
-                    const formattedDate = date.toISOString().split('T')[0];
-                    setTrade(prev => ({
-                      ...prev,
-                      date: formattedDate
-                    }));
-                  }}
-                  dateFormat="yyyy-MM-dd"
-                  placeholderText="Select date"
-                  disabled={!isEditing}
-                />
-              </FormField>
-              <FormField>
-                <FormLabel>Account</FormLabel>
-                <FormSelect name="account" value={trade.account} onChange={handleChange} disabled>
-                  <option value="">Coming soon</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Pair</FormLabel>
-                <FormSelect 
-                  name="pair" 
-                  value={trade.pair} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Pair</option>
-                  <option value="EURUSD">EURUSD</option>
-                  <option value="GBPUSD">GBPUSD</option>
-                  <option value="USDJPY">USDJPY</option>
-                  <option value="GER40">GER40</option>
-                  <option value="XAUUSD">XAUUSD</option>
-                  <option value="XAGUSD">XAGUSD</option>
-                </FormSelect>
-              </FormField>
-            </FormRow>
-            <FormRow>
-              <FormField>
-                <FormLabel>Direction</FormLabel>
-                <FormSelect 
-                  name="direction" 
-                  value={trade.direction} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Direction</option>
-                  <option value="Long" style={{ backgroundColor: '#00ff00', color: '#000' }}>Long</option>
-                  <option value="Short" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Short</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Position Type</FormLabel>
-                <FormSelect 
-                  name="positionType" 
-                  value={trade.positionType} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Position Type</option>
-                  <option value="Swing">Swing</option>
-                  <option value="Intraday">Intraday</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Risk, %</FormLabel>
-                <FormInput
-                  type="number"
-                  name="risk"
-                  value={trade.risk}
-                  onChange={handleChange}
-                  placeholder="Enter risk"
-                  step="0.01"
-                  readOnly={!isEditing}
-                />
-              </FormField>
-            </FormRow>
-            <FormRow>
-              <FormField>
-                <FormLabel>Result</FormLabel>
-                <FormSelect 
-                  name="result" 
-                  value={trade.result} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Result</option>
-                  <option value="Win" style={{ backgroundColor: '#00ff00', color: '#000' }}>Win</option>
-                  <option value="Loss" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Loss</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>RR</FormLabel>
-                <FormInput
-                  type="number"
-                  name="rr"
-                  value={trade.rr}
-                  onChange={handleChange}
-                  placeholder="Enter RR"
-                  step="0.01"
-                  readOnly={!isEditing}
-                />
-              </FormField>
-              <FormField>
-                <FormLabel>Profit (%)</FormLabel>
-                <FormInput
-                  type="text"
-                  name="profitLoss"
-                  value={trade.profitLoss}
-                  readOnly
-                />
-              </FormField>
-            </FormRow>
-            <FormRow>
-              <FormField>
-                <FormLabel>Profit ($)</FormLabel>
-                <FormInput
-                  type="text"
-                  name="gainedPoints"
-                  value={trade.gainedPoints || 'Coming soon'}
-                  readOnly
-                />
-              </FormField>
-              <FormField>
-                <FormCheckboxLabel>
-                  <FormCheckbox
-                    type="checkbox"
-                    name="followingPlan"
-                    checked={trade.followingPlan}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                  />
-                  Following the Plan?
-                </FormCheckboxLabel>
-              </FormField>
-              <FormField>
-                <FormCheckboxLabel>
-                  <FormCheckbox
-                    type="checkbox"
-                    name="bestTrade"
-                    checked={trade.bestTrade}
-                    onChange={handleChange}
-                    disabled={!isEditing}
-                  />
-                  Best Trade?
-                </FormCheckboxLabel>
-              </FormField>
-            </FormRow>
-          </TradeTable>
-          <TradeTable>
-            <FormRow>
-              <FormField>
-                <FormLabel>Session</FormLabel>
-                <FormSelect 
-                  name="session" 
-                  value={trade.session} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Session</option>
-                  <option value="Asia" style={{ backgroundColor: '#0000ff', color: '#fff' }}>Asia</option>
-                  <option value="Frankfurt" style={{ backgroundColor: '#ff69b4', color: '#fff' }}>Frankfurt</option>
-                  <option value="London" style={{ backgroundColor: '#00ff00', color: '#000' }}>London</option>
-                  <option value="New York" style={{ backgroundColor: '#ffa500', color: '#fff' }}>New York</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Point A</FormLabel>
-                <FormSelect 
-                  name="pointA" 
-                  value={trade.pointA} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Point A</option>
-                  <option value="Fractal Raid">Fractal Raid</option>
-                  <option value="FVG">FVG</option>
-                  <option value="SNR">SNR</option>
-                  <option value="RB">RB</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Trigger</FormLabel>
-                <FormSelect 
-                  name="trigger" 
-                  value={trade.trigger} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Trigger</option>
-                  <option value="Fractal Swing">Fractal Swing</option>
-                  <option value="FVG">FVG</option>
-                  <option value="Fractal Swing + FVG">Fractal Swing + FVG</option>
-                </FormSelect>
-              </FormField>
-            </FormRow>
-            <FormRow>
-              <FormField>
-                <FormLabel>Volume Confirmation</FormLabel>
-                <VolumeConfirmationContainer>
-                  <VolumeConfirmationButton 
-                    onClick={() => isEditing && setShowVolumePopup(true)}
-                    style={{ cursor: isEditing ? 'pointer' : 'default' }}
-                  >
-                    {trade.volumeConfirmation || 'Select'}
-                  </VolumeConfirmationButton>
-                  {showVolumePopup && isEditing && (
-                    <VolumeConfirmationPopup>
-                      {['Inversion', 'FVG', 'SNR'].map((option) => (
-                        <VolumeOption
-                          key={option}
-                          selected={tempVolumeConfirmation.includes(option)}
-                          onClick={() => handleVolumeOptionClick(option)}
-                        >
-                          {option}
-                        </VolumeOption>
-                      ))}
-                      <ConfirmButton onClick={handleVolumeConfirm}>Confirm</ConfirmButton>
-                    </VolumeConfirmationPopup>
-                  )}
-                </VolumeConfirmationContainer>
-              </FormField>
-              <FormField>
-                <FormLabel>Entry Model</FormLabel>
-                <FormSelect 
-                  name="entryModel" 
-                  value={trade.entryModel} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Entry Model</option>
-                  <option value="Inversion">Inversion</option>
-                  <option value="Displacement">Displacement</option>
-                  <option value="SNR">SNR</option>
-                  <option value="IDM">IDM</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Entry TF</FormLabel>
-                <FormSelect 
-                  name="entryTF" 
-                  value={trade.entryTF} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select Entry TF</option>
-                  <option value="3m">3m</option>
-                  <option value="5m">5m</option>
-                  <option value="15m">15m</option>
-                  <option value="1h/30m">1h/30m</option>
-                  <option value="4h">4h</option>
-                </FormSelect>
-              </FormField>
-            </FormRow>
-            <FormRow>
-              <FormField>
-                <FormLabel>FTA</FormLabel>
-                <FormSelect 
-                  name="fta" 
-                  value={trade.fta} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select FTA</option>
-                  <option value="Fractal Swing">Fractal Swing</option>
-                  <option value="FVG">FVG</option>
-                  <option value="SNR">SNR</option>
-                  <option value="RB">RB</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>SL Position</FormLabel>
-                <FormSelect 
-                  name="slPosition" 
-                  value={trade.slPosition} 
-                  onChange={handleChange}
-                  disabled={!isEditing}
-                >
-                  <option value="">Select SL Position</option>
-                  <option value="LTF/Lunch Manipulation">LTF/Lunch Manipulation</option>
-                  <option value="30m Raid">30m Raid</option>
-                  <option value="1h Raid">1h Raid</option>
-                  <option value="4h Raid">4h Raid</option>
-                  <option value="1D Raid">1D Raid</option>
-                </FormSelect>
-              </FormField>
-              <FormField>
-                <FormLabel>Score</FormLabel>
-                <FormInput
-                  type="number"
-                  name="score"
-                  value={trade.score}
-                  onChange={handleChange}
-                  placeholder="Enter score"
-                  readOnly={!isEditing}
-                />
-              </FormField>
-            </FormRow>
-            <FormRow>
-              <FormField>
-                <FormLabel>Category</FormLabel>
-                <FormInput
-                  type="text"
-                  name="category"
-                  value={trade.category || 'Coming soon'}
-                  readOnly
-                />
-              </FormField>
-            </FormRow>
-          </TradeTable>
-        </TablesContainer>
-
-        <SectionTitle>Top Down Analysis</SectionTitle>
-        <ScreenshotContainer>
-          {trade.topDownAnalysis.map((item, index) => (
-            <ScreenshotField key={index}>
-              <ScreenshotTitle>{item.title}</ScreenshotTitle>
-              {!item.screenshot && isEditing && (
-                <ScreenshotInput
-                  type="text"
-                  placeholder="Paste screenshot here (Ctrl+V)"
-                  onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
-                />
-              )}
-              {item.screenshot && (
-                <>
-                  <ScreenshotPreview
-                    src={item.screenshot}
-                    alt="Screenshot"
-                    onClick={() => openFullscreen(item.screenshot)}
-                  />
-                  {isEditing && (
-                    <DeleteScreenshotButton 
-                      className="delete-screenshot" 
-                      onClick={() => deleteScreenshot('topDownAnalysis', index)}
+        {isLoading ? (
+          <div>Loading...</div>
+        ) : (
+          <>
+            <TradeNumber>
+              Trade number: {trade.no || 'N/A'}
+            </TradeNumber>
+            <TablesContainer>
+              <TradeTable>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Date</FormLabel>
+                    <StyledDatePicker
+                      selected={trade.date ? new Date(trade.date) : null}
+                      onChange={(date) => {
+                        const formattedDate = date.toISOString().split('T')[0];
+                        setTrade(prev => ({
+                          ...prev,
+                          date: formattedDate
+                        }));
+                      }}
+                      dateFormat="yyyy-MM-dd"
+                      placeholderText="Select date"
+                      disabled={!isEditing}
+                    />
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Account</FormLabel>
+                    <FormSelect name="account" value={trade.account} onChange={handleChange} disabled>
+                      <option value="">Coming soon</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Pair</FormLabel>
+                    <FormSelect 
+                      name="pair" 
+                      value={trade.pair} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
                     >
-                      <img src={DeleteIcon} alt="Delete" />
-                    </DeleteScreenshotButton>
-                  )}
-                </>
-              )}
-              <TextArea
-                value={item.text}
-                onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
-                readOnly={!isEditing}
-              />
-            </ScreenshotField>
-          ))}
-        </ScreenshotContainer>
-
-        <Row>
-          <div style={{ flex: 1 }}>
-            <SectionTitle>Execution</SectionTitle>
-            <ScreenshotField>
-              <ScreenshotTitle>Exit Moment</ScreenshotTitle>
-              {!trade.execution.screenshot && isEditing && (
-                <ScreenshotInput
-                  type="text"
-                  placeholder="Paste screenshot here (Ctrl+V)"
-                  onPaste={(e) => handlePaste('execution', 0, e)}
-                />
-              )}
-              {trade.execution.screenshot && (
-                <>
-                  <ScreenshotPreview
-                    src={trade.execution.screenshot}
-                    alt="Screenshot"
-                    onClick={() => openFullscreen(trade.execution.screenshot)}
-                  />
-                  {isEditing && (
-                    <DeleteScreenshotButton 
-                      className="delete-screenshot" 
-                      onClick={() => deleteScreenshot('execution', 0)}
+                      <option value="">Select Pair</option>
+                      <option value="EURUSD">EURUSD</option>
+                      <option value="GBPUSD">GBPUSD</option>
+                      <option value="USDJPY">USDJPY</option>
+                      <option value="GER40">GER40</option>
+                      <option value="XAUUSD">XAUUSD</option>
+                      <option value="XAGUSD">XAGUSD</option>
+                    </FormSelect>
+                  </FormField>
+                </FormRow>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Direction</FormLabel>
+                    <FormSelect 
+                      name="direction" 
+                      value={trade.direction} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
                     >
-                      <img src={DeleteIcon} alt="Delete" />
-                    </DeleteScreenshotButton>
-                  )}
-                </>
-              )}
-              <TextArea
-                value={trade.execution.text}
-                onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
-                readOnly={!isEditing}
-              />
-            </ScreenshotField>
-          </div>
-          <div style={{ flex: 1 }}>
-            <SectionTitle>Management</SectionTitle>
-            <ScreenshotField>
-              <ScreenshotTitle>First Trouble Area</ScreenshotTitle>
-              {!trade.management.screenshot && isEditing && (
-                <ScreenshotInput
-                  type="text"
-                  placeholder="Paste screenshot here (Ctrl+V)"
-                  onPaste={(e) => handlePaste('management', 0, e)}
-                />
-              )}
-              {trade.management.screenshot && (
-                <>
-                  <ScreenshotPreview
-                    src={trade.management.screenshot}
-                    alt="Screenshot"
-                    onClick={() => openFullscreen(trade.management.screenshot)}
-                  />
-                  {isEditing && (
-                    <DeleteScreenshotButton 
-                      className="delete-screenshot" 
-                      onClick={() => deleteScreenshot('management', 0)}
+                      <option value="">Select Direction</option>
+                      <option value="Long" style={{ backgroundColor: '#00ff00', color: '#000' }}>Long</option>
+                      <option value="Short" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Short</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Position Type</FormLabel>
+                    <FormSelect 
+                      name="positionType" 
+                      value={trade.positionType} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
                     >
-                      <img src={DeleteIcon} alt="Delete" />
-                    </DeleteScreenshotButton>
-                  )}
-                </>
-              )}
-              <TextArea
-                value={trade.management.text}
-                onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
-                readOnly={!isEditing}
-              />
-            </ScreenshotField>
-          </div>
-        </Row>
+                      <option value="">Select Position Type</option>
+                      <option value="Swing">Swing</option>
+                      <option value="Intraday">Intraday</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Risk, %</FormLabel>
+                    <FormInput
+                      type="number"
+                      name="risk"
+                      value={trade.risk}
+                      onChange={handleChange}
+                      placeholder="Enter risk"
+                      step="0.01"
+                      readOnly={!isEditing}
+                    />
+                  </FormField>
+                </FormRow>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Result</FormLabel>
+                    <FormSelect 
+                      name="result" 
+                      value={trade.result} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Result</option>
+                      <option value="Win" style={{ backgroundColor: '#00ff00', color: '#000' }}>Win</option>
+                      <option value="Loss" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Loss</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>RR</FormLabel>
+                    <FormInput
+                      type="number"
+                      name="rr"
+                      value={trade.rr}
+                      onChange={handleChange}
+                      placeholder="Enter RR"
+                      step="0.01"
+                      readOnly={!isEditing}
+                    />
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Profit (%)</FormLabel>
+                    <FormInput
+                      type="text"
+                      name="profitLoss"
+                      value={trade.profitLoss}
+                      readOnly
+                    />
+                  </FormField>
+                </FormRow>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Profit ($)</FormLabel>
+                    <FormInput
+                      type="text"
+                      name="gainedPoints"
+                      value={trade.gainedPoints || 'Coming soon'}
+                      readOnly
+                    />
+                  </FormField>
+                  <FormField>
+                    <FormCheckboxLabel>
+                      <FormCheckbox
+                        type="checkbox"
+                        name="followingPlan"
+                        checked={trade.followingPlan}
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                      />
+                      Following the Plan?
+                    </FormCheckboxLabel>
+                  </FormField>
+                  <FormField>
+                    <FormCheckboxLabel>
+                      <FormCheckbox
+                        type="checkbox"
+                        name="bestTrade"
+                        checked={trade.bestTrade}
+                        onChange={handleChange}
+                        disabled={!isEditing}
+                      />
+                      Best Trade?
+                    </FormCheckboxLabel>
+                  </FormField>
+                </FormRow>
+              </TradeTable>
+              <TradeTable>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Session</FormLabel>
+                    <FormSelect 
+                      name="session" 
+                      value={trade.session} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Session</option>
+                      <option value="Asia" style={{ backgroundColor: '#0000ff', color: '#fff' }}>Asia</option>
+                      <option value="Frankfurt" style={{ backgroundColor: '#ff69b4', color: '#fff' }}>Frankfurt</option>
+                      <option value="London" style={{ backgroundColor: '#00ff00', color: '#000' }}>London</option>
+                      <option value="New York" style={{ backgroundColor: '#ffa500', color: '#fff' }}>New York</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Point A</FormLabel>
+                    <FormSelect 
+                      name="pointA" 
+                      value={trade.pointA} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Point A</option>
+                      <option value="Fractal Raid">Fractal Raid</option>
+                      <option value="FVG">FVG</option>
+                      <option value="SNR">SNR</option>
+                      <option value="RB">RB</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Trigger</FormLabel>
+                    <FormSelect 
+                      name="trigger" 
+                      value={trade.trigger} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Trigger</option>
+                      <option value="Fractal Swing">Fractal Swing</option>
+                      <option value="FVG">FVG</option>
+                      <option value="Fractal Swing + FVG">Fractal Swing + FVG</option>
+                    </FormSelect>
+                  </FormField>
+                </FormRow>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Volume Confirmation</FormLabel>
+                    <VolumeConfirmationContainer>
+                      <VolumeConfirmationButton 
+                        onClick={() => isEditing && setShowVolumePopup(true)}
+                        style={{ cursor: isEditing ? 'pointer' : 'default' }}
+                      >
+                        {trade.volumeConfirmation || 'Select'}
+                      </VolumeConfirmationButton>
+                      {showVolumePopup && isEditing && (
+                        <VolumeConfirmationPopup>
+                          {['Inversion', 'FVG', 'SNR'].map((option) => (
+                            <VolumeOption
+                              key={option}
+                              selected={tempVolumeConfirmation.includes(option)}
+                              onClick={() => handleVolumeOptionClick(option)}
+                            >
+                              {option}
+                            </VolumeOption>
+                          ))}
+                          <ConfirmButton onClick={handleVolumeConfirm}>Confirm</ConfirmButton>
+                        </VolumeConfirmationPopup>
+                      )}
+                    </VolumeConfirmationContainer>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Entry Model</FormLabel>
+                    <FormSelect 
+                      name="entryModel" 
+                      value={trade.entryModel} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Entry Model</option>
+                      <option value="Inversion">Inversion</option>
+                      <option value="Displacement">Displacement</option>
+                      <option value="SNR">SNR</option>
+                      <option value="IDM">IDM</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Entry TF</FormLabel>
+                    <FormSelect 
+                      name="entryTF" 
+                      value={trade.entryTF} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Entry TF</option>
+                      <option value="3m">3m</option>
+                      <option value="5m">5m</option>
+                      <option value="15m">15m</option>
+                      <option value="1h/30m">1h/30m</option>
+                      <option value="4h">4h</option>
+                    </FormSelect>
+                  </FormField>
+                </FormRow>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>FTA</FormLabel>
+                    <FormSelect 
+                      name="fta" 
+                      value={trade.fta} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select FTA</option>
+                      <option value="Fractal Swing">Fractal Swing</option>
+                      <option value="FVG">FVG</option>
+                      <option value="SNR">SNR</option>
+                      <option value="RB">RB</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>SL Position</FormLabel>
+                    <FormSelect 
+                      name="slPosition" 
+                      value={trade.slPosition} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select SL Position</option>
+                      <option value="LTF/Lunch Manipulation">LTF/Lunch Manipulation</option>
+                      <option value="30m Raid">30m Raid</option>
+                      <option value="1h Raid">1h Raid</option>
+                      <option value="4h Raid">4h Raid</option>
+                      <option value="1D Raid">1D Raid</option>
+                    </FormSelect>
+                  </FormField>
+                  <FormField>
+                    <FormLabel>Score</FormLabel>
+                    <FormInput
+                      type="number"
+                      name="score"
+                      value={trade.score}
+                      onChange={handleChange}
+                      placeholder="Enter score"
+                      readOnly={!isEditing}
+                    />
+                  </FormField>
+                </FormRow>
+                <FormRow>
+                  <FormField>
+                    <FormLabel>Category</FormLabel>
+                    <FormInput
+                      type="text"
+                      name="category"
+                      value={trade.category || 'Coming soon'}
+                      readOnly
+                    />
+                  </FormField>
+                </FormRow>
+              </TradeTable>
+            </TablesContainer>
 
-        <Row>
-          <div style={{ flex: 1 }}>
-            <SectionTitle>Conclusion</SectionTitle>
-            <ScreenshotField>
-              <ScreenshotTitle>Daily Performance Analysis</ScreenshotTitle>
-              <FormInput
-                type="text"
-                value={trade.conclusion.videoLink}
-                onChange={(e) => handleScreenshotChange('conclusion', 0, 'videoLink', e.target.value)}
-                placeholder="Video link"
-                readOnly={!isEditing}
-              />
-              <TextArea
-                value={trade.conclusion.text}
-                onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
-                readOnly={!isEditing}
-              />
-            </ScreenshotField>
-          </div>
-          <div style={{ flex: 1 }}>
-            <SectionTitle>Notes & Mistakes</SectionTitle>
-            <NoteContainer>
-              {trade.notes.map((note, index) => (
-                <NoteItem key={index} onClick={() => isEditing && openNotePopup(index)}>
-                  <NoteText>{note.title}</NoteText>
-                  <NoteText>{note.text}</NoteText>
-                  {isEditing && (
+            <SectionTitle>Top Down Analysis</SectionTitle>
+            <ScreenshotContainer>
+              {Array.isArray(trade.topDownAnalysis) && trade.topDownAnalysis.map((item, index) => (
+                <ScreenshotField key={index}>
+                  <ScreenshotTitle>{item.title}</ScreenshotTitle>
+                  {!item.screenshot && isEditing && (
+                    <ScreenshotInput
+                      type="text"
+                      placeholder="Paste screenshot here (Ctrl+V)"
+                      onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
+                    />
+                  )}
+                  {item.screenshot && (
                     <>
-                      <IconButton className="edit" onClick={(e) => {
-                        e.stopPropagation();
-                        openNotePopup(index);
-                      }}>
-                        <img src={EditIcon} alt="Edit" />
-                      </IconButton>
-                      <IconButton className="delete" onClick={(e) => {
-                        e.stopPropagation();
-                        deleteNote(index);
-                      }}>
-                        <img src={DeleteIcon} alt="Delete" />
-                      </IconButton>
+                      <ScreenshotPreview
+                        src={item.screenshot}
+                        alt="Screenshot"
+                        onClick={() => openFullscreen(item.screenshot)}
+                      />
+                      {isEditing && (
+                        <DeleteScreenshotButton 
+                          className="delete-screenshot" 
+                          onClick={() => deleteScreenshot('topDownAnalysis', index)}
+                        >
+                          <img src={DeleteIcon} alt="Delete" />
+                        </DeleteScreenshotButton>
+                      )}
                     </>
                   )}
-                </NoteItem>
+                  <TextArea
+                    value={item.text}
+                    onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
+                    readOnly={!isEditing}
+                  />
+                </ScreenshotField>
               ))}
-              {isEditing && (
-                <FormButton onClick={() => openNotePopup()}>Add Note</FormButton>
+            </ScreenshotContainer>
+
+            <Row>
+              <div style={{ flex: 1 }}>
+                <SectionTitle>Execution</SectionTitle>
+                <ScreenshotField>
+                  <ScreenshotTitle>Exit Moment</ScreenshotTitle>
+                  {!trade.execution.screenshot && isEditing && (
+                    <ScreenshotInput
+                      type="text"
+                      placeholder="Paste screenshot here (Ctrl+V)"
+                      onPaste={(e) => handlePaste('execution', 0, e)}
+                    />
+                  )}
+                  {trade.execution.screenshot && (
+                    <>
+                      <ScreenshotPreview
+                        src={trade.execution.screenshot}
+                        alt="Screenshot"
+                        onClick={() => openFullscreen(trade.execution.screenshot)}
+                      />
+                      {isEditing && (
+                        <DeleteScreenshotButton 
+                          className="delete-screenshot" 
+                          onClick={() => deleteScreenshot('execution', 0)}
+                        >
+                          <img src={DeleteIcon} alt="Delete" />
+                        </DeleteScreenshotButton>
+                      )}
+                    </>
+                  )}
+                  <TextArea
+                    value={trade.execution.text}
+                    onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
+                    readOnly={!isEditing}
+                  />
+                </ScreenshotField>
+              </div>
+              <div style={{ flex: 1 }}>
+                <SectionTitle>Management</SectionTitle>
+                <ScreenshotField>
+                  <ScreenshotTitle>First Trouble Area</ScreenshotTitle>
+                  {!trade.management.screenshot && isEditing && (
+                    <ScreenshotInput
+                      type="text"
+                      placeholder="Paste screenshot here (Ctrl+V)"
+                      onPaste={(e) => handlePaste('management', 0, e)}
+                    />
+                  )}
+                  {trade.management.screenshot && (
+                    <>
+                      <ScreenshotPreview
+                        src={trade.management.screenshot}
+                        alt="Screenshot"
+                        onClick={() => openFullscreen(trade.management.screenshot)}
+                      />
+                      {isEditing && (
+                        <DeleteScreenshotButton 
+                          className="delete-screenshot" 
+                          onClick={() => deleteScreenshot('management', 0)}
+                        >
+                          <img src={DeleteIcon} alt="Delete" />
+                        </DeleteScreenshotButton>
+                      )}
+                    </>
+                  )}
+                  <TextArea
+                    value={trade.management.text}
+                    onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
+                    readOnly={!isEditing}
+                  />
+                </ScreenshotField>
+              </div>
+            </Row>
+
+            <Row>
+              <div style={{ flex: 1 }}>
+                <SectionTitle>Conclusion</SectionTitle>
+                <ScreenshotField>
+                  <ScreenshotTitle>Daily Performance Analysis</ScreenshotTitle>
+                  <FormInput
+                    type="text"
+                    value={trade.conclusion.videoLink}
+                    onChange={(e) => handleScreenshotChange('conclusion', 0, 'videoLink', e.target.value)}
+                    placeholder="Video link"
+                    readOnly={!isEditing}
+                  />
+                  <TextArea
+                    value={trade.conclusion.text}
+                    onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
+                    readOnly={!isEditing}
+                  />
+                </ScreenshotField>
+              </div>
+              <div style={{ flex: 1 }}>
+                <SectionTitle>Notes & Mistakes</SectionTitle>
+                <NoteContainer>
+                  {trade.notes.map((note, index) => (
+                    <NoteItem key={index} onClick={() => isEditing && openNotePopup(index)}>
+                      <NoteText>{note.title}</NoteText>
+                      <NoteText>{note.text}</NoteText>
+                      {isEditing && (
+                        <>
+                          <IconButton className="edit" onClick={(e) => {
+                            e.stopPropagation();
+                            openNotePopup(index);
+                          }}>
+                            <img src={EditIcon} alt="Edit" />
+                          </IconButton>
+                          <IconButton className="delete" onClick={(e) => {
+                            e.stopPropagation();
+                            deleteNote(index);
+                          }}>
+                            <img src={DeleteIcon} alt="Delete" />
+                          </IconButton>
+                        </>
+                      )}
+                    </NoteItem>
+                  ))}
+                  {isEditing && (
+                    <FormButton onClick={() => openNotePopup()}>Add Note</FormButton>
+                  )}
+                </NoteContainer>
+              </div>
+            </Row>
+
+            {fullscreenImage && (
+              <FullscreenModal onClick={closeFullscreen}>
+                <FullscreenImage src={fullscreenImage} alt="Fullscreen Screenshot" />
+                <CloseButton onClick={closeFullscreen}>X</CloseButton>
+              </FullscreenModal>
+            )}
+
+            {showNotePopup && (
+              <NotePopup>
+                <NotePopupTitle>{editNoteIndex !== null ? 'Edit Note' : 'Add Note'}</NotePopupTitle>
+                <NotePopupInput
+                  type="text"
+                  placeholder="Note Title"
+                  value={noteTitle}
+                  onChange={(e) => setNoteTitle(e.target.value)}
+                />
+                <NotePopupTextArea
+                  placeholder="Note Text"
+                  value={noteText}
+                  onChange={(e) => setNoteText(e.target.value)}
+                />
+                <NotePopupButtons>
+                  <FormButton onClick={saveNote}>Save</FormButton>
+                  <FormButton onClick={cancelNote}>Cancel</FormButton>
+                </NotePopupButtons>
+              </NotePopup>
+            )}
+
+            <ButtonGroup>
+              {!isEditing ? (
+                <>
+                  <FormButton onClick={handleEdit}>Edit Trade</FormButton>
+                  <FormButton onClick={handleBack}>Back</FormButton>
+                </>
+              ) : (
+                <>
+                  <FormButton onClick={handleSave}>Save Changes</FormButton>
+                  <FormButton onClick={handleCancel}>Cancel</FormButton>
+                </>
               )}
-            </NoteContainer>
-          </div>
-        </Row>
-
-        {fullscreenImage && (
-          <FullscreenModal onClick={closeFullscreen}>
-            <FullscreenImage src={fullscreenImage} alt="Fullscreen Screenshot" />
-            <CloseButton onClick={closeFullscreen}>X</CloseButton>
-          </FullscreenModal>
+            </ButtonGroup>
+          </>
         )}
-
-        {showNotePopup && (
-          <NotePopup>
-            <NotePopupTitle>{editNoteIndex !== null ? 'Edit Note' : 'Add Note'}</NotePopupTitle>
-            <NotePopupInput
-              type="text"
-              placeholder="Note Title"
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-            />
-            <NotePopupTextArea
-              placeholder="Note Text"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-            />
-            <NotePopupButtons>
-              <FormButton onClick={saveNote}>Save</FormButton>
-              <FormButton onClick={cancelNote}>Cancel</FormButton>
-            </NotePopupButtons>
-          </NotePopup>
-        )}
-
-        <ButtonGroup>
-          {!isEditing ? (
-            <>
-              <FormButton onClick={handleEdit}>Edit Trade</FormButton>
-              <FormButton onClick={handleBack}>Back</FormButton>
-            </>
-          ) : (
-            <>
-              <FormButton onClick={handleSave}>Save Changes</FormButton>
-              <FormButton onClick={handleCancel}>Cancel</FormButton>
-            </>
-          )}
-        </ButtonGroup>
       </TradeContent>
     </CreateTradeContainer>
   );

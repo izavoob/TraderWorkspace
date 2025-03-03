@@ -556,8 +556,8 @@ function TradeJournal() {
   });
   const [deletePopup, setDeletePopup] = useState(null);
   const [sortConfig, setSortConfig] = useState({
-    field: 'date',
-    order: 'desc'
+    key: 'date',
+    direction: 'desc'
   });
   const [selectedTrades, setSelectedTrades] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
@@ -606,19 +606,43 @@ function TradeJournal() {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const handleSort = (field) => {
-    setSortConfig(prev => ({
-      field,
-      order: prev.field === field ? (prev.order === 'asc' ? 'desc' : 'asc') : 'desc'
+  const handleSort = (key) => {
+    setSortConfig((prevConfig) => ({
+      key,
+      direction: prevConfig.key === key && prevConfig.direction === 'asc' 
+        ? 'desc' 
+        : 'asc'
     }));
   };
 
-  const filteredTrades = React.useMemo(() => {
-    return trades.filter((trade) => {
+  const sortTrades = React.useCallback((trades) => {
+    if (!trades || trades.length === 0) return [];
+    
+    return [...trades].sort((a, b) => {
+      if (!a || !b) return 0;
+      
+      if (sortConfig.key === 'date') {
+        const dateA = new Date(a.date || 0).getTime();
+        const dateB = new Date(b.date || 0).getTime();
+        return sortConfig.direction === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      
+      if (sortConfig.key === 'no') {
+        const noA = parseInt(a.no) || 0;
+        const noB = parseInt(b.no) || 0;
+        return sortConfig.direction === 'asc' ? noA - noB : noB - noA;
+      }
+      
+      return 0;
+    });
+  }, [sortConfig]);
+
+  const filteredAndSortedTrades = React.useMemo(() => {
+    // Спочатку фільтруємо
+    const filtered = trades.filter((trade) => {
       if (!trade) return false;
       
       const tradeDate = trade.date ? new Date(trade.date) : null;
-      
       const inDateRange = startDate && endDate && tradeDate ? 
         (tradeDate >= startDate && tradeDate <= new Date(endDate.setHours(23, 59, 59, 999))) : true;
   
@@ -629,26 +653,10 @@ function TradeJournal() {
   
       return inDateRange && matchesPair && matchesSession && matchesDirection && matchesResult;
     });
-  }, [trades, filterCriteria, startDate, endDate]);
 
-  const sortedAndFilteredTrades = React.useMemo(() => {
-    const filtered = filteredTrades;
-    
-    return [...filtered].sort((a, b) => {
-      if (sortConfig.field === 'date') {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
-      }
-      if (sortConfig.field === 'no') {
-        // Отримуємо індекс кожного трейду в оригінальному масиві
-        const aIndex = trades.findIndex(t => t.id === a.id);
-        const bIndex = trades.findIndex(t => t.id === b.id);
-        return sortConfig.order === 'asc' ? aIndex - bIndex : bIndex - aIndex;
-      }
-      return 0;
-    });
-  }, [filteredTrades, sortConfig]);
+    // Потім сортуємо
+    return sortTrades(filtered);
+  }, [trades, filterCriteria, startDate, endDate, sortTrades]);
 
   const handleSelectTrade = (tradeId) => {
     setSelectedTrades(prev => {
@@ -662,7 +670,7 @@ function TradeJournal() {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedTrades(sortedAndFilteredTrades.map(trade => trade.id));
+      setSelectedTrades(filteredAndSortedTrades.map(trade => trade.id));
     } else {
       setSelectedTrades([]);
     }
@@ -681,23 +689,66 @@ function TradeJournal() {
 
   const columns = React.useMemo(
     () => [
-      { Header: 'Action', accessor: 'action', width: 20 },
-      { Header: 'No.', accessor: (row, i) => i + 1, width: 20 },
+      { 
+        Header: '', // Змінюємо 'Action' на пустий заголовок
+        id: 'actions', // Додаємо id замість accessor
+        Cell: ({ row }) => ( // Використовуємо Cell для рендеру кнопок
+          <ButtonsContainer>
+            <CheckboxContainer 
+              className="checkbox-container" 
+              selected={selectedTrades.includes(row.original.id)}
+            >
+              <Checkbox
+                checked={selectedTrades.includes(row.original.id)}
+                onChange={() => handleSelectTrade(row.original.id)}
+                onClick={(e) => e.stopPropagation()}
+              />
+            </CheckboxContainer>
+            <IconButton 
+              data-tooltip="Change your trade" 
+              onClick={() => handleEdit(row.original.id)}
+            >
+              <img src={EditIcon} alt="Edit" />
+            </IconButton>
+            <IconButton 
+              data-tooltip="Move your trade to trash" 
+              onClick={() => setDeletePopup(row.original.id)}
+            >
+              <img src={DeleteIcon} alt="Delete" />
+            </IconButton>
+          </ButtonsContainer>
+        ),
+        width: 120
+      },
+      { Header: 'No.', accessor: 'no', width: 60 },
       { Header: 'Date', accessor: 'date', width: 120 },
       { Header: 'Pair', accessor: 'pair', width: 120 },
       { Header: 'Session', accessor: 'session', width: 100 },
       { Header: 'Direction', accessor: 'direction', width: 100 },
       { Header: 'Result', accessor: 'result', width: 100 },
-      { Header: 'Category', accessor: 'tradeClass', width: 80 },
-      { Header: 'Profit in %', accessor: 'profitLoss', Cell: ({ value }) => `${value}%`, width: 80 },
-      { Header: 'Profit in $', accessor: 'gainedPoints', Cell: ({ value }) => `$${value}`, width: 80 },
+      { Header: 'Category', accessor: 'category', width: 80 },
+      { 
+        Header: 'Profit in %', 
+        accessor: 'profitLoss',
+        Cell: ({ value }) => `${value || 0}%`,
+        width: 80 
+      },
+      { 
+        Header: 'Profit in $', 
+        accessor: 'gainedPoints',
+        Cell: ({ value }) => `$${value || 0}`,
+        width: 80 
+      },
     ],
-    []
+    [selectedTrades] // Додаємо залежність від selectedTrades
   );
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ 
     columns, 
-    data: sortedAndFilteredTrades 
+    data: filteredAndSortedTrades,
+    initialState: {
+      sortBy: [{ id: 'no', desc: true }]
+    }
   });
 
   const handleFilterChange = (e) => {
@@ -876,21 +927,21 @@ function TradeJournal() {
                       <FilterLabel>Sort by</FilterLabel>
                       
                       <SortOption 
-                        selected={sortConfig.field === 'date'}
+                        selected={sortConfig.key === 'date'}
                         onClick={() => handleSort('date')}
                       >
-                        <RadioButton selected={sortConfig.field === 'date'} />
-                        <span>Date {sortConfig.field === 'date' && 
-                          (sortConfig.order === 'asc' ? '↑' : '↓')}</span>
+                        <RadioButton selected={sortConfig.key === 'date'} />
+                        <span>Date {sortConfig.key === 'date' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
                       </SortOption>
 
                       <SortOption 
-                        selected={sortConfig.field === 'no'}
+                        selected={sortConfig.key === 'no'}
                         onClick={() => handleSort('no')}
                       >
-                        <RadioButton selected={sortConfig.field === 'no'} />
-                        <span>No. {sortConfig.field === 'no' && 
-                          (sortConfig.order === 'asc' ? '↑' : '↓')}</span>
+                        <RadioButton selected={sortConfig.key === 'no'} />
+                        <span>No. {sortConfig.key === 'no' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
                       </SortOption>
                     </SortGroup>
 
@@ -898,7 +949,7 @@ function TradeJournal() {
                       <FilterButton 
                         clear 
                         onClick={() => {
-                          setSortConfig({ field: 'date', order: 'desc' });
+                          setSortConfig({ key: 'date', direction: 'desc' });
                           setShowSortDropdown(false);
                         }}
                       >
@@ -916,7 +967,7 @@ function TradeJournal() {
 
           <SelectAllContainer>
             <Checkbox
-              checked={selectedTrades.length === sortedAndFilteredTrades.length && sortedAndFilteredTrades.length > 0}
+              checked={selectedTrades.length === filteredAndSortedTrades.length && filteredAndSortedTrades.length > 0}
               onChange={handleSelectAll}
             />
             <span>Select All Trades</span>
@@ -949,45 +1000,22 @@ function TradeJournal() {
                   </TableCell>
                 </TableRow>
               ) : (
-                rows.map((row) => {
+                rows.map(row => {
                   prepareRow(row);
                   const isSelected = selectedTrades.includes(row.original.id);
                   return (
-                    <TableRow className="table-row" {...row.getRowProps()} selected={isSelected}>
-                                            {row.cells.map((cell, index) => (
-                        <TableCell {...cell.getCellProps()} style={{ width: `${cell.column.width}px` }}>
-                          {index === 0 ? (
-                            <ButtonsContainer>
-                              <CheckboxContainer className="checkbox-container" selected={isSelected}>
-                                <Checkbox
-                                  checked={selectedTrades.includes(row.original.id)}
-                                  onChange={() => handleSelectTrade(row.original.id)}
-                                  onClick={(e) => e.stopPropagation()}
-                                />
-                              </CheckboxContainer>
-                              <IconButton 
-                                data-tooltip="Change your trade" 
-                                onClick={() => handleEdit(row.original.id)}
-                              >
-                                <img src={EditIcon} alt="Edit" />
-                              </IconButton>
-                              <IconButton 
-                                data-tooltip="Move your trade to trash" 
-                                onClick={() => setDeletePopup(row.original.id)}
-                              >
-                                <img src={DeleteIcon} alt="Delete" />
-                              </IconButton>
-                            </ButtonsContainer>
-                          ) : cell.column.Header === 'No.' ? (
-                            <Link 
-                              to={`/trade/${row.original.id}`} 
-                              style={{ color: '#fff', textDecoration: 'none' }}
-                            >
-                              {cell.render('Cell')}
-                            </Link>
-                          ) : (
-                            cell.render('Cell')
-                          )}
+                    <TableRow 
+                      key={row.original.id}
+                      {...row.getRowProps()} 
+                      selected={isSelected}
+                    >
+                      {row.cells.map(cell => (
+                        <TableCell 
+                          key={cell.column.id}
+                          {...cell.getCellProps()} 
+                          style={{ width: cell.column.width }}
+                        >
+                          {cell.render('Cell')}
                         </TableCell>
                       ))}
                     </TableRow>
