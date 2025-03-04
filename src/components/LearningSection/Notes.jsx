@@ -155,8 +155,82 @@ const NoNotesMessage = styled.div`
   margin-top: 20px;
 `;
 
+const ModalOverlay = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(0, 0, 0, 0.7);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+  backdrop-filter: blur(2px);
+`;
+
+const NoteModal = styled.div`
+  background: #2e2e2e;
+  width: 90%;
+  max-width: 800px;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px solid #5e2ca5;
+  position: relative;
+  animation: fadeIn 0.3s ease;
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid #5e2ca5;
+`;
+
+const ModalTitle = styled.h2`
+  color: #fff;
+  margin: 0;
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 10px;
+`;
+
+const Button = styled.button`
+  background: ${props => props.variant === 'delete' ? '#dc3545' : 'conic-gradient(from 45deg, #7425c9, #b886ee)'};
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    opacity: 0.9;
+  }
+`;
+
 function Notes() {
   const [notes, setNotes] = useState([]);
+  const [selectedNote, setSelectedNote] = useState(null);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editedTitle, setEditedTitle] = useState('');
+  const [editedContent, setEditedContent] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -187,6 +261,50 @@ function Notes() {
     }
   };
 
+  const handleNoteClick = (note) => {
+    setSelectedNote(note);
+    setEditedTitle(note.title);
+    setEditedContent(note.content);
+    setIsEditing(false);
+  };
+
+  const handleEdit = () => {
+    setIsEditing(true);
+  };
+
+  const handleSave = async () => {
+    try {
+      await window.electronAPI.saveNoteWithTrade({
+        id: selectedNote.id,
+        title: editedTitle,
+        content: editedContent,
+        tradeId: selectedNote.tradeId
+      });
+      
+      await loadNotes();
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this note?')) {
+      try {
+        await window.electronAPI.deleteNote(selectedNote.id);
+        await loadNotes();
+        setSelectedNote(null);
+      } catch (error) {
+        console.error('Error deleting note:', error);
+      }
+    }
+  };
+
+  const closeModal = () => {
+    setSelectedNote(null);
+    setIsEditing(false);
+  };
+
   return (
     <NotesContainer>
       <Header>
@@ -197,7 +315,7 @@ function Notes() {
         <NotesList>
           {notes.length > 0 ? (
             notes.map(note => (
-              <NoteCard key={note.id}>
+              <NoteCard key={note.id} onClick={() => handleNoteClick(note)}>
                 <NoteHeader>
                   <NoteTitle>{note.title}</NoteTitle>
                   <TradeLink onClick={() => handleTradeClick(note.tradeId)}>
@@ -214,6 +332,67 @@ function Notes() {
           )}
         </NotesList>
       </Content>
+
+      {selectedNote && (
+        <ModalOverlay onClick={closeModal}>
+          <NoteModal onClick={e => e.stopPropagation()}>
+            <ModalHeader>
+              <ModalTitle>
+                {isEditing ? (
+                  <input
+                    type="text"
+                    value={editedTitle}
+                    onChange={e => setEditedTitle(e.target.value)}
+                    style={{
+                      background: '#3e3e3e',
+                      color: '#fff',
+                      border: '1px solid #5e2ca5',
+                      padding: '8px',
+                      borderRadius: '4px',
+                      width: '100%'
+                    }}
+                  />
+                ) : selectedNote.title}
+              </ModalTitle>
+              <ButtonGroup>
+                {isEditing ? (
+                  <>
+                    <Button onClick={handleSave}>Save</Button>
+                    <Button onClick={() => setIsEditing(false)}>Cancel</Button>
+                  </>
+                ) : (
+                  <>
+                    <Button onClick={handleEdit}>Edit</Button>
+                    <Button variant="delete" onClick={handleDelete}>Delete</Button>
+                  </>
+                )}
+                <Button onClick={closeModal}>Close</Button>
+              </ButtonGroup>
+            </ModalHeader>
+            
+            {isEditing ? (
+              <textarea
+                value={editedContent}
+                onChange={e => setEditedContent(e.target.value)}
+                style={{
+                  width: '100%',
+                  minHeight: '200px',
+                  background: '#3e3e3e',
+                  color: '#fff',
+                  border: '1px solid #5e2ca5',
+                  padding: '10px',
+                  borderRadius: '4px',
+                  resize: 'vertical'
+                }}
+              />
+            ) : (
+              <div style={{ color: '#fff', whiteSpace: 'pre-wrap' }}>
+                {selectedNote.content}
+              </div>
+            )}
+          </NoteModal>
+        </ModalOverlay>
+      )}
     </NotesContainer>
   );
 }

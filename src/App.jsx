@@ -32,7 +32,7 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    overflow-x: hidden;
+    overflow: auto; // Змінено з overflow: hidden на overflow: auto
   }
   ::-webkit-scrollbar {
     width: 4px;
@@ -71,6 +71,7 @@ const AppContainer = styled.div`
   box-sizing: border-box;
   width: 100%;
   overflow-x: hidden;
+  overflow-y: auto;
   opacity: ${props => props.isLoading ? 0 : 1};
   transform: translateY(${props => props.isLoading ? '-20px' : '0'});
   transition: opacity 1.5s ease-out, transform 1.5s ease-out;
@@ -158,7 +159,7 @@ function App() {
     // Показуємо LoadingScreen на 3 секунди
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 3000);
+    }, 2000);
 
     return () => clearTimeout(timer);
   }, []);
@@ -219,7 +220,7 @@ function App() {
       {isLoading ? (
         <LoadingScreen />
       ) : (
-        <AppContainer isLoading={isLoading}>
+        <AppContainer isLoading={isLoading} isHome={isHome}>
           {!isHome && (
             <PageTitle>{getSectionTitle(location.pathname)}</PageTitle>
           )}

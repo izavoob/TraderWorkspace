@@ -6,6 +6,16 @@ import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
+const formatCurrency = (amount) => {
+  if (!amount) return '$0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
+
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -352,8 +362,6 @@ const ScreenshotPreview = styled.img`
   cursor: pointer;
 `;
 
-
-
 const TextArea = styled.textarea`
   width: 100%;
   padding: 8px;
@@ -499,24 +507,35 @@ const CloseButton = styled.button`
   font-size: 1.2em;
 `;
 
-const NotePopup = styled.div`
+const ModalOverlay = styled.div`
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: calc(100vw / 2);
-  height: calc(100vh / 2);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 1001;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+`;
+
+const NotePopup = styled.div`
+  width: calc(100% - 60px);
+  max-height: 80vh;
   background-color: #2e2e2e;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 10px 10px 0 0;
   border: 2px solid #5e2ca5;
+  border-bottom: none;
   color: #fff;
-  z-index: 1001;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
+  margin: 0 30px 30px 30px;
   display: flex;
   flex-direction: column;
+  gap: 15px;
+  overflow: hidden;
+  animation: ${fadeIn} 0.3s ease;
   align-items: center;
-  gap: 10px;
 `;
 
 const NotePopupTitle = styled.h3`
@@ -552,6 +571,7 @@ const NotePopupButtons = styled.div`
   justify-content: center;
   width: 100%;
 `;
+
 const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
     background-color: #2e2e2e;
@@ -633,6 +653,7 @@ function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [isLoading, setIsLoading] = useState(true);
+  const [accounts, setAccounts] = useState([]);
   const [trades, setTrades] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [trade, setTrade] = useState({
@@ -680,10 +701,16 @@ function TradeDetail() {
   const [fullscreenImage, setFullscreenImage] = useState(null);
 
   useEffect(() => {
-    const loadTradeData = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
+        // Завантажуємо дані трейду
         const currentTrade = await window.electronAPI.getTrade(id);
+        
+        // Завантажуємо список акаунтів
+        const accountsData = await window.electronAPI.getAllAccounts();
+        setAccounts(accountsData);
+
         if (currentTrade) {
           const defaultTopDownAnalysis = [
             { title: 'Daily Timeframe', screenshot: '', text: '' },
@@ -719,12 +746,12 @@ function TradeDetail() {
           }
         }
       } catch (error) {
-        console.error('Error loading trade:', error);
+        console.error('Error loading data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    loadTradeData();
+    loadData();
   }, [id]);
 
   const handleBack = () => {
@@ -752,6 +779,14 @@ function TradeDetail() {
 
   const handleSave = async () => {
     try {
+      // Оновлюємо баланс акаунту
+      if (trade.account && trade.profitLoss) {
+        const profitLossValue = parseFloat(trade.profitLoss);
+        if (!isNaN(profitLossValue)) {
+          await window.electronAPI.updateAccountBalance(trade.account, profitLossValue);
+        }
+      }
+
       await window.electronAPI.updateTrade(id, trade);
       setIsEditing(false);
       navigate(-1);
@@ -853,6 +888,7 @@ function TradeDetail() {
       setEditNoteIndex(null);
     }
     setShowNotePopup(true);
+    document.body.style.overflow = 'hidden';
   };
 
   const saveNote = async () => {
@@ -860,11 +896,10 @@ function TradeDetail() {
       const note = { 
         title: noteTitle, 
         text: noteText,
-        tradeId: id  // Додаємо id трейду
+        tradeId: id
       };
 
       try {
-        // Зберігаємо нотатку через API
         await window.electronAPI.saveNoteWithTrade(note);
         
         setTrade((prev) => {
@@ -881,6 +916,7 @@ function TradeDetail() {
         setNoteTitle('');
         setNoteText('');
         setEditNoteIndex(null);
+        document.body.style.overflow = 'auto';
         
       } catch (error) {
         console.error('Error saving note:', error);
@@ -895,6 +931,7 @@ function TradeDetail() {
       notes: prev.notes.filter((_, i) => i !== index),
     }));
     setShowNotePopup(false);
+    document.body.style.overflow = 'auto';
   };
 
   const cancelNote = () => {
@@ -902,6 +939,7 @@ function TradeDetail() {
     setNoteTitle('');
     setNoteText('');
     setEditNoteIndex(null);
+    document.body.style.overflow = 'auto';
   };
 
   return (
@@ -940,8 +978,18 @@ function TradeDetail() {
                   </FormField>
                   <FormField>
                     <FormLabel>Account</FormLabel>
-                    <FormSelect name="account" value={trade.account} onChange={handleChange} disabled>
-                      <option value="">Coming soon</option>
+                    <FormSelect 
+                      name="account" 
+                      value={trade.account} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Account</option>
+                      {accounts.map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({formatCurrency(account.balance)})
+                        </option>
+                      ))}
                     </FormSelect>
                   </FormField>
                   <FormField>
@@ -1407,24 +1455,29 @@ function TradeDetail() {
             )}
 
             {showNotePopup && (
-              <NotePopup>
-                <NotePopupTitle>{editNoteIndex !== null ? 'Edit Note' : 'Add Note'}</NotePopupTitle>
-                <NotePopupInput
-                  type="text"
-                  placeholder="Note Title"
-                  value={noteTitle}
-                  onChange={(e) => setNoteTitle(e.target.value)}
-                />
-                <NotePopupTextArea
-                  placeholder="Note Text"
-                  value={noteText}
-                  onChange={(e) => setNoteText(e.target.value)}
-                />
-                <NotePopupButtons>
-                  <FormButton onClick={saveNote}>Save</FormButton>
-                  <FormButton onClick={cancelNote}>Cancel</FormButton>
-                </NotePopupButtons>
-              </NotePopup>
+              <ModalOverlay onClick={cancelNote}>
+                <NotePopup onClick={e => e.stopPropagation()}>
+                  <NotePopupTitle>{editNoteIndex !== null ? 'Edit Note' : 'Add Note'}</NotePopupTitle>
+                  <NotePopupInput
+                    type="text"
+                    placeholder="Note Title"
+                    value={noteTitle}
+                    onChange={(e) => setNoteTitle(e.target.value)}
+                  />
+                  <NotePopupTextArea
+                    placeholder="Note Text"
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value)}
+                  />
+                  <NotePopupButtons>
+                    <FormButton onClick={saveNote}>Save</FormButton>
+                    <FormButton onClick={cancelNote}>Cancel</FormButton>
+                    {editNoteIndex !== null && (
+                      <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
+                    )}
+                  </NotePopupButtons>
+                </NotePopup>
+              </ModalOverlay>
             )}
 
             <ButtonGroup>

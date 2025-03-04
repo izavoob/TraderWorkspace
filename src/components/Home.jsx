@@ -85,7 +85,6 @@ const MainContent = styled.div`
   margin-bottom: 30px;
   transition: margin-left 0.3s ease;
 `;
-// ... Продовження попереднього коду
 
 const Header = styled.header`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
@@ -275,7 +274,7 @@ function Home() {
     { title: 'Daily Routine', path: '/daily-routine', description: 'Add your daily thoughts and plans.' },
     { title: 'Performance Analysis', path: '/performance-analysis', description: 'Explore and improve your skills.' },
     { title: 'Statistics', path: '/statistics', description: 'All information about your trading.' },
-    { title: 'Risk Management', path: '/risk-management', description: 'Save your deposit.' },
+    { title: 'Capital and RM', path: '/risk-management', description: 'Save your deposit.' },
     { title: 'Reporting System', path: '/reporting-system', description: 'Get detailed reports.' },
     { title: 'Learning Section', path: '/learning-section', description: 'Learn new skills.' },
   ];

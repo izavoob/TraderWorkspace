@@ -2,8 +2,10 @@ const { app, BrowserWindow, ipcMain } = require('electron');
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
+const AccountsDB = require('./src/database/accountsDB');
 
 let db = null;
+let accountsDB = null;
 let vaultPath = null;
 let mainWindow = null;
 
@@ -33,6 +35,7 @@ async function initializeDatabase() {
   
   vaultPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault');
   const dbPath = path.join(vaultPath, 'trades.db');
+  const accountsDbPath = path.join(vaultPath, 'accounts.db');
   
   try {
     await fs.mkdir(vaultPath, { recursive: true });
@@ -41,6 +44,9 @@ async function initializeDatabase() {
       if (err) throw new Error(`Database connection failed: ${err.message}`);
       console.log('SQLite database initialized at:', dbPath);
     });
+
+    // Initialize accounts database
+    accountsDB = new AccountsDB(accountsDbPath);
 
     await new Promise((resolve, reject) => {
       db.serialize(() => {
@@ -616,4 +622,73 @@ ipcMain.handle('getAllNotes', async () => {
 
 ipcMain.handle('app-ready', () => {
   return true;
+});
+
+// Account management handlers
+ipcMain.handle('getAllAccounts', async () => {
+  try {
+    return accountsDB.getAllAccounts();
+  } catch (error) {
+    console.error('Error getting accounts:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('addAccount', async (event, account) => {
+  try {
+    return accountsDB.addAccount(account);
+  } catch (error) {
+    console.error('Error adding account:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updateAccount', async (event, account) => {
+  try {
+    return accountsDB.updateAccount(account);
+  } catch (error) {
+    console.error('Error updating account:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('deleteAccount', async (event, id) => {
+  try {
+    return accountsDB.deleteAccount(id);
+  } catch (error) {
+    console.error('Error deleting account:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getAccountById', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return accountsDB.getAccountById(id);
+});
+
+ipcMain.handle('updateAccountBalance', async (event, accountId, profitPercent) => {
+  await ensureDatabaseInitialized();
+  try {
+    const account = await accountsDB.getAccountById(accountId);
+    if (!account) {
+      throw new Error('Account not found');
+    }
+
+    // Розраховуємо прибуток/збиток в доларах від поточного currentEquity
+    const profitAmount = (account.currentEquity * profitPercent) / 100;
+    
+    // Оновлюємо баланс
+    const newBalance = account.balance + profitAmount;
+    
+    // Оновлюємо акаунт з новим балансом
+    const updatedAccount = {
+      ...account,
+      balance: newBalance
+    };
+
+    return await accountsDB.updateAccount(updatedAccount);
+  } catch (error) {
+    console.error('Error updating account balance:', error);
+    throw error;
+  }
 });
