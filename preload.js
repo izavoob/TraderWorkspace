@@ -13,5 +13,5 @@ contextBridge.exposeInMainWorld('electronAPI', {
   toggleSidebar: (isCollapsed) => ipcRenderer.send('toggle-sidebar', isCollapsed),
   saveNoteWithTrade: (note) => ipcRenderer.invoke('saveNoteWithTrade', note),
   getAllNotes: () => ipcRenderer.invoke('getAllNotes'),
-
+  deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
 });

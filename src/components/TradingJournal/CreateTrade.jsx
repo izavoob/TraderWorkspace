@@ -35,7 +35,7 @@ const CreateTradeContainer = styled.div`
   background-color: #1a1a1a;
   padding: 20px;
   overflow-y: auto;
-  overflow-x: hidden;
+  overflow-x: hidden; // Прибираємо горизонтальний скрол
 `;
 
 const Header = styled.header`
@@ -501,24 +501,35 @@ const CloseButton = styled.button`
   font-size: 1.2em;
 `;
 
-const NotePopup = styled.div`
+const ModalOverlay = styled.div`
   position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: calc(100vw / 2);
-  height: calc(100vh / 2);
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 1001;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+`;
+
+const NotePopup = styled.div`
+  width: calc(100% - 60px);
+  max-height: 80vh;
   background-color: #2e2e2e;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 10px 10px 0 0;
   border: 2px solid #5e2ca5;
+  border-bottom: none;
   color: #fff;
-  z-index: 1001;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
+  margin: 0 100px 100px 100px;
   display: flex;
   flex-direction: column;
+  gap: 15px;
+  overflow: hidden;
+  animation: ${fadeIn} 0.3s ease;
   align-items: center;
-  gap: 10px;
 `;
 
 const NotePopupTitle = styled.h3`
@@ -554,6 +565,7 @@ const NotePopupButtons = styled.div`
   justify-content: center;
   width: 100%;
 `;
+
 const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
     background-color: #2e2e2e;
@@ -630,7 +642,6 @@ const StyledDatePicker = styled(DatePicker)`
   }
 `;
 
-
 function CreateTrade() {
   const navigate = useNavigate();
   const [tradeCount, setTradeCount] = useState(0);
@@ -675,6 +686,7 @@ function CreateTrade() {
   const [noteText, setNoteText] = useState('');
   const [editNoteIndex, setEditNoteIndex] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
+  const [scrollPosition, setScrollPosition] = useState(0);
 
   useEffect(() => {
     window.electronAPI.getTrades().then((trades) => {
@@ -762,7 +774,25 @@ function CreateTrade() {
     setFullscreenImage(null);
   };
 
-  const openNotePopup = (index = null) => {
+  const openNotePopup = (index = null, event) => {
+    if (!event || !event.currentTarget) return;
+  
+    const button = event.currentTarget;
+    const rect = button.getBoundingClientRect();
+    const scrollY = window.scrollY;
+    
+    // Розраховуємо позицію для popup
+    let popupTop = scrollY + rect.bottom + 10;
+    
+    // Перевіряємо, чи не виходить popup за межі екрану знизу
+    const viewportHeight = window.innerHeight;
+    const popupHeight = 400; // Приблизна висота popup
+    
+    if (rect.bottom + popupHeight > viewportHeight) {
+      // Якщо popup виходить за межі екрану знизу, показуємо його вище кнопки
+      popupTop = scrollY + rect.top - popupHeight - 10;
+    }
+  
     if (index !== null) {
       setNoteTitle(trade.notes[index].title);
       setNoteText(trade.notes[index].text);
@@ -772,7 +802,18 @@ function CreateTrade() {
       setNoteText('');
       setEditNoteIndex(null);
     }
+  
+    setScrollPosition(popupTop);
     setShowNotePopup(true);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeNotePopup = () => {
+    setShowNotePopup(false);
+    setNoteTitle('');
+    setNoteText('');
+    setEditNoteIndex(null);
+    document.body.style.overflow = 'auto';
   };
 
   const saveNote = async () => {
@@ -812,13 +853,6 @@ function CreateTrade() {
       notes: prev.notes.filter((_, i) => i !== index),
     }));
     setShowNotePopup(false);
-  };
-
-  const cancelNote = () => {
-    setShowNotePopup(false);
-    setNoteTitle('');
-    setNoteText('');
-    setEditNoteIndex(null);
   };
 
   const handleSubmit = async (e) => {
@@ -1238,43 +1272,51 @@ function CreateTrade() {
             <SectionTitle>Notes & Mistakes</SectionTitle>
             <NoteContainer>
               {trade.notes.map((note, index) => (
-                <NoteItem key={index} onClick={() => openNotePopup(index)}>
+                <NoteItem key={index} onClick={(e) => openNotePopup(index, e)}>
                   <NoteText>{note.title}</NoteText>
-                  <IconButton className="edit" onClick={(e) => { e.stopPropagation(); openNotePopup(index); }}>
+                  <IconButton className="edit" onClick={(e) => { 
+                    e.stopPropagation(); 
+                    openNotePopup(index, e); 
+                  }}>
                     <img src={EditIcon} alt="Edit" /> 
                   </IconButton>
-                  <IconButton className="delete" onClick={(e) => { e.stopPropagation(); deleteNote(index); }}>
+                  <IconButton className="delete" onClick={(e) => { 
+                    e.stopPropagation(); 
+                    deleteNote(index); 
+                  }}>
                     <img src={DeleteIcon} alt="Delete" />
                   </IconButton>
                 </NoteItem>
               ))}
-              <FormButton onClick={() => openNotePopup()}>Add Note or Mistake</FormButton>
+              <FormButton onClick={(e) => openNotePopup(null, e)}>Add Note or Mistake</FormButton>
             </NoteContainer>
           </div>
         </Row>
 
         {showNotePopup && (
-          <NotePopup>
-            <NotePopupTitle>Adding Notes & Mistakes</NotePopupTitle>
-            <NotePopupInput
-              type="text"
-              placeholder="Enter note title"
-              value={noteTitle}
-              onChange={(e) => setNoteTitle(e.target.value)}
-            />
-            <NotePopupTextArea
-              placeholder="Enter note text"
-              value={noteText}
-              onChange={(e) => setNoteText(e.target.value)}
-            />
-            <NotePopupButtons>
-              <FormButton onClick={saveNote}>Save</FormButton>
-              <FormButton onClick={cancelNote}>Cancel</FormButton>
-              {editNoteIndex !== null && (
-                <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
-              )}
-            </NotePopupButtons>
-          </NotePopup>
+          <ModalOverlay onClick={closeNotePopup}>
+            <NotePopup onClick={e => e.stopPropagation()} top={scrollPosition}>
+              <NotePopupTitle>Adding Notes & Mistakes</NotePopupTitle>
+              <NotePopupInput
+                type="text"
+                placeholder="Enter note title"
+                value={noteTitle}
+                onChange={(e) => setNoteTitle(e.target.value)}
+              />
+              <NotePopupTextArea
+                placeholder="Enter note text"
+                value={noteText}
+                onChange={(e) => setNoteText(e.target.value)}
+              />
+              <NotePopupButtons>
+                <FormButton onClick={saveNote}>Save</FormButton>
+                <FormButton onClick={closeNotePopup}>Cancel</FormButton>
+                {editNoteIndex !== null && (
+                  <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
+                )}
+              </NotePopupButtons>
+            </NotePopup>
+          </ModalOverlay>
         )}
 
         {fullscreenImage && (
