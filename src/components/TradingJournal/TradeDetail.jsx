@@ -6,6 +6,16 @@ import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
+const formatCurrency = (amount) => {
+  if (!amount) return '$0.00';
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'USD',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2
+  }).format(amount);
+};
+
 const fadeIn = keyframes`
   from {
     opacity: 0;
@@ -643,6 +653,7 @@ function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
   const [isLoading, setIsLoading] = useState(true);
+  const [accounts, setAccounts] = useState([]);
   const [trades, setTrades] = useState([]);
   const [isEditing, setIsEditing] = useState(false);
   const [trade, setTrade] = useState({
@@ -690,10 +701,16 @@ function TradeDetail() {
   const [fullscreenImage, setFullscreenImage] = useState(null);
 
   useEffect(() => {
-    const loadTradeData = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
+        // Завантажуємо дані трейду
         const currentTrade = await window.electronAPI.getTrade(id);
+        
+        // Завантажуємо список акаунтів
+        const accountsData = await window.electronAPI.getAllAccounts();
+        setAccounts(accountsData);
+
         if (currentTrade) {
           const defaultTopDownAnalysis = [
             { title: 'Daily Timeframe', screenshot: '', text: '' },
@@ -729,12 +746,12 @@ function TradeDetail() {
           }
         }
       } catch (error) {
-        console.error('Error loading trade:', error);
+        console.error('Error loading data:', error);
       } finally {
         setIsLoading(false);
       }
     };
-    loadTradeData();
+    loadData();
   }, [id]);
 
   const handleBack = () => {
@@ -762,6 +779,14 @@ function TradeDetail() {
 
   const handleSave = async () => {
     try {
+      // Оновлюємо баланс акаунту
+      if (trade.account && trade.profitLoss) {
+        const profitLossValue = parseFloat(trade.profitLoss);
+        if (!isNaN(profitLossValue)) {
+          await window.electronAPI.updateAccountBalance(trade.account, profitLossValue);
+        }
+      }
+
       await window.electronAPI.updateTrade(id, trade);
       setIsEditing(false);
       navigate(-1);
@@ -953,8 +978,18 @@ function TradeDetail() {
                   </FormField>
                   <FormField>
                     <FormLabel>Account</FormLabel>
-                    <FormSelect name="account" value={trade.account} onChange={handleChange} disabled>
-                      <option value="">Coming soon</option>
+                    <FormSelect 
+                      name="account" 
+                      value={trade.account} 
+                      onChange={handleChange}
+                      disabled={!isEditing}
+                    >
+                      <option value="">Select Account</option>
+                      {accounts.map(account => (
+                        <option key={account.id} value={account.id}>
+                          {account.name} ({formatCurrency(account.balance)})
+                        </option>
+                      ))}
                     </FormSelect>
                   </FormField>
                   <FormField>

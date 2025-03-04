@@ -736,7 +736,7 @@ function TradeJournal() {
       { 
         Header: 'Profit in $', 
         accessor: 'gainedPoints',
-        Cell: ({ value }) => `$${value || 0}`,
+        Cell: ({ value }) => value || '$0.00',
         width: 80 
       },
     ],

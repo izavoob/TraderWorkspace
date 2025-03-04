@@ -14,4 +14,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   saveNoteWithTrade: (note) => ipcRenderer.invoke('saveNoteWithTrade', note),
   getAllNotes: () => ipcRenderer.invoke('getAllNotes'),
   deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
+  
+  // Account management methods
+  getAllAccounts: () => ipcRenderer.invoke('getAllAccounts'),
+  addAccount: (account) => ipcRenderer.invoke('addAccount', account),
+  updateAccount: (account) => ipcRenderer.invoke('updateAccount', account),
+  deleteAccount: (id) => ipcRenderer.invoke('deleteAccount', id),
+  getAccountById: (id) => ipcRenderer.invoke('getAccountById', id),
+  updateAccountBalance: (accountId, profitPercent) => ipcRenderer.invoke('updateAccountBalance', accountId, profitPercent),
 });
