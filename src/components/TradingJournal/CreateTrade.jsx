@@ -713,7 +713,7 @@ function CreateTrade() {
     result: '',
     rr: '',
     profitLoss: '',
-    gainedPoints: '',
+    gainedPoints: '$0.00',
     followingPlan: false,
     bestTrade: false,
     session: '',
@@ -814,7 +814,7 @@ function CreateTrade() {
   };
 
   const handleVolumeOptionClick = (option) => {
-    setTempVolumeConfirmation((prev) =>
+    setTempVolumeConfirm((prev) =>
       prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option]
     );
   };
@@ -1124,7 +1124,7 @@ function CreateTrade() {
                 <FormInput
                   type="text"
                   name="gainedPoints"
-                  value={trade.gainedPoints || 'Coming soon'}
+                  value={trade.gainedPoints}
                   readOnly
                 />
               </FormField>

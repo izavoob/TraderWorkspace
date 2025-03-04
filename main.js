@@ -81,7 +81,8 @@ async function initializeDatabase() {
             execution TEXT,
             management TEXT,
             conclusion TEXT,
-            notes TEXT
+            notes TEXT,
+            parentTradeId TEXT
           )
         `);
 
@@ -130,6 +131,16 @@ async function initializeDatabase() {
           )
         `, (err) => {
           if (err) reject(new Error(`Table daily_routines creation failed: ${err.message}`));
+        });
+
+        // Перевіряємо чи існує стовпець parentTradeId
+        db.all("PRAGMA table_info(trades)", [], (err, rows) => {
+          if (!err) {
+            const hasParentTradeId = rows.some(row => row.name === 'parentTradeId');
+            if (!hasParentTradeId) {
+              db.run("ALTER TABLE trades ADD COLUMN parentTradeId TEXT");
+            }
+          }
         });
 
         resolve();
@@ -288,8 +299,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
           followingPlan, bestTrade, session, pointA, trigger, 
           volumeConfirmation, entryModel, entryTF, fta, 
           slPosition, score, category, topDownAnalysis, 
-          execution, management, conclusion, notes
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          execution, management, conclusion, notes, parentTradeId
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
         [
           trade.id,
           nextNo,
@@ -319,7 +330,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
           JSON.stringify(trade.execution || {}),
           JSON.stringify(trade.management || {}),
           JSON.stringify(trade.conclusion || {}),
-          JSON.stringify(trade.notes || [])
+          JSON.stringify(trade.notes || []),
+          trade.parentTradeId || null
         ],
         async function(err) {
           if (err) {
@@ -427,7 +439,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     db.run(
-      `UPDATE trades SET date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?, topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, notes = ? WHERE id = ?`,
+      `UPDATE trades SET date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?, topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, notes = ?, parentTradeId = ? WHERE id = ?`,
       [
         updatedTrade.date || '',
         updatedTrade.account || '',
@@ -456,6 +468,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         JSON.stringify(updatedTrade.management) || '{}',
         JSON.stringify(updatedTrade.conclusion) || '{}',
         JSON.stringify(updatedTrade.notes) || '[]',
+        updatedTrade.parentTradeId || null,
         tradeId,
       ],
       async (err) => {
