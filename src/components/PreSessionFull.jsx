@@ -811,6 +811,7 @@ const ProcessButton = styled.button`
   }
 `;
 
+// Обновляем стиль ProcessCard - удаляем эффект hover и боковой скролл
 const ProcessCard = styled.div`
   background: #3e3e3e;
   border-radius: 8px;
@@ -818,15 +819,43 @@ const ProcessCard = styled.div`
   border: 1px solid #5e2ca5;
   margin-bottom: 10px;
   position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+`;
+
+// Оставляем только одно определение ProcessImageUpload
+const ProcessImageUpload = styled(ImageUploadArea)`
+  margin-top: 8px;
+  height: 120px;
+  width: 90%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
   
-  ${TextArea} {
-    min-height: 60px;
-    margin: 8px 0;
-    width: 100%;
+  img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+  }
+
+  &:hover {
+    transform: ${props => props.hasImage ? 'scale(1.02)' : 'none'};
   }
 `;
 
-// Добавляем компонент для кнопки удаления
+const ProcessTextArea = styled(TextArea)`
+  width: 90%;
+  min-height: 60px;
+  margin: 8px 0;
+  resize: vertical;
+`;
+
+// Возвращаем DeleteButton к прежнему виду
 const DeleteButton = styled.button`
   position: absolute;
   top: 10px;
@@ -848,21 +877,11 @@ const DeleteButton = styled.button`
   }
 `;
 
-const ProcessImageUpload = styled(ImageUploadArea)`
-  margin-top: 8px;
-  height: 60px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-`;
-
-// Добавляем стиль для контейнера процессов
+// Обновляем стиль ProcessList - удаляем правый padding
 const ProcessList = styled.div`
   margin-top: 10px;
   max-height: 500px;
   overflow-y: auto;
-  padding-right: 5px;
 
   &::-webkit-scrollbar {
     width: 4px;
@@ -1568,7 +1587,7 @@ function PreSessionFull() {
                               <img src={chart} alt={`${timeframe} Chart ${index + 1}`} />
                               <button onClick={(e) => {
                                 e.stopPropagation();
-                                handleRemoveImage('timeframe', timeframe, index);
+                                handleRemoveImage(timeframe, timeframe, index);
                               }}>×</button>
                             </ImageContainer>
                           ))}
@@ -1765,29 +1784,31 @@ function PreSessionFull() {
                             ×
                           </DeleteButton>
                           <ProcessTime>{process.time}</ProcessTime>
-                          <TextArea
+                          <ProcessTextArea
                             value={process.text}
                             onChange={(e) => handleChartProcessChange(process.id, e.target.value)}
                             placeholder="Enter your process notes..."
                           />
-                          <ProcessImageUpload onClick={() => handleProcessImageUpload(process.id)}>
+                          <ProcessImageUpload 
+                            onClick={() => process.image ? setSelectedImage(process.image) : handleProcessImageUpload(process.id)}
+                            hasImage={!!process.image}
+                          >
                             {process.image ? (
                               <>
                                 <img 
                                   src={process.image} 
-                                  alt="Process Screenshot" 
-                                  style={{ 
-                                    maxHeight: '100%', 
-                                    maxWidth: '100%', 
-                                    objectFit: 'contain' 
-                                  }} 
+                                  alt="Process Screenshot"
                                 />
                                 <DeleteButton 
                                   onClick={(e) => {
                                     e.stopPropagation();
                                     handleDeleteProcessImage(process.id);
                                   }}
-                                  style={{ top: '5px', right: '5px' }}
+                                  style={{ 
+                                    top: '5px', 
+                                    right: '5px',
+                                    background: 'rgba(255, 71, 87, 0.8)'
+                                  }}
                                   title="Delete screenshot"
                                 >
                                   ×
