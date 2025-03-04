@@ -7,13 +7,53 @@ import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
 const formatCurrency = (amount) => {
-  if (!amount) return '$0.00';
+  if (amount === null || amount === undefined) return '$0.00';
   return new Intl.NumberFormat('en-US', {
     style: 'currency',
     currency: 'USD',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2
   }).format(amount);
+};
+
+const calculateProfitInDollars = (account, result, risk, rr) => {
+  console.log('Calculate Profit Params:', { account, result, risk, rr });
+  
+  if (!account || !account.currentEquity) {
+    console.log('No account or currentEquity');
+    return 0;
+  }
+
+  // Видаляємо всі не числові символи (крім крапки) та конвертуємо в число
+  const currentEquity = Number(account.currentEquity.toString().replace(/[^0-9.]/g, ''));
+  const riskValue = Number(risk);
+  const rrValue = Number(rr);
+
+  console.log('Converted values:', {
+    currentEquity,
+    riskValue,
+    rrValue,
+    result
+  });
+
+  if (isNaN(currentEquity)) {
+    console.log('Invalid currentEquity');
+    return 0;
+  }
+
+  if (result === 'Win' && !isNaN(riskValue) && !isNaN(rrValue)) {
+    const profit = (currentEquity * riskValue * rrValue) / 100;
+    console.log('Win profit calculation:', profit);
+    return profit;
+  } 
+  
+  if (result === 'Loss' && !isNaN(riskValue)) {
+    const loss = -(currentEquity * riskValue) / 100;
+    console.log('Loss calculation:', loss);
+    return loss;
+  }
+
+  return 0;
 };
 
 const fadeIn = keyframes`
@@ -730,9 +770,15 @@ function TradeDetail() {
             parsedTopDownAnalysis = defaultTopDownAnalysis;
           }
 
+          // Видаляємо суфікси % та RR з значень
+          const risk = currentTrade.risk ? currentTrade.risk.replace('%', '') : '';
+          const rr = currentTrade.rr ? currentTrade.rr.replace('RR', '') : '';
+
           const processedTrade = {
             ...trade,
             ...currentTrade,
+            risk,
+            rr,
             topDownAnalysis: parsedTopDownAnalysis || defaultTopDownAnalysis,
             execution: currentTrade.execution || { screenshot: '', text: '' },
             management: currentTrade.management || { screenshot: '', text: '' },
@@ -762,13 +808,46 @@ function TradeDetail() {
     const { name, value, type, checked } = e.target;
     setTrade((prev) => {
       const newTrade = { ...prev, [name]: type === 'checkbox' ? checked : value };
-      if (name === 'rr' || name === 'risk' || name === 'result') {
-        const risk = parseFloat(newTrade.risk) || 0;
-        const rr = parseFloat(newTrade.rr) || 0;
-        newTrade.profitLoss =
-          newTrade.result === 'Win' ? risk * rr : newTrade.result === 'Loss' ? -risk : '';
-        newTrade.gainedPoints = 'Coming soon';
+      
+      if (name === 'rr' || name === 'risk' || name === 'result' || name === 'account') {
+        console.log('Change event:', { name, value });
+        console.log('All accounts:', accounts);
+        
+        // Конвертуємо ID в число для порівняння
+        const selectedAccount = accounts.find(acc => acc.id === Number(newTrade.account));
+        console.log('Selected account:', selectedAccount);
+        
+        const risk = Number(newTrade.risk);
+        const rr = Number(newTrade.rr);
+        
+        console.log('Risk and RR:', { risk, rr });
+
+        // Розрахунок відсотка прибутку/збитку
+        if (newTrade.result === 'Win' && !isNaN(risk) && !isNaN(rr)) {
+          newTrade.profitLoss = (risk * rr).toFixed(2);
+        } else if (newTrade.result === 'Loss' && !isNaN(risk)) {
+          newTrade.profitLoss = (-risk).toFixed(2);
+        } else {
+          newTrade.profitLoss = '0.00';
+        }
+
+        // Розрахунок прибутку в доларах тільки якщо є вибраний акаунт
+        if (selectedAccount) {
+          const profitInDollars = calculateProfitInDollars(
+            selectedAccount,
+            newTrade.result,
+            risk,
+            rr
+          );
+          
+          console.log('Final profit in dollars:', profitInDollars);
+          newTrade.gainedPoints = formatCurrency(profitInDollars);
+        } else {
+          console.log('No account selected');
+          newTrade.gainedPoints = '$0.00';
+        }
       }
+      
       return newTrade;
     });
   };
@@ -787,7 +866,14 @@ function TradeDetail() {
         }
       }
 
-      await window.electronAPI.updateTrade(id, trade);
+      // Додаємо суфікси % та RR перед збереженням
+      const tradeToSave = {
+        ...trade,
+        risk: trade.risk ? `${trade.risk}%` : '',
+        rr: trade.rr ? `${trade.rr}RR` : ''
+      };
+
+      await window.electronAPI.updateTrade(id, tradeToSave);
       setIsEditing(false);
       navigate(-1);
     } catch (error) {
@@ -802,7 +888,15 @@ function TradeDetail() {
         const loadedTrades = await window.electronAPI.getTrades();
         const currentTrade = loadedTrades.find(t => t.id === id);
         if (currentTrade) {
-          setTrade(currentTrade);
+          // Видаляємо суфікси % та RR з значень
+          const risk = currentTrade.risk ? currentTrade.risk.replace('%', '') : '';
+          const rr = currentTrade.rr ? currentTrade.rr.replace('RR', '') : '';
+
+          setTrade({
+            ...currentTrade,
+            risk,
+            rr
+          });
           if (currentTrade.volumeConfirmation) {
             setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
           }
