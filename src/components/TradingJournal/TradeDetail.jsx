@@ -759,63 +759,30 @@ function TradeDetail() {
     entryTF: [],
     fta: [],
     slPosition: [],
-    volumeConfirmation: []
+    volumeConfirmation: [],
+    pairs: [],
+    directions: [],
+    sessions: [],
+    positionType: []
   });
 
   useEffect(() => {
     const loadData = async () => {
-      setIsLoading(true);
       try {
-        // Завантажуємо дані трейду
-        const currentTrade = await window.electronAPI.getTrade(id);
-        
+        // Завантажуємо трейд
+        const tradeData = await window.electronAPI.getTrade(id);
+        setTrade(tradeData);
+
         // Завантажуємо список акаунтів
         const accountsData = await window.electronAPI.getAllAccounts();
         setAccounts(accountsData);
 
-        if (currentTrade) {
-          const defaultTopDownAnalysis = [
-            { title: 'Daily Timeframe', screenshot: '', text: '' },
-            { title: '4h Timeframe', screenshot: '', text: '' },
-            { title: '1h Timeframe', screenshot: '', text: '' },
-            { title: '15/5m Timeframe', screenshot: '', text: '' },
-          ];
-
-          // Перевіряємо чи є topDownAnalysis рядком JSON і парсимо його
-          let parsedTopDownAnalysis;
-          try {
-            parsedTopDownAnalysis = typeof currentTrade.topDownAnalysis === 'string' 
-              ? JSON.parse(currentTrade.topDownAnalysis)
-              : currentTrade.topDownAnalysis;
-          } catch (e) {
-            console.error('Error parsing topDownAnalysis:', e);
-            parsedTopDownAnalysis = defaultTopDownAnalysis;
-          }
-
-          // Видаляємо суфікси % та RR з значень
-          const risk = currentTrade.risk ? currentTrade.risk.replace('%', '') : '';
-          const rr = currentTrade.rr ? currentTrade.rr.replace('RR', '') : '';
-
-          const processedTrade = {
-            ...trade,
-            ...currentTrade,
-            risk,
-            rr,
-            topDownAnalysis: parsedTopDownAnalysis || defaultTopDownAnalysis,
-            execution: currentTrade.execution || { screenshot: '', text: '' },
-            management: currentTrade.management || { screenshot: '', text: '' },
-            conclusion: currentTrade.conclusion || { videoLink: '', text: '' },
-            notes: currentTrade.notes || []
-          };
-
-          setTrade(processedTrade);
-          if (processedTrade.volumeConfirmation) {
-            setTempVolumeConfirmation(processedTrade.volumeConfirmation.split(', ').filter(Boolean));
-          }
-        }
-
         // Завантажуємо елементи виконання
-        const sections = ['pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 'fta', 'slPosition', 'volumeConfirmation'];
+        const sections = [
+          'pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 
+          'fta', 'slPosition', 'volumeConfirmation',
+          'pairs', 'directions', 'sessions', 'positionType'
+        ];
         const executionData = {};
         
         for (const section of sections) {
@@ -824,12 +791,13 @@ function TradeDetail() {
         }
         
         setExecutionItems(executionData);
+        setIsLoading(false);
       } catch (error) {
-        console.error('Error loading data:', error);
-      } finally {
+        console.error('Error loading trade:', error);
         setIsLoading(false);
       }
     };
+
     loadData();
   }, [id]);
 
@@ -1146,12 +1114,9 @@ function TradeDetail() {
                       disabled={!isEditing}
                     >
                       <option value="">Select Pair</option>
-                      <option value="EURUSD">EURUSD</option>
-                      <option value="GBPUSD">GBPUSD</option>
-                      <option value="USDJPY">USDJPY</option>
-                      <option value="GER40">GER40</option>
-                      <option value="XAUUSD">XAUUSD</option>
-                      <option value="XAGUSD">XAGUSD</option>
+                      {executionItems.pairs.map(item => (
+                        <option key={item.id} value={item.name}>{item.name}</option>
+                      ))}
                     </FormSelect>
                   </FormField>
                 </FormRow>
@@ -1165,8 +1130,9 @@ function TradeDetail() {
                       disabled={!isEditing}
                     >
                       <option value="">Select Direction</option>
-                      <option value="Long" style={{ backgroundColor: '#00ff00', color: '#000' }}>Long</option>
-                      <option value="Short" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Short</option>
+                      {executionItems.directions.map(item => (
+                        <option key={item.id} value={item.name}>{item.name}</option>
+                      ))}
                     </FormSelect>
                   </FormField>
                   <FormField>
@@ -1178,8 +1144,9 @@ function TradeDetail() {
                       disabled={!isEditing}
                     >
                       <option value="">Select Position Type</option>
-                      <option value="Swing">Swing</option>
-                      <option value="Intraday">Intraday</option>
+                      {executionItems.positionType.map(item => (
+                        <option key={item.id} value={item.name}>{item.name}</option>
+                      ))}
                     </FormSelect>
                   </FormField>
                   <FormField>
@@ -1278,10 +1245,9 @@ function TradeDetail() {
                       disabled={!isEditing}
                     >
                       <option value="">Select Session</option>
-                      <option value="Asia" style={{ backgroundColor: '#0000ff', color: '#fff' }}>Asia</option>
-                      <option value="Frankfurt" style={{ backgroundColor: '#ff69b4', color: '#fff' }}>Frankfurt</option>
-                      <option value="London" style={{ backgroundColor: '#00ff00', color: '#000' }}>London</option>
-                      <option value="New York" style={{ backgroundColor: '#ffa500', color: '#fff' }}>New York</option>
+                      {executionItems.sessions.map(item => (
+                        <option key={item.id} value={item.name}>{item.name}</option>
+                      ))}
                     </FormSelect>
                   </FormField>
                   <FormField>

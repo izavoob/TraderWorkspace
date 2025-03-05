@@ -161,7 +161,7 @@ function App() {
     // Показуємо LoadingScreen на 3 секунди
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 2000);
+    }, 1000);
 
     return () => clearTimeout(timer);
   }, []);

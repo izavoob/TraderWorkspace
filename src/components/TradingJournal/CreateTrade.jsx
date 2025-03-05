@@ -723,7 +723,11 @@ function CreateTrade() {
     entryTF: [],
     fta: [],
     slPosition: [],
-    volumeConfirmation: []
+    volumeConfirmation: [],
+    pairs: [],
+    directions: [],
+    sessions: [],
+    positionType: []
   });
   const [trade, setTrade] = useState({
     date: new Date().toISOString().split('T')[0],
@@ -781,7 +785,11 @@ function CreateTrade() {
         setAccounts(accountsData);
 
         // Завантажуємо елементи виконання
-        const sections = ['pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 'fta', 'slPosition', 'volumeConfirmation'];
+        const sections = [
+          'pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 
+          'fta', 'slPosition', 'volumeConfirmation',
+          'pairs', 'directions', 'sessions', 'positionType'
+        ];
         const executionData = {};
         
         for (const section of sections) {
@@ -1103,12 +1111,9 @@ function CreateTrade() {
                 <FormLabel>Pair</FormLabel>
                 <FormSelect name="pair" value={trade.pair} onChange={handleChange}>
                   <option value="">Select Pair</option>
-                  <option value="EURUSD">EURUSD</option>
-                  <option value="GBPUSD">GBPUSD</option>
-                  <option value="USDJPY">USDJPY</option>
-                  <option value="GER40">GER40</option>
-                  <option value="XAUUSD">XAUUSD</option>
-                  <option value="XAGUSD">XAGUSD</option>
+                  {executionItems.pairs.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
             </FormRow>  
@@ -1117,16 +1122,18 @@ function CreateTrade() {
                 <FormLabel>Direction</FormLabel>
                 <FormSelect name="direction" value={trade.direction} onChange={handleChange}>
                   <option value="">Select Direction</option>
-                  <option value="Long" style={{ backgroundColor: '#00ff00', color: '#000' }}>Long</option>
-                  <option value="Short" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Short</option>
+                  {executionItems.directions.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
                 <FormLabel>Position Type</FormLabel>
                 <FormSelect name="positionType" value={trade.positionType} onChange={handleChange}>
                   <option value="">Select Position Type</option>
-                  <option value="Intraday">Intraday</option>
-                  <option value="Swing">Swing</option>
+                  {executionItems.positionType.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
@@ -1211,10 +1218,9 @@ function CreateTrade() {
                 <FormLabel>Session</FormLabel>
                 <FormSelect name="session" value={trade.session} onChange={handleChange}>
                   <option value="">Select Session</option>
-                  <option value="Asia" style={{ backgroundColor: '#0000ff', color: '#fff' }}>Asia</option>
-                  <option value="Frankfurt" style={{ backgroundColor: '#ff69b4', color: '#fff' }}>Frankfurt</option>
-                  <option value="London" style={{ backgroundColor: '#00ff00', color: '#000' }}>London</option>
-                  <option value="New York" style={{ backgroundColor: '#ffa500', color: '#fff' }}>New York</option>
+                  {executionItems.sessions.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>

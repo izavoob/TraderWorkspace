@@ -46,6 +46,7 @@ const BackButton = styled(Link)`
   opacity: 0;
   transition: all 0.3s ease;
   text-decoration: none;
+  color: transparent;
   &:hover {
     opacity: 1;
     transform: scale(1.1);
@@ -65,6 +66,9 @@ const BackButton = styled(Link)`
   }
   &:hover:before {
     color: #fff;
+  }
+  span {
+    color: transparent;
   }
 `;
 
@@ -138,7 +142,7 @@ const ItemCard = styled.div`
 
 const ItemName = styled.h3`
   color: #fff;
-  margin: 0 0 auto;
+  margin: 0;
   font-size: 1.1em;
   text-align: center;
   width: 100%;
@@ -251,6 +255,25 @@ const Input = styled.input`
   }
 `;
 
+const FormButton = styled.button`
+  padding: 10px 20px;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1em;
+  transition: all 0.3s ease;
+  background: linear-gradient(135deg, #7425C9 0%, #B886EE 100%);
+  color: white;
+
+  &:hover {
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const ButtonGroup = styled.div`
   display: flex;
   justify-content: flex-end;
@@ -343,6 +366,96 @@ const WinrateText = styled.div`
   margin-top: 4px;
 `;
 
+const TradesModal = styled(Modal)``;
+
+const TradesModalContent = styled(ModalContent)`
+  width: 400px;
+  max-width: 90%;
+`;
+
+const ModalItemCard = styled.div`
+  background-color: #1a1a1a;
+  padding: 20px;
+  border-radius: 8px;
+  border: 2px solid #5e2ca5;
+  margin-bottom: 20px;
+`;
+
+const ModalItemStats = styled(ItemStats)`
+  margin-top: 15px;
+  padding-top: 15px;
+`;
+
+const TradesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
+`;
+
+const TradesListTitle = styled.h3`
+  color: #fff;
+  margin: 20px 0 10px;
+  font-size: 1.2em;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+`;
+
+const TradeItem = styled(Link)`
+  background-color: #1a1a1a;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #5e2ca5;
+  color: white;
+  text-decoration: none;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateX(5px);
+    background-color: #2a2a2a;
+    border-color: #7425c9;
+  }
+`;
+
+const TradeInfo = styled.div`
+  display: flex;
+  gap: 20px;
+  align-items: center;
+`;
+
+const TradeNumber = styled.span`
+  font-weight: bold;
+  color: #b886ee;
+`;
+
+const TradeDate = styled.span`
+  color: #888;
+`;
+
+const TradeResult = styled.span`
+  padding: 5px 10px;
+  border-radius: 5px;
+  background-color: ${props => props.result === 'Win' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'};
+  color: ${props => props.result === 'Win' ? '#4caf50' : '#f44336'};
+`;
+
+const ModalTitle = styled.h2`
+  color: #fff;
+  margin: 0;
+  text-align: center;
+  font-size: 1.5em;
+`;
+
+const NoTradesMessage = styled.p`
+  color: #888;
+  text-align: center;
+  margin: 20px 0;
+`;
+
 function Execution() {
   const [sections, setSections] = useState({
     pointA: [],
@@ -360,6 +473,9 @@ function Execution() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSection, setCurrentSection] = useState('');
   const [newItemName, setNewItemName] = useState('');
+  const [selectedItem, setSelectedItem] = useState(null);
+  const [showTradesModal, setShowTradesModal] = useState(false);
+  const [relatedTrades, setRelatedTrades] = useState([]);
 
   const sectionTitles = {
     pointA: 'Point A',
@@ -396,13 +512,13 @@ function Execution() {
     loadData();
   }, []);
 
-  const calculateStats = (itemName, sectionName) => {
+  const calculateStats = (itemName, section) => {
     const relevantTrades = trades.filter(trade => {
-      if (sectionName === 'volumeConfirmation') {
+      if (section === 'volumeConfirmation') {
         // Для volumeConfirmation перевіряємо, чи містить рядок цей елемент
         return trade.volumeConfirmation && trade.volumeConfirmation.includes(itemName);
       }
-      return trade[sectionName] === itemName;
+      return trade[section] === itemName;
     });
 
     const totalTrades = relevantTrades.length;
@@ -448,6 +564,50 @@ function Execution() {
     }
   };
 
+  const handleItemClick = async (itemName, section) => {
+    try {
+      const allTrades = await window.electronAPI.getTrades();
+      const filteredTrades = allTrades.filter(trade => {
+        switch(section) {
+          case 'pointA':
+            return trade.pointA === itemName;
+          case 'trigger':
+            return trade.trigger === itemName;
+          case 'volumeConfirmation':
+            return trade.volumeConfirmation && trade.volumeConfirmation.includes(itemName);
+          case 'entryModel':
+            return trade.entryModel === itemName;
+          case 'entryTF':
+            return trade.entryTF === itemName;
+          case 'fta':
+            return trade.fta === itemName;
+          case 'slPosition':
+            return trade.slPosition === itemName;
+          default:
+            return false;
+        }
+      });
+
+      const stats = calculateStats(itemName, section);
+      setSelectedItem({ name: itemName, section, stats });
+      setRelatedTrades(filteredTrades);
+      setShowTradesModal(true);
+
+      // Новий підхід до скролу
+      setTimeout(() => {
+        const modalElement = document.querySelector('.modal-content');
+        if (modalElement) {
+          modalElement.scrollIntoView({
+            behavior: 'smooth',
+            block: 'center'
+          });
+        }
+      }, 100);
+    } catch (error) {
+      console.error('Error loading related trades:', error);
+    }
+  };
+
   const renderSections = () => {
     const leftSections = [];
     const rightSections = [];
@@ -463,9 +623,14 @@ function Execution() {
             {items.map((item) => {
               const stats = calculateStats(item.name, sectionName);
               return (
-                <ItemCard key={item.id}>
+                <ItemCard 
+                  key={item.id}
+                  onClick={() => handleItemClick(item.name, sectionName)}
+                >
                   <ItemName>{item.name}</ItemName>
-                  <DeleteButton onClick={(e) => handleDeleteItem(sectionName, item.id, e)}>×</DeleteButton>
+                  <DeleteButton
+                    onClick={(e) => handleDeleteItem(sectionName, item.id, e)}
+                  />
                   <ItemStats>
                     <StatsRow>
                       <span>{stats.totalTrades} Trades</span>
@@ -503,12 +668,56 @@ function Execution() {
 
     return (
       <>
-        <div style={{ gridColumn: '1 / 2', display: 'flex', flexDirection: 'column', gap: '40px' }}>
-          {leftSections}
-        </div>
-        <div style={{ gridColumn: '2 / 3', display: 'flex', flexDirection: 'column', gap: '40px' }}>
-          {rightSections}
-        </div>
+        <Content>
+          <div style={{ gridColumn: '1 / 2', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+            {leftSections}
+          </div>
+          <div style={{ gridColumn: '2 / 3', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+            {rightSections}
+          </div>
+        </Content>
+
+        {showTradesModal && selectedItem && (
+          <Modal onClick={() => setShowTradesModal(false)}>
+            <ModalContent className="modal-content" onClick={e => e.stopPropagation()}>
+              <h2 style={{ color: '#fff', margin: '0 0 20px', fontSize: '1.5em', textAlign: 'center' }}>
+                {sectionTitles[selectedItem.section]}
+              </h2>
+              
+              <ModalItemCard>
+                <ItemName style={{ margin: '0 0 15px', fontSize: '1.2em' }}>{selectedItem.name}</ItemName>
+                <ItemStats>
+                  <StatsRow>
+                    <span>{selectedItem.stats.totalTrades} Trades</span>
+                    <StatDivider />
+                    <StatNumber color="#4CAF50">{selectedItem.stats.winTrades}</StatNumber>
+                    <StatDivider />
+                    <StatNumber color="#f44336">{selectedItem.stats.lossTrades}</StatNumber>
+                  </StatsRow>
+                  <WinrateBar winrate={selectedItem.stats.winrate} />
+                  <WinrateText>{selectedItem.stats.winrate}% Win Rate</WinrateText>
+                </ItemStats>
+              </ModalItemCard>
+
+              <TradesListTitle>Related Trades</TradesListTitle>
+              <TradesList>
+                {relatedTrades.length > 0 ? (
+                  relatedTrades.map(trade => (
+                    <TradeItem key={trade.id} to={`/trade/${trade.id}`}>
+                      <TradeInfo>
+                        <TradeNumber>#{trade.no}</TradeNumber>
+                        <TradeDate>{new Date(trade.date).toLocaleDateString()}</TradeDate>
+                      </TradeInfo>
+                      <TradeResult result={trade.result}>{trade.result}</TradeResult>
+                    </TradeItem>
+                  ))
+                ) : (
+                  <NoTradesMessage>No trades found with this {selectedItem.section}</NoTradesMessage>
+                )}
+              </TradesList>
+            </ModalContent>
+          </Modal>
+        )}
       </>
     );
   };
@@ -516,17 +725,17 @@ function Execution() {
   return (
     <ExecutionContainer>
       <Header>
-        <BackButton to="/statistics" />
+        <BackButton to="/statistics">
+          <span>Back</span>
+        </BackButton>
         <PageTitle>Execution Database</PageTitle>
       </Header>
 
-      <Content>
-        {renderSections()}
-      </Content>
+      {renderSections()}
 
       {isModalOpen && (
-        <Modal>
-          <ModalContent>
+        <Modal onClick={() => setIsModalOpen(false)}>
+          <ModalContent onClick={e => e.stopPropagation()}>
             <h2>Add New {sectionTitles[currentSection]}</h2>
             <Input
               type="text"
@@ -536,12 +745,8 @@ function Execution() {
               autoFocus
             />
             <ButtonGroup>
-              <Button className="cancel" onClick={() => setIsModalOpen(false)}>
-                Cancel
-              </Button>
-              <Button className="save" onClick={handleSaveItem}>
-                Save
-              </Button>
+              <Button className="save" onClick={handleSaveItem}>Save</Button>
+              <Button className="cancel" onClick={() => setIsModalOpen(false)}>Cancel</Button>
             </ButtonGroup>
           </ModalContent>
         </Modal>

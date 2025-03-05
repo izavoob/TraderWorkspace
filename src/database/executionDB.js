@@ -23,7 +23,12 @@ class ExecutionDB {
       entryTF: ['3m', '5m', '15m', '30m', '1h', '4h'],
       fta: ['Fractal Swing', 'SNR', 'RB', 'FVG'],
       slPosition: ['LTF Manipulation', 'Lunch Manipulation', '30m Raid', '1h Raid', '4h Raid'],
-      volumeConfirmation: ['Inversion', 'FVG', 'SNR']
+      volumeConfirmation: ['Inversion', 'FVG', 'SNR'],
+      
+      pairs: ['EURUSD', 'GBPUSD', 'XAUUSD', 'XAGUSD', 'GER40', 'USDJPY'],
+      directions: ['Long', 'Short'],
+      sessions: ['Asia', 'Frankfurt', 'London', 'Out of OTT', 'New York'],
+      positionType: ['Intraday', 'Swing']
     };
 
     this.db.serialize(() => {
