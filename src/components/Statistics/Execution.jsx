@@ -334,7 +334,20 @@ const StatDivider = styled.span`
 `;
 
 const StatNumber = styled.span`
-  color: ${props => props.color || '#fff'};
+  color: ${props => {
+    switch (props.type) {
+      case 'win':
+        return '#4caf50';
+      case 'loss':
+        return '#f44336';
+      case 'breakeven':
+        return '#ffd700';
+      case 'missed':
+        return '#9c27b0';
+      default:
+        return '#fff';
+    }
+  }};
   font-weight: 500;
 `;
 
@@ -514,22 +527,43 @@ function Execution() {
 
   const calculateStats = (itemName, section) => {
     const relevantTrades = trades.filter(trade => {
-      if (section === 'volumeConfirmation') {
-        // Для volumeConfirmation перевіряємо, чи містить рядок цей елемент
-        return trade.volumeConfirmation && trade.volumeConfirmation.includes(itemName);
+      switch(section) {
+        case 'pointA':
+          return trade.pointA === itemName;
+        case 'trigger':
+          return trade.trigger === itemName;
+        case 'volumeConfirmation':
+          console.log('Перевірка volumeConfirmation для трейду:', trade.id);
+          console.log('volumeConfirmation:', trade.volumeConfirmation);
+          console.log('itemName:', itemName);
+          console.log('Результат перевірки:', Array.isArray(trade.volumeConfirmation) && trade.volumeConfirmation.includes(itemName));
+          return Array.isArray(trade.volumeConfirmation) && trade.volumeConfirmation.includes(itemName);
+        case 'entryModel':
+          return trade.entryModel === itemName;
+        case 'entryTF':
+          return trade.entryTF === itemName;
+        case 'fta':
+          return trade.fta === itemName;
+        case 'slPosition':
+          return trade.slPosition === itemName;
+        default:
+          return false;
       }
-      return trade[section] === itemName;
     });
 
     const totalTrades = relevantTrades.length;
     const winTrades = relevantTrades.filter(trade => trade.result === 'Win').length;
     const lossTrades = relevantTrades.filter(trade => trade.result === 'Loss').length;
+    const breakevenTrades = relevantTrades.filter(trade => trade.result === 'Breakeven').length;
+    const missedTrades = relevantTrades.filter(trade => trade.result === 'Missed').length;
     const winrate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
 
     return {
       totalTrades,
       winTrades,
       lossTrades,
+      breakevenTrades,
+      missedTrades,
       winrate: Math.round(winrate)
     };
   };
@@ -635,9 +669,13 @@ function Execution() {
                     <StatsRow>
                       <span>{stats.totalTrades} Trades</span>
                       <StatDivider />
-                      <StatNumber color="#4CAF50">{stats.winTrades}</StatNumber>
+                      <StatNumber type="win">{stats.winTrades}</StatNumber>
                       <StatDivider />
-                      <StatNumber color="#f44336">{stats.lossTrades}</StatNumber>
+                      <StatNumber type="loss">{stats.lossTrades}</StatNumber>
+                      <StatDivider />
+                      <StatNumber type="breakeven">{stats.breakevenTrades}</StatNumber>
+                      <StatDivider />
+                      <StatNumber type="missed">{stats.missedTrades}</StatNumber>
                     </StatsRow>
                     <WinrateBar winrate={stats.winrate} />
                     <WinrateText>{stats.winrate}% Win Rate</WinrateText>
@@ -690,9 +728,13 @@ function Execution() {
                   <StatsRow>
                     <span>{selectedItem.stats.totalTrades} Trades</span>
                     <StatDivider />
-                    <StatNumber color="#4CAF50">{selectedItem.stats.winTrades}</StatNumber>
+                    <StatNumber type="win">{selectedItem.stats.winTrades}</StatNumber>
                     <StatDivider />
-                    <StatNumber color="#f44336">{selectedItem.stats.lossTrades}</StatNumber>
+                    <StatNumber type="loss">{selectedItem.stats.lossTrades}</StatNumber>
+                    <StatDivider />
+                    <StatNumber type="breakeven">{selectedItem.stats.breakevenTrades}</StatNumber>
+                    <StatDivider />
+                    <StatNumber type="missed">{selectedItem.stats.missedTrades}</StatNumber>
                   </StatsRow>
                   <WinrateBar winrate={selectedItem.stats.winrate} />
                   <WinrateText>{selectedItem.stats.winrate}% Win Rate</WinrateText>

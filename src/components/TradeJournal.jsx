@@ -1046,6 +1046,8 @@ function TradeJournal() {
                         <option value="">All Results</option>
                         <option value="Win">Win</option>
                         <option value="Loss">Loss</option>
+                        <option value="Breakeven">Breakeven</option>
+                        <option value="Missed">Missed</option>
                       </FilterSelect>
                     </FilterGroup>
 

@@ -260,27 +260,42 @@ ipcMain.on('toggle-sidebar', (event, isCollapsed) => {
 ipcMain.handle('get-trade', async (event, id) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
+    console.log('Отримання трейду з бази даних, ID:', id);
+    
     db.get('SELECT * FROM trades WHERE id = ?', [id], (err, trade) => {
       if (err) {
-        console.error('Error fetching trade:', err);
+        console.error('Помилка при отриманні трейду:', err);
         reject(err);
         return;
       }
+      
       if (trade) {
-        // Перетворюємо JSON рядки в об'єкти
-        trade.topDownAnalysis = JSON.parse(trade.topDownAnalysis || '[]');
-        trade.execution = JSON.parse(trade.execution || '{}');
-        trade.management = JSON.parse(trade.management || '{}');
-        trade.conclusion = JSON.parse(trade.conclusion || '{}');
-        trade.notes = JSON.parse(trade.notes || '[]');
+        console.log('Трейд знайдено в базі даних');
+        console.log('volumeConfirmation до парсингу:', trade.volumeConfirmation);
         
-        // Переконуємося що no існує
-        if (!trade.no) {
-          trade.no = id; // Використовуємо id як запасний варіант
+        try {
+          // Перетворюємо JSON рядки в об'єкти
+          trade.topDownAnalysis = JSON.parse(trade.topDownAnalysis || '[]');
+          trade.execution = JSON.parse(trade.execution || '{}');
+          trade.management = JSON.parse(trade.management || '{}');
+          trade.conclusion = JSON.parse(trade.conclusion || '{}');
+          trade.notes = JSON.parse(trade.notes || '[]');
+          trade.volumeConfirmation = JSON.parse(trade.volumeConfirmation || '[]');
+          
+          console.log('volumeConfirmation після парсингу:', trade.volumeConfirmation);
+          
+          // Переконуємося що no існує
+          if (!trade.no) {
+            trade.no = id;
+          }
+          
+          resolve(trade);
+        } catch (parseError) {
+          console.error('Помилка при парсингу JSON:', parseError);
+          reject(parseError);
         }
-        
-        resolve(trade);
       } else {
+        console.log('Трейд не знайдено');
         resolve(null);
       }
     });
@@ -290,13 +305,19 @@ ipcMain.handle('get-trade', async (event, id) => {
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
+    console.log('Початок збереження трейду');
+    console.log('volumeConfirmation до перетворення:', trade.volumeConfirmation);
+    
     db.get('SELECT MAX(no) as maxNo FROM trades', [], (err, row) => {
       if (err) {
+        console.error('Помилка при отриманні maxNo:', err);
         reject(err);
         return;
       }
       
       const nextNo = (row.maxNo || 0) + 1;
+      const volumeConfirmationJson = JSON.stringify(Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []);
+      console.log('volumeConfirmation після перетворення в JSON:', volumeConfirmationJson);
       
       db.run(
         `INSERT OR REPLACE INTO trades (
@@ -325,7 +346,7 @@ ipcMain.handle('save-trade', async (event, trade) => {
           trade.session || '',
           trade.pointA || '',
           trade.trigger || '',
-          trade.volumeConfirmation || '',
+          volumeConfirmationJson,
           trade.entryModel || '',
           trade.entryTF || '',
           trade.fta || '',
@@ -403,14 +424,21 @@ ipcMain.handle('get-trades', async () => {
         return;
       }
 
-      const trades = tradeRows.map(row => ({
-        ...row,
-        topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
-        execution: JSON.parse(row.execution || '{}'),
-        management: JSON.parse(row.management || '{}'),
-        conclusion: JSON.parse(row.conclusion || '{}'),
-        notes: [],
-      }));
+      const trades = tradeRows.map(row => {
+        console.log('Отримано трейд з бази даних:', row.id);
+        console.log('volumeConfirmation до парсингу:', row.volumeConfirmation);
+        const trade = {
+          ...row,
+          topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
+          execution: JSON.parse(row.execution || '{}'),
+          management: JSON.parse(row.management || '{}'),
+          conclusion: JSON.parse(row.conclusion || '{}'),
+          volumeConfirmation: JSON.parse(row.volumeConfirmation || '[]'),
+          notes: [],
+        };
+        console.log('volumeConfirmation після парсингу:', trade.volumeConfirmation);
+        return trade;
+      });
 
       if (trades.length === 0) {
         resolve(trades);
@@ -444,8 +472,23 @@ ipcMain.handle('get-trades', async () => {
 ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
+    console.log('Початок оновлення трейду');
+    console.log('volumeConfirmation до перетворення:', updatedTrade.volumeConfirmation);
+    
+    const volumeConfirmationJson = JSON.stringify(Array.isArray(updatedTrade.volumeConfirmation) ? updatedTrade.volumeConfirmation : []);
+    console.log('volumeConfirmation після перетворення в JSON:', volumeConfirmationJson);
+    
     db.run(
-      `UPDATE trades SET date = ?, account = ?, pair = ?, direction = ?, positionType = ?, risk = ?, result = ?, rr = ?, profitLoss = ?, gainedPoints = ?, followingPlan = ?, bestTrade = ?, session = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, score = ?, category = ?, topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, notes = ?, parentTradeId = ? WHERE id = ?`,
+      `UPDATE trades SET 
+        date = ?, account = ?, pair = ?, direction = ?, 
+        positionType = ?, risk = ?, result = ?, rr = ?, 
+        profitLoss = ?, gainedPoints = ?, followingPlan = ?, 
+        bestTrade = ?, session = ?, pointA = ?, trigger = ?, 
+        volumeConfirmation = ?, entryModel = ?, entryTF = ?, 
+        fta = ?, slPosition = ?, score = ?, category = ?, 
+        topDownAnalysis = ?, execution = ?, management = ?, 
+        conclusion = ?, notes = ?, parentTradeId = ? 
+      WHERE id = ?`,
       [
         updatedTrade.date || '',
         updatedTrade.account || '',
@@ -462,7 +505,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         updatedTrade.session || '',
         updatedTrade.pointA || '',
         updatedTrade.trigger || '',
-        updatedTrade.volumeConfirmation || '',
+        volumeConfirmationJson,
         updatedTrade.entryModel || '',
         updatedTrade.entryTF || '',
         updatedTrade.fta || '',

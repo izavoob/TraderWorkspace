@@ -769,12 +769,17 @@ function TradeDetail() {
   useEffect(() => {
     const loadData = async () => {
       try {
+        console.log('Початок завантаження трейду');
+        setIsLoading(true);
+        
         // Завантажуємо трейд
-        const tradeData = await window.electronAPI.getTrade(id);
-        setTrade(tradeData);
-
-        // Завантажуємо список акаунтів
+        const loadedTrade = await window.electronAPI.getTrade(id);
+        console.log('Завантажений трейд:', loadedTrade);
+        console.log('volumeConfirmation після завантаження:', loadedTrade.volumeConfirmation);
+        
+        // Завантажуємо акаунти
         const accountsData = await window.electronAPI.getAllAccounts();
+        console.log('Loaded accounts:', accountsData);
         setAccounts(accountsData);
 
         // Завантажуємо елементи виконання
@@ -783,17 +788,21 @@ function TradeDetail() {
           'fta', 'slPosition', 'volumeConfirmation',
           'pairs', 'directions', 'sessions', 'positionType'
         ];
-        const executionData = {};
         
+        const executionData = {};
         for (const section of sections) {
           const items = await window.electronAPI.getAllExecutionItems(section);
           executionData[section] = items;
         }
-        
         setExecutionItems(executionData);
-        setIsLoading(false);
+        
+        if (loadedTrade) {
+          setTrade(loadedTrade);
+          setIsEditing(false);
+        }
       } catch (error) {
-        console.error('Error loading trade:', error);
+        console.error('Помилка при завантаженні трейду:', error);
+      } finally {
         setIsLoading(false);
       }
     };
@@ -859,27 +868,23 @@ function TradeDetail() {
 
   const handleSave = async () => {
     try {
-      // Оновлюємо баланс акаунту
-      if (trade.account && trade.profitLoss) {
-        const profitLossValue = parseFloat(trade.profitLoss);
-        if (!isNaN(profitLossValue)) {
-          await window.electronAPI.updateAccountBalance(trade.account, profitLossValue);
-        }
-      }
-
-      // Додаємо суфікси % та RR перед збереженням
-      const tradeToSave = {
+      console.log('Початок збереження трейду');
+      console.log('volumeConfirmation перед збереженням:', trade.volumeConfirmation);
+      
+      const updatedTrade = {
         ...trade,
-        risk: trade.risk ? `${trade.risk}%` : '',
-        rr: trade.rr ? `${trade.rr}RR` : ''
+        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
       };
+      
+      console.log('volumeConfirmation після підготовки:', updatedTrade.volumeConfirmation);
+      console.log('Дані трейду перед збереженням:', updatedTrade);
 
-      await window.electronAPI.updateTrade(id, tradeToSave);
+      await window.electronAPI.updateTrade(trade.id, updatedTrade);
+      console.log('Трейд успішно оновлено');
+      
       setIsEditing(false);
-      navigate(-1);
     } catch (error) {
-      console.error('Error updating trade:', error);
-      alert('Failed to update trade. Please try again.');
+      console.error('Помилка при збереженні трейду:', error);
     }
   };
 
@@ -921,20 +926,27 @@ function TradeDetail() {
   };
 
   const handleVolumeConfirm = () => {
-    setTrade(prev => ({
-      ...prev,
-      volumeConfirmation: tempVolumeConfirmation
-    }));
+    console.log('Volume Confirmation - Початкові значення:', tempVolumeConfirmation);
+    setTrade(prevTrade => {
+      console.log('Volume Confirmation - Попередній стан:', prevTrade.volumeConfirmation);
+      const updatedTrade = {
+        ...prevTrade,
+        volumeConfirmation: [...tempVolumeConfirmation]
+      };
+      console.log('Volume Confirmation - Оновлений стан:', updatedTrade.volumeConfirmation);
+      return updatedTrade;
+    });
     setShowVolumePopup(false);
   };
 
   // При відкритті попапу встановлюємо початкові значення
   useEffect(() => {
     if (showVolumePopup) {
+      console.log('Current trade.volumeConfirmation:', trade.volumeConfirmation);
       setTempVolumeConfirmation(
         Array.isArray(trade.volumeConfirmation) 
-          ? trade.volumeConfirmation 
-          : trade.volumeConfirmation ? trade.volumeConfirmation.split(', ') : []
+          ? [...trade.volumeConfirmation]
+          : []
       );
     }
   }, [showVolumePopup]);
@@ -1172,8 +1184,10 @@ function TradeDetail() {
                       disabled={!isEditing}
                     >
                       <option value="">Select Result</option>
-                      <option value="Win" style={{ backgroundColor: '#00ff00', color: '#000' }}>Win</option>
-                      <option value="Loss" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Loss</option>
+                      <option value="Win" style={{ color: '#00ff00' }}>Win</option>
+                      <option value="Loss" style={{ color: '#ff0000' }}>Loss</option>
+                      <option value="Breakeven" style={{ color: '#ffd700' }}>Breakeven</option>
+                      <option value="Missed" style={{ color: '#9c27b0' }}>Missed</option>
                     </FormSelect>
                   </FormField>
                   <FormField>

@@ -114,7 +114,6 @@ const Title = styled.h1`
 `;
 
 const Content = styled.div`
-  margin-top: 148px;
   padding-top: 20px;
   position: relative;
   min-height: calc(100vh - 168px);

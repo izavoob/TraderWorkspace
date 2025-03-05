@@ -91,7 +91,7 @@ const Title = styled.h1`
 
 const RoutineContent = styled.div`
   position: fixed;
-  top: 128px;
+  top: 50px;
   left: 0;
   right: 0;
   bottom: 0;

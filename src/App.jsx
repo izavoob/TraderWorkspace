@@ -34,7 +34,7 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    overflow: auto; // Змінено з overflow: hidden на overflow: auto
+    overflow: ${props => props.isHome ? 'hidden' : 'auto'};
   }
   ::-webkit-scrollbar {
     width: 4px;
@@ -73,7 +73,7 @@ const AppContainer = styled.div`
   box-sizing: border-box;
   width: 100%;
   overflow-x: hidden;
-  overflow-y: auto;
+  overflow-y: ${props => props.isHome ? 'hidden' : 'auto'};
   opacity: ${props => props.isLoading ? 0 : 1};
   transform: translateY(${props => props.isLoading ? '-20px' : '0'});
   transition: opacity 1.5s ease-out, transform 1.5s ease-out;
@@ -222,7 +222,7 @@ function App() {
 
   return (
     <>
-      <GlobalStyle />
+      <GlobalStyle isHome={isHome} />
       {isLoading ? (
         <LoadingScreen />
       ) : (
