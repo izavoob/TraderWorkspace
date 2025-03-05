@@ -829,6 +829,8 @@ function CreateTrade() {
           newTrade.profitLoss = (risk * rr).toFixed(2);
         } else if (newTrade.result === 'Loss' && !isNaN(risk)) {
           newTrade.profitLoss = (-risk).toFixed(2);
+        } else if (newTrade.result === 'Breakeven' || newTrade.result === 'Missed') {
+          newTrade.profitLoss = '0.00';
         } else {
           newTrade.profitLoss = '0.00';
         }
@@ -865,20 +867,27 @@ function CreateTrade() {
   };
 
   const handleVolumeConfirm = () => {
-    setTrade((prev) => ({
-      ...prev,
-      volumeConfirmation: tempVolumeConfirmation
-    }));
+    console.log('Volume Confirmation - Початкові значення:', tempVolumeConfirmation);
+    setTrade(prevTrade => {
+      console.log('Volume Confirmation - Попередній стан:', prevTrade.volumeConfirmation);
+      const updatedTrade = {
+        ...prevTrade,
+        volumeConfirmation: [...tempVolumeConfirmation]
+      };
+      console.log('Volume Confirmation - Оновлений стан:', updatedTrade.volumeConfirmation);
+      return updatedTrade;
+    });
     setShowVolumePopup(false);
   };
 
   // При відкритті попапу встановлюємо початкові значення
   useEffect(() => {
     if (showVolumePopup) {
+      console.log('Current trade.volumeConfirmation:', trade.volumeConfirmation);
       setTempVolumeConfirmation(
         Array.isArray(trade.volumeConfirmation) 
-          ? trade.volumeConfirmation 
-          : trade.volumeConfirmation ? trade.volumeConfirmation.split(', ') : []
+          ? [...trade.volumeConfirmation]
+          : []
       );
     }
   }, [showVolumePopup]);
@@ -1018,46 +1027,36 @@ function CreateTrade() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const tradeId = Date.now().toString();
+      console.log('Початок збереження трейду');
+      console.log('volumeConfirmation перед підготовкою:', trade.volumeConfirmation);
+      
       const tradeData = {
-        id: tradeId,
         ...trade,
-        risk: trade.risk ? `${trade.risk}%` : '',
-        rr: trade.rr ? `${trade.rr}RR` : '',
-        volumeConfirmation: Array.isArray(trade.volumeConfirmation) 
-          ? trade.volumeConfirmation.join(', ') 
-          : trade.volumeConfirmation
+        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
       };
+      
+      console.log('volumeConfirmation після підготовки:', tradeData.volumeConfirmation);
+      console.log('Повні дані трейду:', tradeData);
+      
+      const tradeDataWithId = {
+        ...tradeData,
+        id: crypto.randomUUID(),
+        notes: tradeData.notes
+      };
+      
+      console.log('Дані трейду перед відправкою в API:', tradeDataWithId);
+      console.log('volumeConfirmation перед відправкою:', tradeDataWithId.volumeConfirmation);
 
-      // Зберігаємо трейд
-      const result = await window.electronAPI.saveTrade(tradeData);
-
-      if (result) {
-        // Оновлюємо баланс акаунту
-        if (trade.account && trade.profitLoss) {
-          const profitLossValue = parseFloat(trade.profitLoss);
-          if (!isNaN(profitLossValue)) {
-            await window.electronAPI.updateAccountBalance(trade.account, profitLossValue);
-          }
-        }
-
-        // Зберігаємо нотатки з посиланням на трейд
-        if (trade.notes && trade.notes.length > 0) {
-          for (const note of trade.notes) {
-            await window.electronAPI.saveNoteWithTrade({
-              ...note,
-              tradeId: tradeId
-            });
-          }
-        }
-        
-        navigate('/trade-journal', { state: { fromCreateTrade: true } });
-      } else {
-        throw new Error('Failed to save trade');
+      await window.electronAPI.saveTrade(tradeDataWithId);
+      console.log('Трейд успішно збережено');
+      
+      if (trade.account && trade.result && trade.profitLoss) {
+        await window.electronAPI.updateAccountBalance(trade.account, parseFloat(trade.profitLoss));
       }
+
+      navigate('/trade-journal');
     } catch (error) {
       console.error('Error saving trade:', error);
-      alert('Failed to save trade. Please try again.');
     }
   };
 
@@ -1153,8 +1152,10 @@ function CreateTrade() {
                 <FormLabel>Result</FormLabel>
                 <FormSelect name="result" value={trade.result} onChange={handleChange}>
                   <option value="">Select Result</option>
-                  <option value="Win" style={{ backgroundColor: '#00ff00', color: '#000' }}>Win</option>
-                  <option value="Loss" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Loss</option>
+                  <option value="Win" style={{ color: '#00ff00' }}>Win</option>
+                  <option value="Loss" style={{ color: '#ff0000' }}>Loss</option>
+                  <option value="Breakeven" style={{ color: '#ffd700' }}>Breakeven</option>
+                  <option value="Missed" style={{ color: '#9c27b0' }}>Missed</option>
                 </FormSelect>
               </FormField>
               <FormField>

@@ -179,7 +179,20 @@ const StatDivider = styled.span`
 `;
 
 const StatNumber = styled.span`
-  color: ${props => props.color || '#fff'};
+  color: ${props => {
+    switch (props.type) {
+      case 'win':
+        return '#4caf50';
+      case 'loss':
+        return '#f44336';
+      case 'breakeven':
+        return '#ffd700';
+      case 'missed':
+        return '#9c27b0';
+      default:
+        return '#fff';
+    }
+  }};
   font-weight: 500;
 `;
 
@@ -318,6 +331,40 @@ const Title = styled.h2`
   border-bottom: 2px solid rgba(94, 44, 165, 0.4);
 `;
 
+const DeleteButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(244, 67, 54, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.3s ease;
+
+  ${ItemCard}:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: rgba(244, 67, 54, 0.75);
+    transform: scale(1.1);
+  }
+
+  &::before {
+    content: '';
+    width: 15px;
+    height: 15px;
+    background: url(${deleteIcon}) no-repeat center;
+    background-size: contain;
+  }
+`;
+
 function Analytics() {
   const [trades, setTrades] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -382,12 +429,16 @@ function Analytics() {
     const totalTrades = relevantTrades.length;
     const winTrades = relevantTrades.filter(trade => trade.result === 'Win').length;
     const lossTrades = relevantTrades.filter(trade => trade.result === 'Loss').length;
+    const breakevenTrades = relevantTrades.filter(trade => trade.result === 'Breakeven').length;
+    const missedTrades = relevantTrades.filter(trade => trade.result === 'Missed').length;
     const winrate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
 
     return {
       totalTrades,
       winTrades,
       lossTrades,
+      breakevenTrades,
+      missedTrades,
       winrate: Math.round(winrate)
     };
   };
@@ -464,6 +515,22 @@ function Analytics() {
     }
   };
 
+  const handleDeleteItem = async (section, item, event) => {
+    event.stopPropagation();
+    if (window.confirm('Ви впевнені, що хочете видалити цей елемент?')) {
+      try {
+        await window.electronAPI.deleteExecutionItem(section, item);
+        // Оновлюємо локальний стан після видалення
+        setSections(prev => ({
+          ...prev,
+          [section]: prev[section].filter(i => i !== item)
+        }));
+      } catch (error) {
+        console.error('Error deleting item:', error);
+      }
+    }
+  };
+
   const renderSections = () => {
     const leftSections = [];
     const rightSections = [];
@@ -486,13 +553,20 @@ function Analytics() {
                   onClick={() => handleItemClick(item, sectionName)}
                 >
                   <ItemName>{item}</ItemName>
+                  <DeleteButton
+                    onClick={(e) => handleDeleteItem(sectionName, item, e)}
+                  />
                   <ItemStats>
                     <StatsRow>
                       <span>{stats.totalTrades} Trades</span>
                       <StatDivider />
-                      <StatNumber color="#4CAF50">{stats.winTrades}</StatNumber>
+                      <StatNumber type="win">{stats.winTrades}</StatNumber>
                       <StatDivider />
-                      <StatNumber color="#f44336">{stats.lossTrades}</StatNumber>
+                      <StatNumber type="loss">{stats.lossTrades}</StatNumber>
+                      <StatDivider />
+                      <StatNumber type="breakeven">{stats.breakevenTrades}</StatNumber>
+                      <StatDivider />
+                      <StatNumber type="missed">{stats.missedTrades}</StatNumber>
                     </StatsRow>
                     <WinrateBar winrate={stats.winrate} />
                     <WinrateText>{stats.winrate}% Win Rate</WinrateText>
@@ -537,9 +611,13 @@ function Analytics() {
                   <StatsRow>
                     <span>{selectedItem.stats.totalTrades} Trades</span>
                     <StatDivider />
-                    <StatNumber color="#4CAF50">{selectedItem.stats.winTrades}</StatNumber>
+                    <StatNumber type="win">{selectedItem.stats.winTrades}</StatNumber>
                     <StatDivider />
-                    <StatNumber color="#f44336">{selectedItem.stats.lossTrades}</StatNumber>
+                    <StatNumber type="loss">{selectedItem.stats.lossTrades}</StatNumber>
+                    <StatDivider />
+                    <StatNumber type="breakeven">{selectedItem.stats.breakevenTrades}</StatNumber>
+                    <StatDivider />
+                    <StatNumber type="missed">{selectedItem.stats.missedTrades}</StatNumber>
                   </StatsRow>
                   <WinrateBar winrate={selectedItem.stats.winrate} />
                   <WinrateText>{selectedItem.stats.winrate}% Win Rate</WinrateText>
