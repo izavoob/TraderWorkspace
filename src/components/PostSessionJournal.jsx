@@ -74,7 +74,7 @@ const Title = styled.h1`
 `;
 
 const RoutineContent = styled.div`
-  margin-top: 148px;
+  margin-top: 50px;
   padding-top: 20px;
   overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;

@@ -147,7 +147,7 @@ const Title = styled.h1`
 `;
 
 const JournalContent = styled.div`
-  margin-top: 148px;
+  margin-top: 30px;
   padding-top: 20px;
   position: relative;
   min-height: calc(100vh - 168px);
