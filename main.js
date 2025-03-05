@@ -3,9 +3,11 @@ const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
 const AccountsDB = require('./src/database/accountsDB');
+const ExecutionDB = require('./src/database/executionDB');
 
 let db = null;
 let accountsDB = null;
+let executionDB = null;
 let vaultPath = null;
 let mainWindow = null;
 
@@ -36,6 +38,7 @@ async function initializeDatabase() {
   vaultPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault');
   const dbPath = path.join(vaultPath, 'trades.db');
   const accountsDbPath = path.join(vaultPath, 'accounts.db');
+  const executionDbPath = path.join(vaultPath, 'execution.db');
   
   try {
     await fs.mkdir(vaultPath, { recursive: true });
@@ -47,6 +50,9 @@ async function initializeDatabase() {
 
     // Initialize accounts database
     accountsDB = new AccountsDB(accountsDbPath);
+    
+    // Initialize execution database
+    executionDB = new ExecutionDB(executionDbPath);
 
     await new Promise((resolve, reject) => {
       db.serialize(() => {
@@ -702,6 +708,43 @@ ipcMain.handle('updateAccountBalance', async (event, accountId, profitPercent) =
     return await accountsDB.updateAccount(updatedAccount);
   } catch (error) {
     console.error('Error updating account balance:', error);
+    throw error;
+  }
+});
+
+// Execution database handlers
+ipcMain.handle('getAllExecutionItems', async (event, section) => {
+  try {
+    return await executionDB.getAllItems(section);
+  } catch (error) {
+    console.error('Error getting execution items:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('addExecutionItem', async (event, section, name) => {
+  try {
+    return await executionDB.addItem(section, name);
+  } catch (error) {
+    console.error('Error adding execution item:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updateExecutionItem', async (event, section, id, name) => {
+  try {
+    return await executionDB.updateItem(section, id, name);
+  } catch (error) {
+    console.error('Error updating execution item:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('deleteExecutionItem', async (event, section, id) => {
+  try {
+    return await executionDB.deleteItem(section, id);
+  } catch (error) {
+    console.error('Error deleting execution item:', error);
     throw error;
   }
 });

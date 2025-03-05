@@ -22,4 +22,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteAccount: (id) => ipcRenderer.invoke('deleteAccount', id),
   getAccountById: (id) => ipcRenderer.invoke('getAccountById', id),
   updateAccountBalance: (accountId, profitPercent) => ipcRenderer.invoke('updateAccountBalance', accountId, profitPercent),
+  
+  // Execution database methods
+  getAllExecutionItems: (section) => ipcRenderer.invoke('getAllExecutionItems', section),
+  addExecutionItem: (section, name) => ipcRenderer.invoke('addExecutionItem', section, name),
+  updateExecutionItem: (section, id, name) => ipcRenderer.invoke('updateExecutionItem', section, id, name),
+  deleteExecutionItem: (section, id) => ipcRenderer.invoke('deleteExecutionItem', section, id),
 });

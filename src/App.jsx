@@ -20,6 +20,8 @@ import Strategy from './components/LearningSection/Strategy.jsx';
 import TradingPsychology from './components/LearningSection/TradingPsychology.jsx';
 import Notes from './components/LearningSection/Notes.jsx';
 import Statistics from './components/Statistics.jsx';
+import Execution from './components/Statistics/Execution.jsx';
+import Analytics from './components/Statistics/Analytics.jsx';
 import RiskManagement from './components/RiskManagement.jsx';
 import ReportingSystem from './components/ReportingSystem.jsx';
 import Settings from './components/Settings.jsx';
@@ -206,6 +208,10 @@ function App() {
         return 'TRADE JOURNAL';
       case '/create-trade':
         return 'CREATE TRADE';
+      case '/statistics/execution':
+        return 'EXECUTION DATABASE';
+      case '/statistics/analytics':
+        return 'ANALYTICS';
       default:
         if (path.startsWith('/trade/')) {
           return 'TRADE DETAIL';
@@ -256,6 +262,8 @@ function App() {
             <Route path="/performance-analysis/qpa" element={<QPA />} />
             <Route path="/performance-analysis/ypa" element={<YPA />} />
             <Route path="/statistics" element={<Statistics />} />
+            <Route path="/statistics/execution" element={<Execution />} />
+            <Route path="/statistics/analytics" element={<Analytics />} />
             <Route path="/risk-management" element={<RiskManagement />} />
             <Route path="/reporting-system" element={<ReportingSystem />} />
             <Route path="/settings" element={<Settings />} />
