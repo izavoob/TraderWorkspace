@@ -306,6 +306,7 @@ const ButtonGroup = styled.div`
 
 const VolumeConfirmationContainer = styled.div`
   position: relative;
+  width: 100%;
 `;
 
 const VolumeConfirmationButton = styled.button`
@@ -315,25 +316,35 @@ const VolumeConfirmationButton = styled.button`
   border: 1px solid #5e2ca5;
   border-radius: 5px;
   width: 100%;
-  text-align: left;
+  text-align: center;
+  appearance: none;
+  background-image: url('data:image/svg+xml;utf8,<svg fill="%235e2ca5" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+  background-repeat: no-repeat;
+  background-position: right 8px center;
+  box-sizing: border-box;
+  cursor: pointer;
 `;
 
 const VolumeConfirmationPopup = styled.div`
   position: absolute;
   top: 100%;
   left: 0;
+  right: 0;
   background-color: #3e3e3e;
   border: 1px solid #5e2ca5;
   border-radius: 5px;
   padding: 10px;
   z-index: 1000;
+  width: 100%;
 `;
 
 const VolumeOption = styled.div`
-  padding: 5px;
+  padding: 8px;
   cursor: pointer;
-  background-color: ${(props) => (props.selected ? 'rgba(0, 0, 255, 0.5)' : 'transparent')};
+  background-color: ${(props) => (props.selected ? 'rgba(94, 44, 165, 0.4)' : 'transparent')};
   color: #fff;
+  text-align: center;
+  border-radius: 4px;
 
   &:hover {
     background-color: #5e2ca5;
@@ -345,9 +356,10 @@ const ConfirmButton = styled.button`
   background: conic-gradient(from 45deg, #7425c9, #b886ee);
   color: #fff;
   border: none;
-  padding: 5px 10px;
+  padding: 8px;
   border-radius: 5px;
   cursor: pointer;
+  width: 100%;
 `;
 
 const SectionTitle = styled.h2`
@@ -703,6 +715,20 @@ function CreateTrade() {
   const navigate = useNavigate();
   const [tradeCount, setTradeCount] = useState(0);
   const [accounts, setAccounts] = useState([]);
+  const [executionItems, setExecutionItems] = useState({
+    pointA: [],
+    trigger: [],
+    pointB: [],
+    entryModel: [],
+    entryTF: [],
+    fta: [],
+    slPosition: [],
+    volumeConfirmation: [],
+    pairs: [],
+    directions: [],
+    sessions: [],
+    positionType: []
+  });
   const [trade, setTrade] = useState({
     date: new Date().toISOString().split('T')[0],
     account: '',
@@ -757,6 +783,21 @@ function CreateTrade() {
         const accountsData = await window.electronAPI.getAllAccounts();
         console.log('Loaded accounts:', accountsData);
         setAccounts(accountsData);
+
+        // Завантажуємо елементи виконання
+        const sections = [
+          'pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 
+          'fta', 'slPosition', 'volumeConfirmation',
+          'pairs', 'directions', 'sessions', 'positionType'
+        ];
+        const executionData = {};
+        
+        for (const section of sections) {
+          const items = await window.electronAPI.getAllExecutionItems(section);
+          executionData[section] = items;
+        }
+        
+        setExecutionItems(executionData);
       } catch (error) {
         console.error('Error loading initial data:', error);
         setTradeCount(1);
@@ -814,15 +855,33 @@ function CreateTrade() {
   };
 
   const handleVolumeOptionClick = (option) => {
-    setTempVolumeConfirm((prev) =>
-      prev.includes(option) ? prev.filter((item) => item !== option) : [...prev, option]
-    );
+    setTempVolumeConfirmation(prev => {
+      if (prev.includes(option)) {
+        return prev.filter(item => item !== option);
+      } else {
+        return [...prev, option];
+      }
+    });
   };
 
   const handleVolumeConfirm = () => {
-    setTrade((prev) => ({ ...prev, volumeConfirmation: tempVolumeConfirmation }));
+    setTrade((prev) => ({
+      ...prev,
+      volumeConfirmation: tempVolumeConfirmation
+    }));
     setShowVolumePopup(false);
   };
+
+  // При відкритті попапу встановлюємо початкові значення
+  useEffect(() => {
+    if (showVolumePopup) {
+      setTempVolumeConfirmation(
+        Array.isArray(trade.volumeConfirmation) 
+          ? trade.volumeConfirmation 
+          : trade.volumeConfirmation ? trade.volumeConfirmation.split(', ') : []
+      );
+    }
+  }, [showVolumePopup]);
 
   const handleScreenshotChange = (section, index, field, value) => {
     setTrade((prev) => {
@@ -965,7 +1024,9 @@ function CreateTrade() {
         ...trade,
         risk: trade.risk ? `${trade.risk}%` : '',
         rr: trade.rr ? `${trade.rr}RR` : '',
-        volumeConfirmation: trade.volumeConfirmation.join(', '),
+        volumeConfirmation: Array.isArray(trade.volumeConfirmation) 
+          ? trade.volumeConfirmation.join(', ') 
+          : trade.volumeConfirmation
       };
 
       // Зберігаємо трейд
@@ -1050,12 +1111,9 @@ function CreateTrade() {
                 <FormLabel>Pair</FormLabel>
                 <FormSelect name="pair" value={trade.pair} onChange={handleChange}>
                   <option value="">Select Pair</option>
-                  <option value="EURUSD">EURUSD</option>
-                  <option value="GBPUSD">GBPUSD</option>
-                  <option value="USDJPY">USDJPY</option>
-                  <option value="GER40">GER40</option>
-                  <option value="XAUUSD">XAUUSD</option>
-                  <option value="XAGUSD">XAGUSD</option>
+                  {executionItems.pairs.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
             </FormRow>  
@@ -1064,16 +1122,18 @@ function CreateTrade() {
                 <FormLabel>Direction</FormLabel>
                 <FormSelect name="direction" value={trade.direction} onChange={handleChange}>
                   <option value="">Select Direction</option>
-                  <option value="Long" style={{ backgroundColor: '#00ff00', color: '#000' }}>Long</option>
-                  <option value="Short" style={{ backgroundColor: '#ff0000', color: '#fff' }}>Short</option>
+                  {executionItems.directions.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
                 <FormLabel>Position Type</FormLabel>
                 <FormSelect name="positionType" value={trade.positionType} onChange={handleChange}>
                   <option value="">Select Position Type</option>
-                  <option value="Intraday">Intraday</option>
-                  <option value="Swing">Swing</option>
+                  {executionItems.positionType.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
@@ -1158,29 +1218,27 @@ function CreateTrade() {
                 <FormLabel>Session</FormLabel>
                 <FormSelect name="session" value={trade.session} onChange={handleChange}>
                   <option value="">Select Session</option>
-                  <option value="Asia" style={{ backgroundColor: '#0000ff', color: '#fff' }}>Asia</option>
-                  <option value="Frankfurt" style={{ backgroundColor: '#ff69b4', color: '#fff' }}>Frankfurt</option>
-                  <option value="London" style={{ backgroundColor: '#00ff00', color: '#000' }}>London</option>
-                  <option value="New York" style={{ backgroundColor: '#ffa500', color: '#fff' }}>New York</option>
+                  {executionItems.sessions.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
                 <FormLabel>Point A</FormLabel>
                 <FormSelect name="pointA" value={trade.pointA} onChange={handleChange}>
                   <option value="">Select Point A</option>
-                  <option value="Fractal Raid">Fractal Raid</option>
-                  <option value="FVG">FVG</option>
-                  <option value="SNR">SNR</option>
-                  <option value="RB">RB</option>
+                  {executionItems.pointA.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
                 <FormLabel>Trigger</FormLabel>
                 <FormSelect name="trigger" value={trade.trigger} onChange={handleChange}>
                   <option value="">Select Trigger</option>
-                  <option value="Fractal Swing">Fractal Swing</option>
-                  <option value="FVG">FVG</option>
-                  <option value="Fractal Swing + FVG">Fractal Swing + FVG</option>
+                  {executionItems.trigger.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
             </FormRow>
@@ -1189,17 +1247,19 @@ function CreateTrade() {
                 <FormLabel>Volume Confirmation</FormLabel>
                 <VolumeConfirmationContainer>
                   <VolumeConfirmationButton onClick={() => setShowVolumePopup(true)}>
-                    {trade.volumeConfirmation.length > 0 ? trade.volumeConfirmation.join(', ') : 'Select'}
+                    {Array.isArray(trade.volumeConfirmation) && trade.volumeConfirmation.length > 0
+                      ? trade.volumeConfirmation.join(', ') 
+                      : 'Select Volume Confirmation'}
                   </VolumeConfirmationButton>
                   {showVolumePopup && (
                     <VolumeConfirmationPopup>
-                      {['Inversion', 'FVG', 'SNR'].map((option) => (
+                      {executionItems.volumeConfirmation.map((item) => (
                         <VolumeOption
-                          key={option}
-                          selected={tempVolumeConfirmation.includes(option)}
-                          onClick={() => handleVolumeOptionClick(option)}
+                          key={item.id}
+                          selected={tempVolumeConfirmation.includes(item.name)}
+                          onClick={() => handleVolumeOptionClick(item.name)}
                         >
-                          {option}
+                          {item.name}
                         </VolumeOption>
                       ))}
                       <ConfirmButton onClick={handleVolumeConfirm}>Confirm</ConfirmButton>
@@ -1211,21 +1271,18 @@ function CreateTrade() {
                 <FormLabel>Entry Model</FormLabel>
                 <FormSelect name="entryModel" value={trade.entryModel} onChange={handleChange}>
                   <option value="">Select Entry Model</option>
-                  <option value="Inversion">Inversion</option>
-                  <option value="Displacement">Displacement</option>
-                  <option value="SNR">SNR</option>
-                  <option value="IDM">IDM</option>
+                  {executionItems.entryModel.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
                 <FormLabel>Entry TF</FormLabel>
                 <FormSelect name="entryTF" value={trade.entryTF} onChange={handleChange}>
                   <option value="">Select Entry TF</option>
-                  <option value="3m">3m</option>
-                  <option value="5m">5m</option>
-                  <option value="15m">15m</option>
-                  <option value="1h/30m">1h/30m</option>
-                  <option value="4h">4h</option>
+                  {executionItems.entryTF.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
             </FormRow>
@@ -1234,21 +1291,18 @@ function CreateTrade() {
                 <FormLabel>FTA</FormLabel>
                 <FormSelect name="fta" value={trade.fta} onChange={handleChange}>
                   <option value="">Select FTA</option>
-                  <option value="Fractal Swing">Fractal Swing</option>
-                  <option value="FVG">FVG</option>
-                  <option value="SNR">SNR</option>
-                  <option value="RB">RB</option>
+                  {executionItems.fta.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
                 <FormLabel>SL Position</FormLabel>
                 <FormSelect name="slPosition" value={trade.slPosition} onChange={handleChange}>
                   <option value="">Select SL Position</option>
-                  <option value="LTF/Lunch Manipulation">LTF/Lunch Manipulation</option>
-                  <option value="30m Raid">30m Raid</option>
-                  <option value="1h Raid">1h Raid</option>
-                  <option value="4h Raid">4h Raid</option>
-                  <option value="1D Raid">1D Raid</option>
+                  {executionItems.slPosition.map(item => (
+                    <option key={item.id} value={item.name}>{item.name}</option>
+                  ))}
                 </FormSelect>
               </FormField>
               <FormField>
