@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle, css } from 'styled-components';
+import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
 import { Link } from 'react-router-dom';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
@@ -70,6 +70,17 @@ const DatePickerStyles = createGlobalStyle`
   }
 `;
 
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
+const shineEffect = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
 const TradeJournalContainer = styled.div`
   max-width: 1820px;
   margin: 0 auto;
@@ -82,7 +93,9 @@ const TradeJournalContainer = styled.div`
 `;
 
 const Header = styled.header`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
   border-radius: 10px 10px 0 0;
   color: #fff;
@@ -97,6 +110,8 @@ const Header = styled.header`
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
 `;
 
@@ -140,11 +155,18 @@ const BackButton = styled.button`
 `;
 
 const Title = styled.h1`
-  margin: 0 auto;
+  margin: 0;
   font-size: 2.5em;
   color: #fff;
   text-align: center;
   z-index: 1;
+`;
+
+// Додаємо новий компонент для підзаголовка
+const Subtitle = styled.p`
+  color: #ff8c00;
+  margin-top: 10px;
+  font-size: 1em;
 `;
 
 const JournalContent = styled.div`
@@ -174,21 +196,45 @@ const ButtonGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
+  background-color: #5e2ca5;
   color: #fff;
   border: none;
-  padding: 10px 20px;
-  border-radius: 15px;
+  padding: 12px 20px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  height: 40px;
-  width: ${props => props.primary ? '240px' : 'auto'};
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.3s ease;
+  position: relative;
+  isolation: isolate;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    background-size: 200% 100%;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 
   &:hover {
+    background-color: #4a1a8d;
     transform: scale(1.05);
-    opacity: 0.9;
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
   }
 
   &:active {
@@ -949,6 +995,7 @@ function TradeJournal() {
         <Header>
           <BackButton onClick={handleBack} />
           <Title>Trading Journal</Title>
+          <Subtitle>Let's analyze your trades!</Subtitle>
         </Header>
         <JournalContent>
           <JournalHeader>

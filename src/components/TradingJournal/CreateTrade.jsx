@@ -78,6 +78,17 @@ const slideIn = keyframes`
   }
 `;
 
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
+const shineEffect = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
+
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
   margin: 20px auto;
@@ -89,7 +100,9 @@ const CreateTradeContainer = styled.div`
 `;
 
 const Header = styled.header`
-  background: conic-gradient(from 45deg, #7425c9, #b886ee);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
   border-radius: 10px 10px 0 0;
   color: #fff;
@@ -104,11 +117,13 @@ const Header = styled.header`
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
 `;
 
 const BackButton = styled.button`
-  background: conic-gradient(from 45deg, #7425c9, #b886ee);
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
   padding: 0;
   width: 200px;
@@ -147,7 +162,7 @@ const BackButton = styled.button`
 `;
 
 const Title = styled.h1`
-  margin: 0 auto;
+  margin: 0;
   font-size: 2.5em;
   color: #fff;
   text-align: center;
@@ -299,9 +314,8 @@ const FormButton = styled.button`
 const ButtonGroup = styled.div`
   display: flex;
   gap: 10px;
-  justify-content: flex-end;
+  align-items: center;
   margin-top: 20px;
-  width: 100%;
 `;
 
 const VolumeConfirmationContainer = styled.div`
@@ -363,10 +377,61 @@ const ConfirmButton = styled.button`
 `;
 
 const SectionTitle = styled.h2`
-  color: #5e2ca5;
+  color: rgb(92, 157, 245);
   margin: 20px 0 10px;
   font-size: 2em;
   text-align: center;
+`;
+
+const TimeframeHeader = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-bottom: 15px;
+`;
+
+const TimeframeIcon = styled.div`
+  width: 40px;
+  height: 40px;
+  background: linear-gradient(135deg, #7425C9, #B886EE);
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-weight: bold;
+  color: white;
+`;
+
+const ImageUploadArea = styled.div`
+  width: 94%;
+  border: 2px dashed #5e2ca5;
+  padding: 20px;
+  text-align: center;
+  cursor: pointer;
+  margin: 10px auto;
+  border-radius: 8px;
+  background: rgba(94, 44, 165, 0.1);
+  transition: all 0.3s ease;
+  position: relative;
+  min-height: 100px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    background: rgba(94, 44, 165, 0.2);
+    border-color: #7425C9;
+  }
+
+  img {
+    max-width: 100%;
+    max-height: 400px;
+    border-radius: 4px;
+  }
+
+  span {
+    color: #B886EE;
+  }
 `;
 
 const ScreenshotContainer = styled.div`
@@ -512,62 +577,83 @@ const IconButton = styled.button`
   }
 `;
 
-const DeleteScreenshotButton = styled.button`
-  background: conic-gradient(from 45deg, #7425c9, #b886ee);
-  border: none;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+const DeleteButton = styled.button`
   position: absolute;
   top: 10px;
   right: 10px;
+  width: 24px;
+  height: 24px;
+  background: #ff4757;
+  border: none;
+  border-radius: 50%;
+  color: white;
+  font-size: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
   opacity: 0;
-  transition: opacity 0.2s ease;
+  transition: all 0.3s ease;
+  z-index: 10;
 
-  &:hover {
-    filter: brightness(1.5);
+  ${ImageUploadArea}:hover & {
+    opacity: 1;
   }
 
-  img {
-    width: 16px;
-    height: 16px;
+  &:hover {
+    transform: scale(1.1);
+    background: #ff6b81;
   }
 `;
 
 const FullscreenModal = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
+  inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.9);
+  background: rgba(0, 0, 0, 0.95);
   display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
+  padding: 20px;
+  box-sizing: border-box;
+  transform: translateY(${props => props.scrollOffset}px); // Додаємо трансформацію
 `;
 
 const FullscreenImage = styled.img`
   max-width: 90%;
   max-height: 90%;
+  object-fit: contain;
+  border-radius: 4px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 `;
 
 const CloseButton = styled.button`
-  position: absolute;
+  position: fixed;
   top: 20px;
   right: 20px;
   background: conic-gradient(from 45deg, #7425c9, #b886ee);
   border: none;
-  padding: 10px;
+  width: 40px;
+  height: 40px;
   border-radius: 50%;
   cursor: pointer;
   color: #fff;
   font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+  z-index: 2001;
+
+  &:hover {
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
 `;
 
 const ModalOverlay = styled.div`
@@ -708,6 +794,53 @@ const StyledDatePicker = styled(DatePicker)`
   &:focus {
     outline: none;
     border-color: #B886EE;
+  }
+`;
+
+const ActionButton = styled.button`
+  background-color: #5e2ca5;
+  color: #fff;
+  border: none;
+  padding: 12px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.3s ease;
+  position: relative;
+  isolation: isolate;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    background-size: 200% 100%;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.05);
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 `;
 
@@ -936,11 +1069,14 @@ function CreateTrade() {
   };
 
   const openFullscreen = (src) => {
-    setFullscreenImage(src);
+    const scrollOffset = window.pageYOffset || document.documentElement.scrollTop;
+    setFullscreenImage({ src, scrollOffset });
+    document.body.style.overflow = 'hidden';
   };
 
   const closeFullscreen = () => {
     setFullscreenImage(null);
+    document.body.style.overflow = 'auto';
   };
 
   const openNotePopup = (index = null, event) => {
@@ -1333,32 +1469,46 @@ function CreateTrade() {
 
         <SectionTitle>Top Down Analysis</SectionTitle>
         <ScreenshotContainer>
-          {trade.topDownAnalysis.map((item, index) => (
+          {trade.topDownAnalysis.map((analysis, index) => (
             <ScreenshotField key={index}>
-              <ScreenshotTitle>{item.title}</ScreenshotTitle>
-              {!item.screenshot && (
-                <ScreenshotInput
-                  type="text"
-                  placeholder="Paste screenshot here (Ctrl+V)"
-                  onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
-                />
-              )}
-              {item.screenshot && (
-                <ScreenshotPreview
-                  src={item.screenshot}
-                  alt="Screenshot"
-                  onClick={() => openFullscreen(item.screenshot)}
-                />
-              )}
-              <TextArea
-                value={item.text}
-                onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
+              <TimeframeHeader>
+                <TimeframeIcon>
+                  {index === 0 ? 'D' : index === 1 ? 'H' : index === 2 ? 'H' : 'M'}
+                </TimeframeIcon>
+                <ScreenshotTitle>{analysis.title}</ScreenshotTitle>
+              </TimeframeHeader>
+              
+              <ImageUploadArea
+                onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
+              >
+                {analysis.screenshot ? (
+                  <>
+                    <img
+                      src={analysis.screenshot}
+                      alt={analysis.title}
+                      onClick={() => openFullscreen(analysis.screenshot)}
+                    />
+                    <DeleteButton onClick={() => deleteScreenshot('topDownAnalysis', index)}>
+                      ×
+                    </DeleteButton>
+                  </>
+                ) : (
+                  <span>📈 Paste Screenshot (Ctrl+V)</span>
+                )}
+              </ImageUploadArea>
+              
+              <input
+                type="file"
+                id={`tda-file-${index}`}
+                style={{ display: 'none' }}
+                onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'screenshot', e.target.files[0])}
               />
-              {item.screenshot && (
-                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('topDownAnalysis', index)}>
-                  <img src={DeleteIcon} alt="Delete" />
-                </DeleteScreenshotButton>
-              )}
+              
+              <TextArea
+                value={analysis.text}
+                onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
+                placeholder={`Enter ${analysis.title} analysis...`}
+              />
             </ScreenshotField>
           ))}
         </ScreenshotContainer>
@@ -1367,59 +1517,73 @@ function CreateTrade() {
           <div style={{ flex: 1 }}>
             <SectionTitle>Execution</SectionTitle>
             <ScreenshotField>
-              <ScreenshotTitle>Exit Moment</ScreenshotTitle>
-              {!trade.execution.screenshot && (
-                <ScreenshotInput
-                  type="text"
-                  placeholder="Paste screenshot here (Ctrl+V)"
-                  onPaste={(e) => handlePaste('execution', 0, e)}
-                />
-              )}
-              {trade.execution.screenshot && (
-                <ScreenshotPreview
-                  src={trade.execution.screenshot}
-                  alt="Screenshot"
-                  onClick={() => openFullscreen(trade.execution.screenshot)}
-                />
-              )}
+              <ImageUploadArea
+                onPaste={(e) => handlePaste('execution', 0, e)}
+              >
+                {trade.execution.screenshot ? (
+                  <>
+                    <img
+                      src={trade.execution.screenshot}
+                      alt="Execution Screenshot"
+                      onClick={() => openFullscreen(trade.execution.screenshot)}
+                    />
+                    <DeleteButton onClick={() => deleteScreenshot('execution', 0)}>
+                      ×
+                    </DeleteButton>
+                  </>
+                ) : (
+                  <span>📈 Paste Screenshot (Ctrl+V)</span>
+                )}
+              </ImageUploadArea>
+              
+              <input
+                type="file"
+                id="execution-file"
+                style={{ display: 'none' }}
+                onChange={(e) => handleScreenshotChange('execution', 0, 'screenshot', e.target.files[0])}
+              />
+              
               <TextArea
                 value={trade.execution.text}
                 onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
+                placeholder="Enter execution analysis..."
               />
-              {trade.execution.screenshot && (
-                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('execution', 0)}>
-                  <img src={DeleteIcon} alt="Delete" />
-                </DeleteScreenshotButton>
-              )}
             </ScreenshotField>
           </div>
           <div style={{ flex: 1 }}>
             <SectionTitle>Management</SectionTitle>
             <ScreenshotField>
-              <ScreenshotTitle>First Trouble Area</ScreenshotTitle>
-              {!trade.management.screenshot && (
-                <ScreenshotInput
-                  type="text"
-                  placeholder="Paste screenshot here (Ctrl+V)"
-                  onPaste={(e) => handlePaste('management', 0, e)}
-                />
-              )}
-              {trade.management.screenshot && (
-                <ScreenshotPreview
-                  src={trade.management.screenshot}
-                  alt="Screenshot"
-                  onClick={() => openFullscreen(trade.management.screenshot)}
-                />
-              )}
+              <ImageUploadArea
+                onPaste={(e) => handlePaste('management', 0, e)}
+              >
+                {trade.management.screenshot ? (
+                  <>
+                    <img
+                      src={trade.management.screenshot}
+                      alt="Management Screenshot"
+                      onClick={() => openFullscreen(trade.management.screenshot)}
+                    />
+                    <DeleteButton onClick={() => deleteScreenshot('management', 0)}>
+                      ×
+                    </DeleteButton>
+                  </>
+                ) : (
+                  <span>📈 Paste Screenshot (Ctrl+V)</span>
+                )}
+              </ImageUploadArea>
+              
+              <input
+                type="file"
+                id="management-file"
+                style={{ display: 'none' }}
+                onChange={(e) => handleScreenshotChange('management', 0, 'screenshot', e.target.files[0])}
+              />
+              
               <TextArea
                 value={trade.management.text}
                 onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
+                placeholder="Enter management analysis..."
               />
-              {trade.management.screenshot && (
-                <DeleteScreenshotButton className="delete-screenshot" onClick={() => deleteScreenshot('management', 0)}>
-                  <img src={DeleteIcon} alt="Delete" />
-                </DeleteScreenshotButton>
-              )}
             </ScreenshotField>
           </div>
         </Row>
@@ -1428,16 +1592,10 @@ function CreateTrade() {
           <div style={{ flex: 1 }}>
             <SectionTitle>Conclusion</SectionTitle>
             <ScreenshotField>
-              <ScreenshotTitle>Daily Performance Analysis</ScreenshotTitle>
-              <ScreenshotInput
-                type="text"
-                placeholder="YouTube video link"
-                value={trade.conclusion.videoLink}
-                onChange={(e) => handleScreenshotChange('conclusion', 0, 'videoLink', e.target.value)}
-              />
               <TextArea
                 value={trade.conclusion.text}
                 onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
+                placeholder="Enter your conclusion..."
               />
             </ScreenshotField>
           </div>
@@ -1493,15 +1651,23 @@ function CreateTrade() {
         )}
 
         {fullscreenImage && (
-          <FullscreenModal onClick={closeFullscreen}>
-            <FullscreenImage src={fullscreenImage} alt="Fullscreen Screenshot" />
-            <CloseButton>X</CloseButton>
+          <FullscreenModal 
+            onClick={closeFullscreen} 
+            role="dialog"
+            scrollOffset={fullscreenImage.scrollOffset}
+          >
+            <FullscreenImage 
+              src={fullscreenImage.src} 
+              alt="Fullscreen view" 
+              onClick={(e) => e.stopPropagation()}
+            />
+            <CloseButton onClick={closeFullscreen}>×</CloseButton>
           </FullscreenModal>
         )}
 
         <ButtonGroup>
-          <FormButton type="submit" onClick={handleSubmit}>Save Trade</FormButton>
-          <FormButton type="button" onClick={handleBack}>Cancel</FormButton>
+          <ActionButton onClick={handleSubmit}>Save Trade</ActionButton>
+          <ActionButton onClick={handleBack}>Cancel</ActionButton>
         </ButtonGroup>
       </TradeContent>
     </CreateTradeContainer>
