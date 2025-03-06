@@ -1086,15 +1086,12 @@ function CreateTrade() {
     const rect = button.getBoundingClientRect();
     const scrollY = window.scrollY;
     
-    // Розраховуємо позицію для popup
     let popupTop = scrollY + rect.bottom + 10;
     
-    // Перевіряємо, чи не виходить popup за межі екрану знизу
     const viewportHeight = window.innerHeight;
-    const popupHeight = 400; // Приблизна висота popup
+    const popupHeight = 400;
     
     if (rect.bottom + popupHeight > viewportHeight) {
-      // Якщо popup виходить за межі екрану знизу, показуємо його вище кнопки
       popupTop = scrollY + rect.top - popupHeight - 10;
     }
   
@@ -1110,7 +1107,6 @@ function CreateTrade() {
   
     setScrollPosition(popupTop);
     setShowNotePopup(true);
-    document.body.style.overflow = 'hidden';
   };
 
   const closeNotePopup = () => {
@@ -1118,7 +1114,6 @@ function CreateTrade() {
     setNoteTitle('');
     setNoteText('');
     setEditNoteIndex(null);
-    document.body.style.overflow = 'auto';
   };
 
   const saveNote = async () => {

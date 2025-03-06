@@ -27,6 +27,12 @@ const slideIn = keyframes`
   }
 `;
 
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
 // Global Styles
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -67,7 +73,10 @@ const Container = styled.div`
 `;
 
 const Header = styled.header`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
+  padding: 20px 0;
   border-radius: 10px 10px 0 0;
   color: #fff;
   position: fixed;
@@ -81,9 +90,9 @@ const Header = styled.header`
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 20px;
 `;
 
 const BackButton = styled.button`
@@ -1368,49 +1377,97 @@ function PreSessionFull() {
       setIsLoading(true);
       try {
         if (location.state?.sessionData) {
-          console.log('Received session data:', location.state.sessionData);
           setSessionData(location.state.sessionData);
-          // Добавляем загрузку chartProcesses
-          if (location.state.sessionData.chartProcesses) {
-            setChartProcesses(location.state.sessionData.chartProcesses);
-          }
-          if (location.state.sessionData.mindsetChecks) {
-            setMindsetChecks(location.state.sessionData.mindsetChecks);
-          }
-          if (location.state.sessionData.zoneQuotes) {
-            setZoneQuotes(location.state.sessionData.zoneQuotes);
-          }
-          if (location.state.sessionData.planOutcomeMatch) {
-            setPlanOutcomeMatch(location.state.sessionData.planOutcomeMatch);
-          }
-          if (location.state.sessionData.analysisData) {
-            setAnalysisData(location.state.sessionData.analysisData);
-          }
-        } else {
-          const currentDate = new Date().toISOString().split('T')[0];
-          const routine = await window.electronAPI.getDailyRoutine(currentDate);
-          
-          if (routine && routine.preSession) {
-            const entry = routine.preSession.find(e => String(e.id) === String(id));
-            if (entry) {
-              setSessionData(entry);
-              // Добавляем загрузку chartProcesses
-              if (entry.chartProcesses) {
-                setChartProcesses(entry.chartProcesses);
-              }
-              if (entry.mindsetChecks) {
-                setMindsetChecks(entry.mindsetChecks);
-              }
-              if (entry.zoneQuotes) {
-                setZoneQuotes(entry.zoneQuotes);
-              }
-              if (entry.planOutcomeMatch) {
-                setPlanOutcomeMatch(entry.planOutcomeMatch);
-              }
-              if (entry.analysisData) {
-                setAnalysisData(entry.analysisData);
-              }
+          // Ініціалізуємо початкові стани для нового запису
+          setAnalysisData({
+            newsScreenshots: [],
+            timeframes: {
+              weekly: { charts: [], notes: '' },
+              daily: { charts: [], notes: '' },
+              h4: { charts: [], notes: '' },
+              h1: { charts: [], notes: '' }
+            },
+            videoUrl: ''
+          });
+          setPlans({
+            planA: {
+              bias: '',
+              background: '',
+              what: '',
+              entry: '',
+              target: '',
+              invalidation: ''
+            },
+            planB: {
+              bias: '',
+              background: '',
+              what: '',
+              entry: '',
+              target: '',
+              invalidation: ''
             }
+          });
+          setChartProcesses([]);
+          setMindsetChecks({
+            anythingCanHappen: false,
+            futureKnowledge: false,
+            randomDistribution: false,
+            edgeDefinition: false,
+            uniqueMoments: false
+          });
+          setZoneQuotes([
+            { id: 1, text: "I objectively identify my edges", accepted: false },
+            { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
+            { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
+            { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
+            { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
+            { id: 6, text: "I predefine the risk of every trade", accepted: false },
+            { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
+          ]);
+        } else if (id) {
+          const presession = await window.electronAPI.getPresession(id);
+          if (presession) {
+            setSessionData({
+              id: presession.id,
+              date: presession.date,
+              pair: presession.pair,
+              narrative: presession.narrative,
+              execution: presession.execution,
+              outcome: presession.outcome,
+              planOutcome: presession.plan_outcome
+            });
+
+            // Встановлюємо дані аналізу
+            const timeframes = {
+              weekly: { notes: '', charts: [] },
+              daily: { notes: '', charts: [] },
+              h4: { notes: '', charts: [] },
+              h1: { notes: '', charts: [] }
+            };
+
+            // Заповнюємо дані з topDownAnalysis
+            presession.topDownAnalysis.forEach(analysis => {
+              if (timeframes[analysis.timeframe]) {
+                timeframes[analysis.timeframe].notes = analysis.notes;
+                timeframes[analysis.timeframe].charts = analysis.charts;
+              }
+            });
+
+            setAnalysisData({
+              newsScreenshots: presession.forex_factory_news || [],
+              timeframes,
+              videoUrl: presession.video_url || ''
+            });
+
+            // Встановлюємо інші дані
+            setPlans(presession.plans || []);
+            setChartProcesses(presession.chart_processes || []);
+            setMindsetChecks(presession.mindset_preparation || {});
+            setZoneQuotes(presession.the_zone || []);
+            setPlanOutcomeMatch({
+              checked: presession.plan_outcome,
+              timestamp: presession.updated_at
+            });
           }
         }
       } catch (error) {
@@ -1421,7 +1478,7 @@ function PreSessionFull() {
     };
 
     loadSessionData();
-  }, [location.state, id]);
+  }, [id, location.state]);
 
     // Обработчики для изображений
     const handleImageUpload = (section, type) => {
@@ -1537,43 +1594,48 @@ function PreSessionFull() {
       e.preventDefault();
       setIsLoading(true);
       try {
-        const currentDate = new Date().toISOString().split('T')[0];
-        const routine = await window.electronAPI.getDailyRoutine(currentDate);
-        
-        const updatedSessionData = {
-          ...sessionData,
-          mindsetChecks,
-          zoneQuotes,
-          planOutcome: planOutcomeMatch.checked,
-          planOutcomeMatch,
-          analysisData,
-          chartProcesses // Добавляем chartProcesses в сохраняемые данные
+        const presessionData = {
+          id: id || String(Date.now()),
+          date: sessionData.date,
+          pair: sessionData.pair,
+          narrative: sessionData.narrative,
+          execution: sessionData.execution,
+          outcome: sessionData.outcome,
+          plan_outcome: planOutcomeMatch.checked,
+          forex_factory_news: analysisData.newsScreenshots,
+          topDownAnalysis: [
+            {
+              timeframe: 'weekly',
+              notes: analysisData.timeframes.weekly.notes,
+              charts: analysisData.timeframes.weekly.charts
+            },
+            {
+              timeframe: 'daily',
+              notes: analysisData.timeframes.daily.notes,
+              charts: analysisData.timeframes.daily.charts
+            },
+            {
+              timeframe: 'h4',
+              notes: analysisData.timeframes.h4.notes,
+              charts: analysisData.timeframes.h4.charts
+            },
+            {
+              timeframe: 'h1',
+              notes: analysisData.timeframes.h1.notes,
+              charts: analysisData.timeframes.h1.charts
+            }
+          ],
+          video_url: analysisData.videoUrl,
+          plans: plans,
+          chart_processes: chartProcesses,
+          mindset_preparation: mindsetChecks,
+          the_zone: zoneQuotes
         };
-  
-        let updatedPreSession = [];
-        if (routine && routine.preSession) {
-          updatedPreSession = routine.preSession.map(entry =>
-            String(entry.id) === String(id) ? updatedSessionData : entry
-          );
-          
-          if (!updatedPreSession.some(entry => String(entry.id) === String(id))) {
-            updatedPreSession.push(updatedSessionData);
-          }
-        } else {
-          updatedPreSession = [updatedSessionData];
-        }
-  
-        await window.electronAPI.saveDailyRoutine({
-          date: currentDate,
-          preSession: updatedPreSession,
-          postSession: routine?.postSession || [],
-          emotions: routine?.emotions || [],
-          notes: routine?.notes || []
-        });
-  
+
+        await window.electronAPI.savePresession(presessionData);
         navigate('/daily-routine/pre-session');
       } catch (error) {
-        console.error('Error saving session data:', error);
+        console.error('Error saving presession data:', error);
       } finally {
         setIsLoading(false);
       }
@@ -1786,7 +1848,7 @@ function PreSessionFull() {
       handleImageFormClose();
     };
 
-    const handlePaste = (e, type, processId = null) => {
+    const handlePasteImage = (e, type, processId = null) => {
       const items = e.clipboardData?.items;
       if (!items) return;
       
@@ -2054,7 +2116,7 @@ function PreSessionFull() {
                   
                   <NewsSection
                     data={analysisData}
-                    onImagePaste={handlePaste}
+                    onImagePaste={handlePasteImage}
                     onImageRemove={handleRemoveImage}
                     onImageClick={handleImageClick}
                   />
@@ -2066,7 +2128,7 @@ function PreSessionFull() {
                         timeframe={timeframe}
                         data={data}
                         onNotesChange={handleNotesChange}
-                        onImagePaste={handlePaste}
+                        onImagePaste={handlePasteImage}
                         onImageRemove={(timeframe, index) => handleRemoveImage(timeframe, timeframe, index)}
                         onImageClick={handleImageClick}
                       />
@@ -2287,7 +2349,7 @@ function PreSessionFull() {
                           key={process.id}
                           process={process}
                           onTextChange={handleChartProcessChange}
-                          onImagePaste={handlePaste}
+                          onImagePaste={handlePasteImage}
                           onDelete={handleDeleteProcess}
                           onImageDelete={handleDeleteProcessImage}
                           onImageClick={handleImageClick}

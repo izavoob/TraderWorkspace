@@ -8,6 +8,7 @@ const ExecutionDB = require('./src/database/executionDB');
 let db = null;
 let accountsDB = null;
 let executionDB = null;
+let performanceDB = null;
 let vaultPath = null;
 let mainWindow = null;
 
@@ -39,6 +40,7 @@ async function initializeDatabase() {
   const dbPath = path.join(vaultPath, 'trades.db');
   const accountsDbPath = path.join(vaultPath, 'accounts.db');
   const executionDbPath = path.join(vaultPath, 'execution.db');
+  const performanceDbPath = path.join(vaultPath, 'performance.db');
   
   try {
     await fs.mkdir(vaultPath, { recursive: true });
@@ -53,6 +55,12 @@ async function initializeDatabase() {
     
     // Initialize execution database
     executionDB = new ExecutionDB(executionDbPath);
+
+    // Initialize performance database
+    performanceDB = new sqlite3.Database(performanceDbPath, (err) => {
+      if (err) throw new Error(`Performance database connection failed: ${err.message}`);
+      console.log('Performance database initialized at:', performanceDbPath);
+    });
 
     await new Promise((resolve, reject) => {
       db.serialize(() => {
@@ -102,6 +110,28 @@ async function initializeDatabase() {
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             tradeId TEXT,
             FOREIGN KEY (tradeId) REFERENCES trades(id)
+          )
+        `);
+
+        // 3. Створюємо таблицю presession
+        db.run(`
+          CREATE TABLE IF NOT EXISTS presession (
+            id TEXT PRIMARY KEY,
+            date TEXT NOT NULL,
+            pair TEXT,
+            narrative TEXT,
+            execution TEXT,
+            outcome TEXT,
+            plan_outcome INTEGER DEFAULT 0,
+            forex_factory_news TEXT,
+            topDownAnalysis TEXT,
+            video_url TEXT,
+            plans TEXT,
+            chart_processes TEXT,
+            mindset_preparation TEXT,
+            the_zone TEXT,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
           )
         `);
 
@@ -155,6 +185,41 @@ async function initializeDatabase() {
 
     // Перенумеровуємо trades після створення всіх таблиць
     await reorderTradeNumbers();
+
+    await new Promise((resolve, reject) => {
+      performanceDB.serialize(() => {
+        performanceDB.run(`
+          CREATE TABLE IF NOT EXISTS performance_analysis (
+            id TEXT PRIMARY KEY,
+            type TEXT NOT NULL,
+            startDate TEXT NOT NULL,
+            endDate TEXT NOT NULL,
+            weekNumber INTEGER,
+            monthNumber INTEGER,
+            quarterNumber INTEGER,
+            year INTEGER,
+            totalTrades INTEGER,
+            missedTrades INTEGER,
+            executionCoefficient REAL,
+            winrate REAL,
+            followingPlan INTEGER,
+            narrativeAccuracy REAL,
+            gainedRR REAL,
+            potentialRR REAL,
+            averageRR REAL,
+            profit REAL,
+            realisedPL REAL,
+            averagePL REAL,
+            averageLoss REAL,
+            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+          )
+        `, (err) => {
+          if (err) reject(new Error(`Table performance_analysis creation failed: ${err.message}`));
+        });
+      });
+      resolve();
+    });
 
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -594,9 +659,9 @@ ipcMain.handle('save-daily-routine', async (event, routine) => {
       `INSERT OR REPLACE INTO daily_routines (date, preSession, postSession, emotions, notes) VALUES (?, ?, ?, ?, ?)`,
       [
         routine.date,
-        JSON.stringify(routine.preSession || ''),
-        JSON.stringify(routine.postSession || ''),
-        JSON.stringify(routine.emotions || ''),
+        JSON.stringify(routine.preSession || '[]'),
+        JSON.stringify(routine.postSession || '[]'),
+        JSON.stringify(routine.emotions || '[]'),
         JSON.stringify(routine.notes || ''),
       ],
       (err) => {
@@ -790,4 +855,238 @@ ipcMain.handle('deleteExecutionItem', async (event, section, id) => {
     console.error('Error deleting execution item:', error);
     throw error;
   }
+});
+
+// Performance analysis handlers
+ipcMain.handle('savePerformanceAnalysis', async (event, analysis) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    const {
+      id, type, startDate, endDate, weekNumber, monthNumber,
+      quarterNumber, year, totalTrades, missedTrades,
+      executionCoefficient, winrate, followingPlan,
+      narrativeAccuracy, gainedRR, potentialRR, averageRR,
+      profit, realisedPL, averagePL, averageLoss
+    } = analysis;
+
+    performanceDB.run(`
+      INSERT OR REPLACE INTO performance_analysis (
+        id, type, startDate, endDate, weekNumber, monthNumber,
+        quarterNumber, year, totalTrades, missedTrades,
+        executionCoefficient, winrate, followingPlan,
+        narrativeAccuracy, gainedRR, potentialRR, averageRR,
+        profit, realisedPL, averagePL, averageLoss,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `, [
+      id, type, startDate, endDate, weekNumber, monthNumber,
+      quarterNumber, year, totalTrades, missedTrades,
+      executionCoefficient, winrate, followingPlan,
+      narrativeAccuracy, gainedRR, potentialRR, averageRR,
+      profit, realisedPL, averagePL, averageLoss
+    ], function(err) {
+      if (err) {
+        console.error('Error saving performance analysis:', err);
+        reject(err);
+      } else {
+        resolve(id);
+      }
+    });
+  });
+});
+
+ipcMain.handle('getPerformanceAnalyses', async (event, type) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    performanceDB.all(
+      'SELECT * FROM performance_analysis WHERE type = ? ORDER BY startDate DESC',
+      [type],
+      (err, rows) => {
+        if (err) {
+          console.error('Error getting performance analyses:', err);
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle('getPerformanceAnalysis', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    performanceDB.get(
+      'SELECT * FROM performance_analysis WHERE id = ?',
+      [id],
+      (err, row) => {
+        if (err) {
+          console.error('Error getting performance analysis:', err);
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      }
+    );
+  });
+});
+
+ipcMain.handle('updatePerformanceAnalysis', async (event, id, analysis) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    const {
+      type, startDate, endDate, weekNumber, monthNumber,
+      quarterNumber, year, totalTrades, missedTrades,
+      executionCoefficient, winrate, followingPlan,
+      narrativeAccuracy, gainedRR, potentialRR, averageRR,
+      profit, realisedPL, averagePL, averageLoss
+    } = analysis;
+
+    performanceDB.run(`
+      UPDATE performance_analysis SET
+        type = ?, startDate = ?, endDate = ?, weekNumber = ?,
+        monthNumber = ?, quarterNumber = ?, year = ?,
+        totalTrades = ?, missedTrades = ?, executionCoefficient = ?,
+        winrate = ?, followingPlan = ?, narrativeAccuracy = ?,
+        gainedRR = ?, potentialRR = ?, averageRR = ?,
+        profit = ?, realisedPL = ?, averagePL = ?,
+        averageLoss = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?
+    `, [
+      type, startDate, endDate, weekNumber, monthNumber,
+      quarterNumber, year, totalTrades, missedTrades,
+      executionCoefficient, winrate, followingPlan,
+      narrativeAccuracy, gainedRR, potentialRR, averageRR,
+      profit, realisedPL, averagePL, averageLoss, id
+    ], function(err) {
+      if (err) {
+        console.error('Error updating performance analysis:', err);
+        reject(err);
+      } else {
+        resolve(true);
+      }
+    });
+  });
+});
+
+ipcMain.handle('deletePerformanceAnalysis', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    performanceDB.run(
+      'DELETE FROM performance_analysis WHERE id = ?',
+      [id],
+      (err) => {
+        if (err) {
+          console.error('Error deleting performance analysis:', err);
+          reject(err);
+        } else {
+          resolve(true);
+        }
+      }
+    );
+  });
+});
+
+// Presession handlers
+ipcMain.handle('save-presession', async (event, presessionData) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    const {
+      id, date, pair, narrative, execution, outcome, plan_outcome,
+      forex_factory_news, topDownAnalysis, video_url, plans,
+      chart_processes, mindset_preparation, the_zone
+    } = presessionData;
+
+    db.run(`
+      INSERT OR REPLACE INTO presession (
+        id, date, pair, narrative, execution, outcome, plan_outcome,
+        forex_factory_news, topDownAnalysis, video_url, plans,
+        chart_processes, mindset_preparation, the_zone,
+        updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+    `, [
+      id, date, pair, narrative, execution, outcome, plan_outcome ? 1 : 0,
+      forex_factory_news, JSON.stringify(topDownAnalysis), video_url,
+      JSON.stringify(plans), JSON.stringify(chart_processes),
+      JSON.stringify(mindset_preparation), JSON.stringify(the_zone)
+    ], function(err) {
+      if (err) {
+        console.error('Error saving presession:', err);
+        reject(err);
+      } else {
+        resolve(id);
+      }
+    });
+  });
+});
+
+ipcMain.handle('get-presession', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.get('SELECT * FROM presession WHERE id = ?', [id], (err, row) => {
+      if (err) {
+        console.error('Error getting presession:', err);
+        reject(err);
+      } else if (row) {
+        // Перетворюємо JSON рядки назад в об'єкти
+        const presession = {
+          ...row,
+          plan_outcome: Boolean(row.plan_outcome),
+          topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
+          plans: JSON.parse(row.plans || '[]'),
+          chart_processes: JSON.parse(row.chart_processes || '[]'),
+          mindset_preparation: JSON.parse(row.mindset_preparation || '{}'),
+          the_zone: JSON.parse(row.the_zone || '{}')
+        };
+        resolve(presession);
+      } else {
+        resolve(null);
+      }
+    });
+  });
+});
+
+ipcMain.handle('get-all-presessions', async () => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.all('SELECT * FROM presession ORDER BY date DESC', [], (err, rows) => {
+      if (err) {
+        console.error('Error getting all presessions:', err);
+        reject(err);
+      } else {
+        const presessions = rows.map(row => ({
+          ...row,
+          plan_outcome: Boolean(row.plan_outcome),
+          topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
+          plans: JSON.parse(row.plans || '[]'),
+          chart_processes: JSON.parse(row.chart_processes || '[]'),
+          mindset_preparation: JSON.parse(row.mindset_preparation || '{}'),
+          the_zone: JSON.parse(row.the_zone || '{}')
+        }));
+        resolve(presessions);
+      }
+    });
+  });
+});
+
+ipcMain.handle('delete-presession', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    db.run('DELETE FROM presession WHERE id = ?', [id], (err) => {
+      if (err) {
+        console.error('Error deleting presession:', err);
+        reject(err);
+      } else {
+        // Також видаляємо пов'язані нотатки
+        db.run('DELETE FROM notes WHERE presessionId = ?', [id], (noteErr) => {
+          if (noteErr) {
+            console.error('Error deleting related notes:', noteErr);
+            reject(noteErr);
+          } else {
+            resolve(true);
+          }
+        });
+      }
+    });
+  });
 });

@@ -480,6 +480,7 @@ function Analytics() {
         const modalElement = document.querySelector('.modal-content');
         if (modalElement) {
           modalElement.scrollIntoView({
+            behavior: 'smooth',
             block: 'center'
           });
         }

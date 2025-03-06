@@ -11,7 +11,8 @@ import PreSessionFull from './components/PreSessionFull.jsx';
 import PostSessionJournal from './components/PostSessionJournal.jsx';
 import Placeholder from './components/Placeholder.jsx';
 import PerformanceAnalysis from './components/PerformanceAnalysis.jsx';
-import WPA from './components/PerformanceAnalysis/WPA.jsx';
+import WPA from './components/PerformanceAnalysis/WPA/WPA.jsx';
+import CreateWPA from './components/PerformanceAnalysis/WPA/CreateWPA.jsx';
 import MPA from './components/PerformanceAnalysis/MPA.jsx';
 import QPA from './components/PerformanceAnalysis/QPA.jsx';
 import YPA from './components/PerformanceAnalysis/YPA.jsx';
@@ -265,6 +266,7 @@ function App() {
             <Route path="/learning-section/notes" element={<Notes />} />
             <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
             <Route path="/performance-analysis/wpa" element={<WPA />} />
+            <Route path="/performance-analysis/wpa/create" element={<CreateWPA />} />
             <Route path="/performance-analysis/mpa" element={<MPA />} />
             <Route path="/performance-analysis/qpa" element={<QPA />} />
             <Route path="/performance-analysis/ypa" element={<YPA />} />

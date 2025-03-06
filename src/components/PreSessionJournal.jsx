@@ -1,11 +1,22 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
+const shineEffect = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -55,8 +66,8 @@ const DatePickerStyles = createGlobalStyle`
   }
 
   .react-datepicker__day--selected,
-  .react-datepicker__day--in-range {
-    background: linear-gradient(45deg, #7425C9, #B886EE);
+  .react-datepicker__day--keyboard-selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE);
     color: #fff;
   }
 
@@ -66,6 +77,28 @@ const DatePickerStyles = createGlobalStyle`
 
   .react-datepicker__navigation-icon::before {
     border-color: #B886EE;
+  }
+
+  .react-datepicker__time-container {
+    background-color: #2e2e2e;
+    border-left: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__time-box {
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item {
+    color: #fff;
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__time-list-item--selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE) !important;
   }
 `;
 
@@ -81,7 +114,9 @@ const DailyRoutineContainer = styled.div`
 `;
 
 const Header = styled.header`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
   border-radius: 10px 10px 0 0;
   color: #fff;
@@ -96,6 +131,8 @@ const Header = styled.header`
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
 `;
 
@@ -173,21 +210,45 @@ const ButtonGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
+  background-color: #5e2ca5;
   color: #fff;
   border: none;
-  padding: 10px 20px;
-  border-radius: 15px;
+  padding: 12px 20px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  height: 40px;
-  width: ${props => props.primary ? '240px' : 'auto'};
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.3s ease;
+  position: relative;
+  isolation: isolate;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    background-size: 200% 100%;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 
   &:hover {
+    background-color: #4a1a8d;
     transform: scale(1.05);
-    opacity: 0.9;
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
   }
 
   &:active {
@@ -352,23 +413,6 @@ const TableRow = styled.tr`
   }
 `;
 
-const AdditionalRow = styled(TableRow)`
-  background-color: rgba(92, 157, 245, 0.05) !important;
-
-  & > td {
-    background-color: rgba(92, 157, 245, 0.05) !important;
-    border-left: 2px solid #5C9DF5;
-    padding-left: 20px !important;
-  }
-
-  & > td:first-child::before {
-    content: '↳';
-    position: absolute;
-    left: 5px;
-    color: #5C9DF5;
-  }
-`;
-
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 5px;
@@ -399,11 +443,16 @@ const StyledDatePicker = styled(DatePicker)`
   background: #2e2e2e;
   border: 1px solid #5e2ca5;
   color: #fff;
-  padding: 11px;
+  padding: 8px;
   border-radius: 8px;
   width: 100%;
   cursor: pointer;
-  font-size: 11px;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
 `;
 
 const SelectAllContainer = styled.div`
@@ -499,7 +548,6 @@ function PreSessionJournal() {
   const [selectedEntries, setSelectedEntries] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [additionalPairs, setAdditionalPairs] = useState({});
 
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -534,86 +582,27 @@ function PreSessionJournal() {
   }, []);
 
   const loadData = async () => {
-    setIsLoading(true);
     try {
-      const currentDate = new Date().toISOString().split('T')[0];
-      const routine = await window.electronAPI.getDailyRoutine(currentDate);
+      setIsLoading(true);
+      const presessions = await window.electronAPI.getAllPresessions();
       
-      if (routine && routine.preSession) {
-        let processedData = Array.isArray(routine.preSession) 
-          ? routine.preSession.map(entry => ({
-              ...entry,
-              id: String(entry.id || Date.now())
-            }))
-          : [];
+      const processedData = presessions.map(presession => ({
+        id: presession.id,
+        date: presession.date,
+        weekDay: new Date(presession.date).toLocaleDateString('en-US', { weekday: 'long' }),
+        pair: presession.pair,
+        narrative: presession.narrative,
+        execution: presession.execution,
+        outcome: presession.outcome,
+        planOutcome: presession.planOutcome
+      }));
 
-        // Разделяем и сортируем записи
-        const mainEntries = processedData.filter(entry => !entry.isAdditional)
-          .sort((a, b) => new Date(b.date) - new Date(a.date));
-        const additionalEntries = processedData.filter(entry => entry.isAdditional);
-        
-        // Объединяем обратно в отсортированном порядке
-        processedData = [...mainEntries, ...additionalEntries];
-        
-        const additionalPairsState = {};
-        processedData.forEach(entry => {
-          if (entry.isAdditional && entry.parentId) {
-            if (!additionalPairsState[entry.parentId]) {
-              additionalPairsState[entry.parentId] = [];
-            }
-            additionalPairsState[entry.parentId].push(entry);
-          }
-        });
-        
-        setAdditionalPairs(additionalPairsState);
-        setData(processedData);
-      } else {
-        setData([]);
-      }
+      setData(processedData);
     } catch (error) {
-      console.error('Error in loadData:', error);
-      setData([]);
+      console.error('Error loading presessions:', error);
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleAddPair = (originalRow) => {
-    const newId = `${originalRow.id}_additional_${Date.now()}`;
-    const newRow = {
-      id: newId,
-      date: originalRow.date,
-      weekDay: originalRow.weekDay,
-      pair: '',
-      narrative: '',
-      execution: '',
-      outcome: '',
-      planOutcome: false,
-      isAdditional: true,
-      parentId: originalRow.id
-    };
-
-    setAdditionalPairs(prev => ({
-      ...prev,
-      [originalRow.id]: [...(prev[originalRow.id] || []), newRow]
-    }));
-
-    // Получаем все основные записи и сортируем их
-    const mainEntries = data.filter(item => !item.isAdditional)
-      .sort((a, b) => new Date(b.date) - new Date(a.date));
-    
-    // Получаем все дополнительные записи
-    const additionalEntries = data.filter(item => item.isAdditional);
-    
-    // Добавляем новую дополнительную запись
-    const updatedData = [...mainEntries, ...additionalEntries, newRow];
-    
-    window.electronAPI.saveDailyRoutine({
-      date: new Date().toISOString().split('T')[0],
-      preSession: updatedData,
-    }).then(() => {
-      setData(updatedData);
-    });
   };
 
   const handleFilterChange = (e) => {
@@ -653,7 +642,7 @@ function PreSessionJournal() {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedEntries(sortedAndFilteredEntries.map(entry => entry.id));
+      setSelectedEntries(data.map(entry => entry.id));
     } else {
       setSelectedEntries([]);
     }
@@ -661,49 +650,30 @@ function PreSessionJournal() {
 
   const handleDeleteSelected = async () => {
     try {
-      const updatedData = data.filter(entry => !selectedEntries.includes(entry.id));
-      await window.electronAPI.saveDailyRoutine({
-        date: new Date().toISOString().split('T')[0],
-        preSession: updatedData
-      });
-
-      const updatedAdditionalPairs = { ...additionalPairs };
-      selectedEntries.forEach(id => {
-        delete updatedAdditionalPairs[id];
-        Object.keys(updatedAdditionalPairs).forEach(parentId => {
-          updatedAdditionalPairs[parentId] = updatedAdditionalPairs[parentId].filter(
-            child => !selectedEntries.includes(child.id)
-          );
-        });
-      });
-
-      setAdditionalPairs(updatedAdditionalPairs);
-      setData(updatedData);
+      for (const id of selectedEntries) {
+        await window.electronAPI.deletePresession(id);
+      }
+      setData(prevData => prevData.filter(item => !selectedEntries.includes(item.id)));
       setSelectedEntries([]);
       setShowDeleteConfirmation(false);
     } catch (error) {
-      console.error('Error deleting entries:', error);
+      console.error('Error deleting selected presessions:', error);
     }
   };
 
   const handleAdd = () => {
     const newRecord = {
-      id: String(Date.now()),
+      id: Date.now().toString(),
       date: new Date().toISOString().split('T')[0],
-      weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+      weekDay: new Date().toLocaleDateString('en-US', { weekday: 'long' }),
       pair: '',
       narrative: '',
       execution: '',
       outcome: '',
-      planOutcome: false,
-      addPair: false
+      planOutcome: false
     };
 
-    setData(prevData => [newRecord, ...prevData]);
-    
-    navigate(`/daily-routine/pre-session/${newRecord.id}`, {
-      state: { sessionData: newRecord }
-    });
+    navigate('/daily-routine/pre-session/full', { state: { sessionData: newRecord } });
   };
 
   const handleEdit = (id) => {
@@ -720,36 +690,8 @@ function PreSessionJournal() {
 
   const handleDelete = async (id) => {
     try {
-      let updatedData = [...data];
-      const entryToDelete = data.find(entry => entry.id === id);
-
-      if (entryToDelete) {
-        if (entryToDelete.isAdditional) {
-          updatedData = data.filter(entry => entry.id !== id);
-          const updatedAdditionalPairs = { ...additionalPairs };
-          Object.keys(updatedAdditionalPairs).forEach(parentId => {
-            updatedAdditionalPairs[parentId] = updatedAdditionalPairs[parentId]?.filter(
-              child => child.id !== id
-            ) || [];
-          });
-          setAdditionalPairs(updatedAdditionalPairs);
-        } else {
-          const childrenIds = additionalPairs[id]?.map(child => child.id) || [];
-          updatedData = data.filter(entry => 
-            entry.id !== id && !childrenIds.includes(entry.id)
-          );
-          const updatedAdditionalPairs = { ...additionalPairs };
-          delete updatedAdditionalPairs[id];
-          setAdditionalPairs(updatedAdditionalPairs);
-        }
-      }
-
-      setData(updatedData);
-      await window.electronAPI.saveDailyRoutine({
-        date: new Date().toISOString().split('T')[0],
-        preSession: updatedData
-      });
-
+      await window.electronAPI.deletePresession(id);
+      setData(prevData => prevData.filter(entry => entry.id !== id));
       setDeletePopup(null);
     } catch (error) {
       console.error('Error deleting entry:', error);
@@ -779,32 +721,11 @@ function PreSessionJournal() {
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = React.useMemo(() => {
-    // Сначала получаем все основные записи (не дополнительные)
-    const mainEntries = filteredEntries.filter(entry => !entry.isAdditional);
-    
-    // Сортируем их по дате в обратном порядке (новые сверху)
-    const sortedMainEntries = [...mainEntries].sort((a, b) => {
+    return filteredEntries.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      return dateB - dateA;  // Всегда сортируем новые записи сверху
+      return dateB - dateA;  // Завжди сортуємо нові записи зверху
     });
-
-    // Получаем все дополнительные записи
-    const additionalEntriesData = filteredEntries.filter(entry => entry.isAdditional);
-
-    // Объединяем основные записи с их дополнительными парами
-    return sortedMainEntries.reduce((acc, mainEntry) => {
-      // Добавляем основную запись
-      acc.push(mainEntry);
-      
-      // Находим и добавляем все дополнительные записи для этой основной записи
-      const relatedAdditional = additionalEntriesData.filter(
-        entry => entry.parentId === mainEntry.id
-      );
-      acc.push(...relatedAdditional);
-      
-      return acc;
-    }, []);
   }, [filteredEntries, sortConfig]);
 
   const columns = React.useMemo(
@@ -852,17 +773,6 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              // Обновляем также additionalPairs, если это дочерняя строка
-              if (row.original.isAdditional && row.original.parentId) {
-                setAdditionalPairs(prev => {
-                  const updated = { ...prev };
-                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
-                    child.id === row.original.id ? { ...child, pair: e.target.value } : child
-                  );
-                  return updated;
-                });
-              }
-
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
@@ -905,21 +815,6 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              // Обновляем также additionalPairs, если это дочерняя строка
-              if (row.original.isAdditional && row.original.parentId) {
-                setAdditionalPairs(prev => {
-                  const updated = { ...prev };
-                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
-                    child.id === row.original.id ? { 
-                      ...child, 
-                      narrative: newNarrative,
-                      planOutcome: shouldCheck 
-                    } : child
-                  );
-                  return updated;
-                });
-              }
-
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
@@ -951,17 +846,6 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              // Обновляем также additionalPairs, если это дочерняя строка
-              if (row.original.isAdditional && row.original.parentId) {
-                setAdditionalPairs(prev => {
-                  const updated = { ...prev };
-                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
-                    child.id === row.original.id ? { ...child, execution: e.target.value } : child
-                  );
-                  return updated;
-                });
-              }
-
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
@@ -1008,21 +892,6 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              // Обновляем также additionalPairs, если это дочерняя строка
-              if (row.original.isAdditional && row.original.parentId) {
-                setAdditionalPairs(prev => {
-                  const updated = { ...prev };
-                  updated[row.original.parentId] = (updated[row.original.parentId] || []).map(child => 
-                    child.id === row.original.id ? { 
-                      ...child, 
-                      outcome: newOutcome,
-                      planOutcome: shouldCheck 
-                    } : child
-                  );
-                  return updated;
-                });
-              }
-
               window.electronAPI.saveDailyRoutine({
                 date: new Date().toISOString().split('T')[0],
                 preSession: updatedData,
@@ -1089,45 +958,8 @@ function PreSessionJournal() {
           );
         },
       },
-      {
-        Header: 'Add. Pair',
-        accessor: 'addPair',
-        width: 120,
-        Cell: ({ row }) => {
-          const isAdditional = row.original.isAdditional;
-          
-          if (isAdditional) {
-            return (
-              <div style={{ 
-                color: '#B886EE', 
-                textAlign: 'center',
-                fontSize: '12px',
-                fontStyle: 'italic'
-              }}>
-                Additional Pair
-              </div>
-            );
-          }
-          
-          return (
-            <div style={{ display: 'flex', justifyContent: 'center' }}>
-              <ActionButton
-                style={{
-                  padding: '4px 8px',
-                  height: 'auto',
-                  fontSize: '12px',
-                  background: '#5C9DF5'
-                }}
-                onClick={() => handleAddPair(row.original)}
-              >
-                Add
-              </ActionButton>
-            </div>
-          );
-        },
-      },
     ],
-    [data, selectedEntries, additionalPairs]
+    [data, selectedEntries]
   );
 
   const {
@@ -1331,52 +1163,14 @@ function PreSessionJournal() {
                 rows.map(row => {
                   prepareRow(row);
                   const isSelected = selectedEntries.includes(row.original.id);
-                  const isAdditional = row.original.isAdditional;
-
-                  if (isAdditional) {
-                    return null;
-                  }
-
                   return (
-                    <React.Fragment key={row.original.id}>
-                      <TableRow {...row.getRowProps()} selected={isSelected}>
-                        {row.cells.map(cell => (
-                          <TableCell {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                            {cell.render('Cell')}
-                          </TableCell>
-                        ))}
-                      </TableRow>
-                      {additionalPairs[row.original.id]?.map((additionalRow) => (
-                        <AdditionalRow key={additionalRow.id} selected={isSelected}>
-                          {columns.map((column, index) => {
-                            // Для даты и дня недели используем значения из родительской строки
-                            if (column.Header === 'Date' || column.Header === 'WeekDay') {
-                              return (
-                                <TableCell 
-                                  key={index} 
-                                  style={{ width: column.width }}
-                                >
-                                  {row.original[column.accessor]}
-                                </TableCell>
-                              );
-                            }
-                            
-                            // Для остальных колонок используем компонент Cell с данными дочерней строки
-                            return (
-                              <TableCell 
-                                key={index} 
-                                style={{ width: column.width }}
-                              >
-                                {column.Cell?.({ 
-                                  row: { original: additionalRow },
-                                  value: additionalRow[column.accessor]
-                                }) ?? additionalRow[column.accessor]}
-                              </TableCell>
-                            );
-                          })}
-                        </AdditionalRow>
+                    <TableRow key={row.original.id} {...row.getRowProps()} selected={isSelected}>
+                      {row.cells.map(cell => (
+                        <TableCell {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                          {cell.render('Cell')}
+                        </TableCell>
                       ))}
-                    </React.Fragment>
+                    </TableRow>
                   );
                 })
               )}

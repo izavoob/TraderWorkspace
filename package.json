@@ -70,6 +70,7 @@
     "type-fest": "^0.13.1",
     "undici-types": "^6.19.8",
     "universalify": "^0.1.2",
+    "uuid": "^11.1.0",
     "wrappy": "^1.0.2",
     "yauzl": "^2.10.0"
   },
