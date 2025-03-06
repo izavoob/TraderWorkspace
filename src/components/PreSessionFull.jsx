@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
+import DeleteIcon from '../assets/icons/delete-icon.svg';
+import EditIcon from '../assets/icons/edit-icon.svg';
 
 // Animations
 const fadeIn = keyframes`
@@ -114,6 +116,7 @@ const Title = styled.h1`
 `;
 
 const Content = styled.div`
+  margin-top: 148px;
   padding-top: 20px;
   position: relative;
   min-height: calc(100vh - 168px);
@@ -191,36 +194,67 @@ const NotesSection = styled(Section)`
   margin-top: 20px;
 `;
 
-const NewsSection = styled.div`
-  background: #2e2e2e;
-  border-radius: 15px;
-  padding: 25px;
-  border: 2px solid #5e2ca5;
-  margin-bottom: 20px;
+const NewsSection = ({ data, onImagePaste, onImageRemove, onImageClick }) => {
+  const [currentImage, setCurrentImage] = useState(data.newsScreenshots[0] || null);
 
-  h4 {
-    color: white;
-    margin: 0 0 15px 0;
-  }
-`;
+  const handlePaste = (e) => {
+    e.preventDefault();
+    onImagePaste(e, 'news');
+  };
+
+  useEffect(() => {
+    setCurrentImage(data.newsScreenshots[0] || null);
+  }, [data.newsScreenshots]);
+
+  return (
+    <div>
+      <h4>Forex Factory News</h4>
+      <ChartDropZone 
+        onPaste={handlePaste}
+        tabIndex="0"
+        role="button"
+        hasImage={!!currentImage}
+        aria-label="Paste News Screenshot"
+        onClick={() => currentImage && onImageClick(currentImage)}
+        style={{ cursor: currentImage ? 'pointer' : 'default' }}
+      >
+        {currentImage ? (
+          <>
+            <img 
+              src={currentImage} 
+              alt="News Screenshot"
+              onClick={(e) => {
+                e.stopPropagation();
+                onImageClick(currentImage);
+              }}
+            />
+            <RemoveImageButton
+              className="remove-image"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onImageRemove('news', 'news', 0);
+              }}
+            >
+              ×
+            </RemoveImageButton>
+          </>
+        ) : (
+          <div className="placeholder">
+            <span>📰 Paste News Screenshot</span>
+            <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
+          </div>
+        )}
+      </ChartDropZone>
+    </div>
+  );
+};
 
 const TimeframeContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
   gap: 20px;
   margin-top: 20px;
-`;
-
-const TimeframeBlock = styled.div`
-  background: #2e2e2e;
-  border-radius: 15px;
-  padding: 25px;
-  border: 2px solid #5e2ca5;
-  margin-bottom: 20px;
-
-  &:last-child {
-    margin-bottom: 0;
-  }
 `;
 
 const TimeframeHeader = styled.div`
@@ -811,7 +845,7 @@ const ProcessButton = styled.button`
 `;
 
 // Обновляем стиль ProcessCard - удаляем эффект hover и боковой скролл
-const ProcessCard = styled.div`
+const ProcessCardContainer = styled.div`
   background: #3e3e3e;
   border-radius: 8px;
   padding: 12px;
@@ -908,6 +942,287 @@ const ProcessTime = styled.div`
   margin-bottom: 10px;
 `;
 
+const ImageUploadForm = styled.form`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2e2e2e;
+  padding: 40px;
+  border-radius: 20px;
+  border: 2px solid #5e2ca5;
+  color: #fff;
+  z-index: 1002;
+  width: 80%;
+  max-width: 600px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+`;
+
+const DropZone = styled.div`
+  border: 2px dashed #5e2ca5;
+  border-radius: 10px;
+  padding: 40px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  background: ${props => props.isDragActive ? 'rgba(94, 44, 165, 0.1)' : 'transparent'};
+
+  &:hover {
+    border-color: #B886EE;
+    background: rgba(94, 44, 165, 0.1);
+  }
+`;
+
+const ImagePreview = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 15px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding: 10px;
+
+  img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #5e2ca5;
+  }
+`;
+
+// Обновляем стили для области вставки изображений
+const ChartDropZone = styled(ImageUploadArea)`
+  position: relative;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    cursor: pointer; // Добавляем курсор pointer для изображений
+  }
+
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: #B886EE;
+    opacity: ${props => props.hasImage ? 0 : 1};
+  }
+
+  &:hover .remove-image {
+    opacity: 1;
+  }
+`;
+
+const RemoveImageButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(255, 71, 87, 0.8);
+  border: none;
+  border-radius: 50%;
+  width: 24px;
+  height: 24px;
+  color: white;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  z-index: 2;
+
+  &:hover {
+    background: rgba(255, 71, 87, 1);
+  }
+`;
+
+// Обновляем TimeframeBlock компонент
+const TimeframeBlock = ({ timeframe, data, onNotesChange, onImagePaste, onImageRemove, onImageClick }) => {
+  const [currentImage, setCurrentImage] = useState(data.charts[0] || null);
+
+  const handlePaste = (e) => {
+    e.preventDefault();
+    onImagePaste(e, timeframe);
+  };
+
+  const handleRemove = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    onImageRemove(timeframe, 0);
+  };
+
+  useEffect(() => {
+    setCurrentImage(data.charts[0] || null);
+  }, [data.charts]);
+
+  return (
+    <div className="timeframe-block">
+      <TimeframeHeader>
+        <TimeframeIcon>{timeframe[0].toUpperCase()}</TimeframeIcon>
+        <h4>{timeframe.toUpperCase()}</h4>
+      </TimeframeHeader>
+      
+      <ChartDropZone 
+        onPaste={handlePaste}
+        tabIndex="0"
+        role="button"
+        hasImage={!!currentImage}
+        aria-label={`Paste ${timeframe.toUpperCase()} Chart`}
+        onClick={() => currentImage && onImageClick(currentImage)}
+        style={{ cursor: currentImage ? 'pointer' : 'default' }}
+      >
+        {currentImage ? (
+          <>
+            <img 
+              src={currentImage} 
+              alt={`${timeframe} Chart`}
+              onClick={(e) => {
+                e.stopPropagation();
+                onImageClick(currentImage);
+              }}
+            />
+            <RemoveImageButton
+              className="remove-image"
+              onClick={handleRemove}
+            >
+              ×
+            </RemoveImageButton>
+          </>
+        ) : (
+          <div className="placeholder">
+            <span>📈 Paste {timeframe.toUpperCase()} Chart</span>
+            <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
+          </div>
+        )}
+      </ChartDropZone>
+
+      <TextArea
+        placeholder={`Enter ${timeframe.toUpperCase()} analysis notes...`}
+        value={data.notes}
+        onChange={(e) => onNotesChange(timeframe, e.target.value)}
+      />
+    </div>
+  );
+};
+
+// Обновляем функцию handlePaste
+const handlePaste = (e, type, processId = null) => {
+  const items = e.clipboardData?.items;
+  if (!items) return;
+  
+  for (const item of items) {
+    if (item.type.indexOf('image') !== -1) {
+      const blob = item.getAsFile();
+      const reader = new FileReader();
+      
+      reader.onload = () => {
+        const imageData = reader.result;
+        
+        if (processId) {
+          // Для Chart Process
+          setChartProcesses(prev => prev.map(process => 
+            process.id === processId ? { ...process, image: imageData } : process
+          ));
+        } else if (type === 'news') {
+          // Для News Screenshots
+          setAnalysisData(prev => ({
+            ...prev,
+            newsScreenshots: [imageData] // Храним только одно изображение
+          }));
+        } else {
+          // Для таймфреймов
+          setAnalysisData(prev => ({
+            ...prev,
+            timeframes: {
+              ...prev.timeframes,
+              [type]: {
+                ...prev.timeframes[type],
+                charts: [imageData] // Храним только одно изображение
+              }
+            }
+          }));
+        }
+      };
+      
+      reader.readAsDataURL(blob);
+      break;
+    }
+  }
+};
+
+// Обновляем ProcessImageUpload компонент
+const ProcessCard = ({ process, onTextChange, onImagePaste, onDelete, onImageDelete, onImageClick }) => {
+  const handlePaste = (e) => {
+    e.preventDefault();
+    onImagePaste(e, null, process.id);
+  };
+
+  return (
+    <ProcessCardContainer>
+      <DeleteButton onClick={() => onDelete(process.id)} title="Delete process">
+        ×
+      </DeleteButton>
+      <ProcessTime>{process.time}</ProcessTime>
+      <ProcessTextArea
+        value={process.text}
+        onChange={(e) => onTextChange(process.id, e.target.value)}
+        placeholder="Enter your process notes..."
+      />
+      <ChartDropZone 
+        onPaste={handlePaste}
+        hasImage={!!process.image}
+        tabIndex="0"
+        role="button"
+        aria-label="Paste chart screenshot"
+        style={{ width: '90%', cursor: process.image ? 'pointer' : 'default' }}
+        onClick={() => process.image && onImageClick(process.image)}
+      >
+        {process.image ? (
+          <>
+            <img 
+              src={process.image} 
+              alt="Process Screenshot"
+              onClick={(e) => {
+                e.stopPropagation();
+                onImageClick(process.image);
+              }}
+            />
+            <RemoveImageButton
+              className="remove-image"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                onImageDelete(process.id);
+              }}
+            >
+              ×
+            </RemoveImageButton>
+          </>
+        ) : (
+          <div className="placeholder">
+            <span>📈 Paste Chart Screenshot (Ctrl + V)</span>
+            <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
+          </div>
+        )}
+      </ChartDropZone>
+    </ProcessCardContainer>
+  );
+};
+
+// Обновляем секцию с таймфреймами в основном компоненте
 function PreSessionFull() {
   const location = useLocation();
   const { id } = useParams();
@@ -979,6 +1294,75 @@ function PreSessionFull() {
 
   const [chartProcesses, setChartProcesses] = useState([]);
 
+  const [showImageForm, setShowImageForm] = useState(false);
+  const [currentUploadSection, setCurrentUploadSection] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+
+  const [notes, setNotes] = useState([]);
+  const [showNotePopup, setShowNotePopup] = useState(false);
+  const [noteTitle, setNoteTitle] = useState('');
+  const [noteText, setNoteText] = useState('');
+  const [editNoteIndex, setEditNoteIndex] = useState(null);
+
+  const openNotePopup = (index = null) => {
+    if (!sessionData?.id) {
+      console.error('No session ID available');
+      return;
+    }
+  
+    if (index !== null) {
+      const note = notes[index];
+      setNoteTitle(note.title);
+      setNoteText(note.content); // Изменено с note.text на note.content
+      setEditNoteIndex(index);
+    } else {
+      setNoteTitle('');
+      setNoteText('');
+      setEditNoteIndex(null);
+    }
+  
+    setShowNotePopup(true);
+    document.body.style.overflow = 'hidden';
+  };
+
+  const closeNotePopup = () => {
+    setShowNotePopup(false);
+    setNoteTitle('');
+    setNoteText('');
+    setEditNoteIndex(null);
+    document.body.style.overflow = 'auto';
+  };
+
+  const saveNote = async () => {
+    if (noteTitle && noteText) {
+      const note = { 
+        title: noteTitle, 
+        text: noteText,
+        tradeId: trade.id
+      };
+
+      try {
+        const noteId = await window.electronAPI.saveNoteWithTrade(note);
+        setNotes(prev => [...prev, { ...note, id: noteId }]);
+        closeNotePopup();
+      } catch (error) {
+        console.error('Error saving note:', error);
+        alert('Failed to save note');
+      }
+    }
+  };
+
+  const deleteNote = async (id) => {
+    try {
+      await window.electronAPI.deleteNote(id);
+      setNotes(prev => prev.filter(note => note.id !== id));
+    } catch (error) {
+      console.error('Error deleting note:', error);
+      alert('Failed to delete note');
+    }
+  };
+
   useEffect(() => {
     const loadSessionData = async () => {
       setIsLoading(true);
@@ -1038,6 +1422,7 @@ function PreSessionFull() {
 
     loadSessionData();
   }, [location.state, id]);
+
     // Обработчики для изображений
     const handleImageUpload = (section, type) => {
       const input = document.createElement('input');
@@ -1082,24 +1467,21 @@ function PreSessionFull() {
     };
   
     const handleRemoveImage = (section, type, index) => {
+      // Предотвращаем всплытие события
       setAnalysisData(prev => {
         if (type === 'news') {
-          const newScreenshots = [...prev.newsScreenshots];
-          newScreenshots.splice(index, 1);
           return {
             ...prev,
-            newsScreenshots: newScreenshots
+            newsScreenshots: []
           };
         } else {
-          const newCharts = [...prev.timeframes[type].charts];
-          newCharts.splice(index, 1);
           return {
             ...prev,
             timeframes: {
               ...prev.timeframes,
               [type]: {
                 ...prev.timeframes[type],
-                charts: newCharts
+                charts: []
               }
             }
           };
@@ -1209,7 +1591,7 @@ function PreSessionFull() {
         /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^#\&\?]*).*/,
         /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
       ];
-  
+
       for (const pattern of patterns) {
         const match = url.match(pattern);
         if (match && match[1]?.length === 11) return match[1];
@@ -1217,17 +1599,17 @@ function PreSessionFull() {
       
       return null;
     };
-  
-    const handleEmbedVideo = () => {
-      const videoId = getYouTubeVideoId(analysisData.videoUrl);
-      if (videoId) {
-        setEmbedVideo(true);
+
+    const handleVideoOpen = () => {
+      if (analysisData.videoUrl) {
+        window.open(analysisData.videoUrl, '_blank');
       }
     };
 
-    const handleImageClick = (image, e) => {
-      e.stopPropagation(); // Предотвращаем всплытие события
-      setSelectedImage(image);
+    const handleImageClick = (image) => {
+      if (image) {
+        setSelectedImage(image);
+      }
     };
   
     const handleCloseModal = () => {
@@ -1323,6 +1705,129 @@ function PreSessionFull() {
       setChartProcesses(prev => prev.map(process => 
         process.id === processId ? { ...process, image: null } : process
       ));
+    };
+
+    const handleImageFormOpen = (section, type) => {
+      setCurrentUploadSection({ section, type });
+      setShowImageForm(true);
+      setSelectedFiles([]);
+    };
+  
+    const handleImageFormClose = () => {
+      setShowImageForm(false);
+      setCurrentUploadSection(null);
+      setSelectedFiles([]);
+    };
+  
+    const handleDrag = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (e.type === "dragenter" || e.type === "dragover") {
+        setDragActive(true);
+      } else {
+        setDragActive(false);
+      }
+    };
+  
+    const handleDrop = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      setDragActive(false);
+  
+      const files = [...e.dataTransfer.files];
+      handleFiles(files);
+    };
+  
+    const handleFiles = async (files) => {
+      const imageFiles = files.filter(file => file.type.startsWith('image/'));
+      const imagePromises = imageFiles.map(file => {
+        return new Promise((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result);
+          reader.readAsDataURL(file);
+        });
+      });
+  
+      const images = await Promise.all(imagePromises);
+      setSelectedFiles(prev => [...prev, ...images]);
+    };
+  
+    const handleFileSelect = (e) => {
+      const files = [...e.target.files];
+      handleFiles(files);
+    };
+  
+    const handleImageUploadSubmit = (e) => {
+      e.preventDefault();
+      if (!currentUploadSection) return;
+  
+      const { section, type } = currentUploadSection;
+      
+      setAnalysisData(prev => {
+        if (type === 'news') {
+          return {
+            ...prev,
+            newsScreenshots: [...prev.newsScreenshots, ...selectedFiles]
+          };
+        } else {
+          return {
+            ...prev,
+            timeframes: {
+              ...prev.timeframes,
+              [type]: {
+                ...prev.timeframes[type],
+                charts: [...prev.timeframes[type].charts, ...selectedFiles]
+              }
+            }
+          };
+        }
+      });
+  
+      handleImageFormClose();
+    };
+
+    const handlePaste = (e, type, processId = null) => {
+      const items = e.clipboardData?.items;
+      if (!items) return;
+      
+      for (const item of items) {
+        if (item.type.indexOf('image') !== -1) {
+          const blob = item.getAsFile();
+          const reader = new FileReader();
+          
+          reader.onload = () => {
+            const imageData = reader.result;
+            
+            if (processId) {
+              // Для Chart Process
+              setChartProcesses(prev => prev.map(process => 
+                process.id === processId ? { ...process, image: imageData } : process
+              ));
+            } else if (type === 'news') {
+              // Для News Screenshots
+              setAnalysisData(prev => ({
+                ...prev,
+                newsScreenshots: [imageData] // Храним только одно изображение
+              }));
+            } else {
+              // Для таймфреймов
+              setAnalysisData(prev => ({
+                ...prev,
+                timeframes: {
+                  ...prev.timeframes,
+                  [type]: {
+                    ...prev.timeframes[type],
+                    charts: [imageData] // Храним только одно изображение
+                  }
+                }
+              }));
+            }
+          };
+          
+          reader.readAsDataURL(blob);
+          break;
+        }
+      }
     };
 
     if (isLoading) {
@@ -1547,57 +2052,24 @@ function PreSessionFull() {
                 <MainAnalysisSection>
                   <SectionTitle>PRE-SESSION Analysis</SectionTitle>
                   
-                  <NewsSection>
-                    <h4>Forex Factory News</h4>
-                    <ImageUploadArea onClick={() => handleImageUpload('news', 'news')}>
-                      <span>📸 Upload News Screenshots</span>
-                    </ImageUploadArea>
-                    <ImageGrid>
-                      {analysisData.newsScreenshots.map((img, index) => (
-                        <ImageContainer key={`news-${index}`} onClick={(e) => handleImageClick(img, e)}>
-                          <img src={img} alt={`News ${index + 1}`} />
-                          <button onClick={(e) => {
-                            e.stopPropagation();
-                            handleRemoveImage('news', 'news', index);
-                          }}>×</button>
-                        </ImageContainer>
-                      ))}
-                    </ImageGrid>
-                  </NewsSection>
+                  <NewsSection
+                    data={analysisData}
+                    onImagePaste={handlePaste}
+                    onImageRemove={handleRemoveImage}
+                    onImageClick={handleImageClick}
+                  />
   
                   <TimeframeContainer>
                     {Object.entries(analysisData.timeframes).map(([timeframe, data]) => (
-                      <TimeframeBlock key={timeframe}>
-                        <TimeframeHeader>
-                          <TimeframeIcon>{timeframe[0].toUpperCase()}</TimeframeIcon>
-                          <h4>{timeframe.toUpperCase()}</h4>
-                        </TimeframeHeader>
-                        
-                        <ImageUploadArea onClick={() => handleImageUpload('timeframe', timeframe)}>
-                          <span>📈 Upload {timeframe.toUpperCase()} Charts</span>
-                        </ImageUploadArea>
-                        
-                        <ImageGrid>
-                          {data.charts.map((chart, index) => (
-                            <ImageContainer 
-                              key={`${timeframe}-${index}`} 
-                              onClick={(e) => handleImageClick(chart, e)}
-                            >
-                              <img src={chart} alt={`${timeframe} Chart ${index + 1}`} />
-                              <button onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveImage(timeframe, timeframe, index);
-                              }}>×</button>
-                            </ImageContainer>
-                          ))}
-                        </ImageGrid>
-  
-                        <TextArea
-                          placeholder={`Enter ${timeframe.toUpperCase()} analysis notes...`}
-                          value={data.notes}
-                          onChange={(e) => handleNotesChange(timeframe, e.target.value)}
-                        />
-                      </TimeframeBlock>
+                      <TimeframeBlock
+                        key={timeframe}
+                        timeframe={timeframe}
+                        data={data}
+                        onNotesChange={handleNotesChange}
+                        onImagePaste={handlePaste}
+                        onImageRemove={(timeframe, index) => handleRemoveImage(timeframe, timeframe, index)}
+                        onImageClick={handleImageClick}
+                      />
                     ))}
                   </TimeframeContainer>
                 </MainAnalysisSection>
@@ -1616,47 +2088,83 @@ function PreSessionFull() {
                               ...prev,
                               videoUrl: e.target.value
                             }));
-                            setEmbedVideo(false); // Сбрасываем при изменении URL
                           }}
                           style={{ flex: 1 }}
                         />
                         <EmbedButton 
                           type="button" 
-                          onClick={handleEmbedVideo}
-                          disabled={!getYouTubeVideoId(analysisData.videoUrl)}
+                          onClick={handleVideoOpen}
+                          disabled={!analysisData.videoUrl}
                         >
-                          Embed Video
+                          View
                         </EmbedButton>
                       </VideoUrlContainer>
-                      
-                      {embedVideo && analysisData.videoUrl && (
-                        <VideoContainer>
-                          <iframe
-                            width="100%"
-                            height="100%"
-                            src={`https://www.youtube.com/embed/${getYouTubeVideoId(analysisData.videoUrl)}`}
-                            frameBorder="0"
-                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                            allowFullScreen
-                          />
-                        </VideoContainer>
-                      )}
                     </FormGroup>
                   </VideoSection>
   
                   <NotesSection>
                     <SectionTitle>Notes</SectionTitle>
-                    <FormGroup>
-                      <TextArea
-                        placeholder="Enter your overall analysis and thoughts..."
-                        value={analysisData.overallThoughts}
-                        onChange={(e) => setAnalysisData(prev => ({
-                          ...prev,
-                          overallThoughts: e.target.value
-                        }))}
-                        style={{ minHeight: '200px' }}
-                      />
-                    </FormGroup>
+                    <NoteContainer>
+                      {notes.map((note, index) => (
+                        <NoteItem key={note.id} onClick={() => openNotePopup(index)}>
+                          <NoteText>{note.title}</NoteText>
+                          <IconButton 
+                            className="edit" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openNotePopup(index);
+                            }}
+                          >
+                            <img src={EditIcon} alt="Edit" />
+                          </IconButton>
+                          <IconButton 
+                            className="delete" 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              deleteNote(note.id);
+                            }}
+                          >
+                            <img src={DeleteIcon} alt="Delete" />
+                          </IconButton>
+                        </NoteItem>
+                      ))}
+                      <ProcessButton 
+                        type="button"  // Обязательно указываем type="button"
+                        onClick={() => openNotePopup(null)}
+                      >
+                        Add Note
+                      </ProcessButton>
+                    </NoteContainer>
+              
+                    {showNotePopup && (
+                      <ModalOverlay onClick={closeNotePopup}>
+                        <NotePopup onClick={e => e.stopPropagation()}>
+                          <NotePopupTitle>
+                            {editNoteIndex !== null ? 'Edit Note' : 'Add Note'}
+                          </NotePopupTitle>
+                          <NotePopupInput
+                            type="text"
+                            placeholder="Enter note title"
+                            value={noteTitle}
+                            onChange={(e) => setNoteTitle(e.target.value)}
+                          />
+                          <NotePopupTextArea
+                            placeholder="Enter note text"
+                            value={noteText}
+                            onChange={(e) => setNoteText(e.target.value)}
+                          />
+                          <NotePopupButtons>
+                            <ProcessButton onClick={saveNote}>Save</ProcessButton>
+                            <ProcessButton onClick={closeNotePopup}>Cancel</ProcessButton>
+                            {editNoteIndex !== null && (
+                              <ProcessButton onClick={() => deleteNote(notes[editNoteIndex].id)}>
+                                Delete
+                              </ProcessButton>
+                            )}
+                          </NotePopupButtons>
+                        </NotePopup>
+                      </ModalOverlay>
+                    )}
                   </NotesSection>
                 </div>
               </AnalyticsLayout>
@@ -1775,49 +2283,15 @@ function PreSessionFull() {
                     </ProcessButton>
                     <ProcessList>
                       {chartProcesses.map(process => (
-                        <ProcessCard key={process.id}>
-                          <DeleteButton 
-                            onClick={() => handleDeleteProcess(process.id)}
-                            title="Delete process"
-                          >
-                            ×
-                          </DeleteButton>
-                          <ProcessTime>{process.time}</ProcessTime>
-                          <ProcessTextArea
-                            value={process.text}
-                            onChange={(e) => handleChartProcessChange(process.id, e.target.value)}
-                            placeholder="Enter your process notes..."
-                          />
-                          <ProcessImageUpload 
-                            onClick={() => process.image ? setSelectedImage(process.image) : handleProcessImageUpload(process.id)}
-                            hasImage={!!process.image}
-                          >
-                            {process.image ? (
-                              <>
-                                <img 
-                                  src={process.image} 
-                                  alt="Process Screenshot"
-                                />
-                                <DeleteButton 
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleDeleteProcessImage(process.id);
-                                  }}
-                                  style={{ 
-                                    top: '5px', 
-                                    right: '5px',
-                                    background: 'rgba(255, 71, 87, 0.8)'
-                                  }}
-                                  title="Delete screenshot"
-                                >
-                                  ×
-                                </DeleteButton>
-                              </>
-                            ) : (
-                              <span>📈 Add Chart Screenshot</span>
-                            )}
-                          </ProcessImageUpload>
-                        </ProcessCard>
+                        <ProcessCard
+                          key={process.id}
+                          process={process}
+                          onTextChange={handleChartProcessChange}
+                          onImagePaste={handlePaste}
+                          onDelete={handleDeleteProcess}
+                          onImageDelete={handleDeleteProcessImage}
+                          onImageClick={handleImageClick}
+                        />
                       ))}
                     </ProcessList>
                   </ProcessColumn>
@@ -1850,8 +2324,184 @@ function PreSessionFull() {
             />
           </ImageModal>
         )}
+        {showImageForm && (
+          <>
+            <div
+              style={{
+                position: 'fixed',
+                top: 0,
+                left: 0,
+                right: 0,
+                bottom: 0,
+                background: 'rgba(0, 0, 0, 0.8)',
+                zIndex: 1001
+              }}
+              onClick={handleImageFormClose}
+            />
+            <ImageUploadForm onSubmit={handleImageUploadSubmit}>
+              <SectionTitle>Upload Images</SectionTitle>
+              <DropZone
+                isDragActive={dragActive}
+                onDragEnter={handleDrag}
+                onDragLeave={handleDrag}
+                onDragOver={handleDrag}
+                onDrop={handleDrop}
+                onClick={() => document.getElementById('file-upload').click()}
+              >
+                <p>Drag and drop images here or click to select</p>
+                <input
+                  id="file-upload"
+                  type="file"
+                  multiple
+                  accept="image/*"
+                  onChange={handleFileSelect}
+                  style={{ display: 'none' }}
+                />
+              </DropZone>
+    
+              {selectedFiles.length > 0 && (
+                <ImagePreview>
+                  {selectedFiles.map((file, index) => (
+                    <img key={index} src={file} alt={`Preview ${index + 1}`} />
+                  ))}
+                </ImagePreview>
+              )}
+    
+              <ButtonGroup>
+                <Button type="button" onClick={handleImageFormClose}>Cancel</Button>
+                <Button type="submit" primary>Upload</Button>
+              </ButtonGroup>
+            </ImageUploadForm>
+          </>
+        )}
       </>
     );
   }
   
   export default PreSessionFull;
+
+// Добавляем styled-components для Notes (такие же как в CreateTrade)
+const NoteContainer = styled.div`
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+`;
+
+const NoteItem = styled.div`
+  background-color: #2e2e2e;
+  padding: 10px;
+  border-radius: 5px;
+  border: 1px solid #5e2ca5;
+  margin-bottom: 10px;
+  cursor: pointer;
+  position: relative;
+  width: 100%;
+  max-width: 400px;
+`;
+
+const NoteText = styled.p`
+  margin: 0;
+  color: #fff;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-align: center;
+`;
+
+const IconButton = styled.button`
+  background: conic-gradient(from 45deg, #7425c9, #b886ee);
+  border: none;
+  cursor: pointer;
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  position: absolute;
+  top: 10px;
+
+  &:hover {
+    filter: brightness(1.5);
+  }
+
+  img {
+    width: 16px;
+    height: 16px;
+  }
+
+  &.edit {
+    right: 40px;
+  }
+
+  &.delete {
+    right: 10px;
+  }
+`;
+
+const ModalOverlay = styled.div`
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  z-index: 1001;
+  overflow-y: auto;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+`;
+
+const NotePopup = styled.div`
+  width: calc(100% - 60px);
+  max-height: 80vh;
+  background-color: #2e2e2e;
+  padding: 20px;
+  border-radius: 10px 10px 0 0;
+  border: 2px solid #5e2ca5;
+  border-bottom: none;
+  color: #fff;
+  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
+  margin: 0 100px 100px 100px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  overflow: hidden;
+  animation: ${fadeIn} 0.3s ease;
+  align-items: center;
+`;
+
+const NotePopupTitle = styled.h3`
+  color: #fff;
+  margin: 0 0 10px;
+  text-align: center;
+`;
+
+const NotePopupInput = styled.input`
+  padding: 8px;
+  background-color: #3e3e3e;
+  color: #fff;
+  border: 1px solid #5e2ca5;
+  border-radius: 5px;
+  width: 100%;
+  text-align: center;
+`;
+
+const NotePopupTextArea = styled.textarea`
+  padding: 8px;
+  background-color: #3e3e3e;
+  color: #fff;
+  border: 1px solid #5e2ca5;
+  border-radius: 5px;
+  width: 100%;
+  flex-grow: 1;
+  text-align: center;
+`;
+
+const NotePopupButtons = styled.div`
+  display: flex;
+  gap: 10px;
+  justify-content: center;
+  width: 100%;
+`;
