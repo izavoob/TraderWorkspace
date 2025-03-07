@@ -183,6 +183,15 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
+const Subtitle = styled.h2`
+  margin: 5px auto 0;
+  font-size: 1.2em;
+  color: #ff8c00;
+  text-align: center;
+  z-index: 1;
+  font-weight: normal;
+`;
+
 const JournalContent = styled.div`
   margin-top: 30px;
   padding-top: 20px;
@@ -981,6 +990,7 @@ function PreSessionJournal() {
         <Header>
           <BackButton onClick={handleBack} />
           <Title>Pre-Session Analysis Journal</Title>
+          <Subtitle>Let's plan your trades!</Subtitle>
         </Header>
         <JournalContent>
           <JournalHeader>

@@ -4,6 +4,8 @@ const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
 const AccountsDB = require('./src/database/accountsDB');
 const ExecutionDB = require('./src/database/executionDB');
+const NotesDB = require('./src/database/notesDB');
+const RoutinesDB = require('./src/database/routinesDB');
 
 let db = null;
 let accountsDB = null;
@@ -11,6 +13,8 @@ let executionDB = null;
 let performanceDB = null;
 let vaultPath = null;
 let mainWindow = null;
+let notesDB;
+let routinesDB;
 
 async function reorderTradeNumbers() {
   return new Promise((resolve, reject) => {
@@ -41,6 +45,8 @@ async function initializeDatabase() {
   const accountsDbPath = path.join(vaultPath, 'accounts.db');
   const executionDbPath = path.join(vaultPath, 'execution.db');
   const performanceDbPath = path.join(vaultPath, 'performance.db');
+  const notesDbPath = path.join(vaultPath, 'notes.db');
+  const routinesDbPath = path.join(vaultPath, 'routines.db');
   
   try {
     await fs.mkdir(vaultPath, { recursive: true });
@@ -61,6 +67,12 @@ async function initializeDatabase() {
       if (err) throw new Error(`Performance database connection failed: ${err.message}`);
       console.log('Performance database initialized at:', performanceDbPath);
     });
+
+    // Initialize notes database
+    notesDB = new NotesDB(notesDbPath);
+
+    // Initialize routines database
+    routinesDB = new RoutinesDB(routinesDbPath);
 
     await new Promise((resolve, reject) => {
       db.serialize(() => {
@@ -271,6 +283,7 @@ const ensureDatabaseInitialized = async () => {
   }
   if (!db) throw new Error('Database not initialized');
 };
+
 ipcMain.handle('saveNote', async (event, note) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
@@ -305,17 +318,7 @@ ipcMain.handle('saveNote', async (event, note) => {
 });
 
 ipcMain.handle('deleteNote', async (event, id) => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    db.run('DELETE FROM learning_notes WHERE id = ?', [id], (err) => {
-      if (err) {
-        console.error('Error deleting learning note:', err);
-        reject(err);
-      } else {
-        resolve(true);
-      }
-    });
-  });
+  return await notesDB.deleteNote(id);
 });
 
 ipcMain.on('toggle-sidebar', (event, isCollapsed) => {
@@ -724,27 +727,7 @@ ipcMain.handle('saveNoteWithTrade', async (event, note) => {
 });
 
 ipcMain.handle('getAllNotes', async () => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    const query = `
-      SELECT 
-        ln.*,
-        t.no as tradeNo,
-        t.date as tradeDate
-      FROM learning_notes ln
-      LEFT JOIN trades t ON ln.tradeId = t.id
-      ORDER BY ln.created_at DESC
-    `;
-    
-    db.all(query, [], (err, rows) => {
-      if (err) {
-        console.error('Error fetching all notes:', err);
-        reject(err);
-      } else {
-        resolve(rows);
-      }
-    });
-  });
+  return await notesDB.getAllNotes();
 });
 
 ipcMain.handle('app-ready', () => {
@@ -989,104 +972,106 @@ ipcMain.handle('deletePerformanceAnalysis', async (event, id) => {
 
 // Presession handlers
 ipcMain.handle('save-presession', async (event, presessionData) => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    const {
-      id, date, pair, narrative, execution, outcome, plan_outcome,
-      forex_factory_news, topDownAnalysis, video_url, plans,
-      chart_processes, mindset_preparation, the_zone
-    } = presessionData;
-
-    db.run(`
-      INSERT OR REPLACE INTO presession (
-        id, date, pair, narrative, execution, outcome, plan_outcome,
-        forex_factory_news, topDownAnalysis, video_url, plans,
-        chart_processes, mindset_preparation, the_zone,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
-    `, [
-      id, date, pair, narrative, execution, outcome, plan_outcome ? 1 : 0,
-      forex_factory_news, JSON.stringify(topDownAnalysis), video_url,
-      JSON.stringify(plans), JSON.stringify(chart_processes),
-      JSON.stringify(mindset_preparation), JSON.stringify(the_zone)
-    ], function(err) {
-      if (err) {
-        console.error('Error saving presession:', err);
-        reject(err);
-      } else {
-        resolve(id);
-      }
-    });
-  });
+  try {
+    if (presessionData.id) {
+      await routinesDB.updatePreSession(presessionData);
+    } else {
+      // Генеруємо унікальний ID якщо він не надано
+      presessionData.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      await routinesDB.addPreSession(presessionData);
+    }
+    return { success: true, id: presessionData.id };
+  } catch (error) {
+    console.error('Error saving pre-session:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 ipcMain.handle('get-presession', async (event, id) => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    db.get('SELECT * FROM presession WHERE id = ?', [id], (err, row) => {
-      if (err) {
-        console.error('Error getting presession:', err);
-        reject(err);
-      } else if (row) {
-        // Перетворюємо JSON рядки назад в об'єкти
-        const presession = {
-          ...row,
-          plan_outcome: Boolean(row.plan_outcome),
-          topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
-          plans: JSON.parse(row.plans || '[]'),
-          chart_processes: JSON.parse(row.chart_processes || '[]'),
-          mindset_preparation: JSON.parse(row.mindset_preparation || '{}'),
-          the_zone: JSON.parse(row.the_zone || '{}')
-        };
-        resolve(presession);
-      } else {
-        resolve(null);
-      }
-    });
-  });
+  try {
+    const preSession = await routinesDB.getPreSessionById(id);
+    return preSession;
+  } catch (error) {
+    console.error('Error getting pre-session:', error);
+    return null;
+  }
 });
 
 ipcMain.handle('get-all-presessions', async () => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    db.all('SELECT * FROM presession ORDER BY date DESC', [], (err, rows) => {
-      if (err) {
-        console.error('Error getting all presessions:', err);
-        reject(err);
-      } else {
-        const presessions = rows.map(row => ({
-          ...row,
-          plan_outcome: Boolean(row.plan_outcome),
-          topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
-          plans: JSON.parse(row.plans || '[]'),
-          chart_processes: JSON.parse(row.chart_processes || '[]'),
-          mindset_preparation: JSON.parse(row.mindset_preparation || '{}'),
-          the_zone: JSON.parse(row.the_zone || '{}')
-        }));
-        resolve(presessions);
-      }
-    });
-  });
+  try {
+    const preSessions = await routinesDB.getAllPreSessions();
+    return preSessions;
+  } catch (error) {
+    console.error('Error getting all pre-sessions:', error);
+    return [];
+  }
 });
 
 ipcMain.handle('delete-presession', async (event, id) => {
+  try {
+    await routinesDB.deletePreSession(id);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting pre-session:', error);
+    return { success: false, error: error.message };
+  }
+});
+
+// Notes handlers
+ipcMain.handle('getAllNoteTags', async () => {
+  return await notesDB.getAllTags();
+});
+
+ipcMain.handle('addNoteTag', async (event, name) => {
+  return await notesDB.addTag(name);
+});
+
+ipcMain.handle('addNote', async (event, note) => {
+  return await notesDB.addNote(note);
+});
+
+ipcMain.handle('updateNote', async (event, note) => {
+  return await notesDB.updateNote(note);
+});
+
+ipcMain.handle('getNoteById', async (event, id) => {
+  return await notesDB.getNoteById(id);
+});
+
+ipcMain.handle('getNotesBySource', async (event, sourceType, sourceId) => {
+  return await notesDB.getNotesBySource(sourceType, sourceId);
+});
+
+ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    db.run('DELETE FROM presession WHERE id = ?', [id], (err) => {
-      if (err) {
-        console.error('Error deleting presession:', err);
-        reject(err);
-      } else {
-        // Також видаляємо пов'язані нотатки
-        db.run('DELETE FROM notes WHERE presessionId = ?', [id], (noteErr) => {
-          if (noteErr) {
-            console.error('Error deleting related notes:', noteErr);
-            reject(noteErr);
-          } else {
-            resolve(true);
-          }
-        });
-      }
-    });
-  });
+  try {
+    console.log('Starting to update notes with trade data for tradeId:', tradeId);
+    await notesDB.updateNotesWithTradeData(db, tradeId);
+    console.log('Notes updated with trade data successfully');
+  } catch (error) {
+    console.error('Error updating notes with trade data:', error);
+  }
+});
+
+ipcMain.handle('addNoteImage', async (event, noteId, imagePath) => {
+  return await notesDB.addNoteImage(noteId, imagePath);
+});
+
+ipcMain.handle('getNoteImages', async (event, noteId) => {
+  return await notesDB.getNoteImages(noteId);
+});
+
+ipcMain.handle('deleteNoteImage', async (event, imageId) => {
+  return await notesDB.deleteNoteImage(imageId);
+});
+
+ipcMain.handle('testUpdateNotes', async (event, tradeId) => {
+  try {
+    await ensureDatabaseInitialized();
+    console.log('Testing updateNotesWithTradeData for tradeId:', tradeId);
+    await notesDB.updateNotesWithTradeData(db, tradeId);
+    console.log('Test completed successfully');
+  } catch (error) {
+    console.error('Error during test:', error);
+  }
 });

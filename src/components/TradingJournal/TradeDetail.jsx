@@ -5,6 +5,7 @@ import DeleteIcon from '../../assets/icons/delete-icon.svg';
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import NotesList from '../Notes/NotesList.jsx';
 
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined) return '$0.00';
@@ -818,6 +819,19 @@ const ActionButton = styled.button`
   }
 `;
 
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
 function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -890,13 +904,11 @@ function TradeDetail() {
         setIsLoading(true);
         
         // Завантажуємо трейд
-        const loadedTrade = await window.electronAPI.getTrade(id);
-        console.log('Завантажений трейд:', loadedTrade);
-        console.log('volumeConfirmation після завантаження:', loadedTrade.volumeConfirmation);
+        const tradeData = await window.electronAPI.getTrade(id);
+        console.log('Завантажений трейд:', tradeData);
         
         // Завантажуємо акаунти
         const accountsData = await window.electronAPI.getAllAccounts();
-        console.log('Loaded accounts:', accountsData);
         setAccounts(accountsData);
 
         // Завантажуємо елементи виконання
@@ -913,8 +925,22 @@ function TradeDetail() {
         }
         setExecutionItems(executionData);
         
-        if (loadedTrade) {
-          setTrade(loadedTrade);
+        if (tradeData) {
+          // Завантажуємо нотатки для цього трейду
+          const notes = await window.electronAPI.getNotesBySource('trade', id);
+          
+          // Встановлюємо дані трейду разом з нотатками
+          setTrade({
+            ...tradeData,
+            notes: notes.map(note => ({
+              title: note.title,
+              text: note.content,
+              id: note.id,
+              tagId: note.tag_id,
+              tagName: note.tag_name
+            }))
+          });
+          
           setIsEditing(false);
         }
       } catch (error) {
@@ -1674,34 +1700,7 @@ function TradeDetail() {
                 </ScreenshotField>
               </div>
               <div style={{ flex: 1 }}>
-                <SectionTitle>Notes & Mistakes</SectionTitle>
-                <NoteContainer>
-                  {trade.notes.map((note, index) => (
-                    <NoteItem key={index} onClick={() => isEditing && openNotePopup(index)}>
-                      <NoteText>{note.title}</NoteText>
-                      <NoteText>{note.text}</NoteText>
-                      {isEditing && (
-                        <>
-                          <IconButton className="edit" onClick={(e) => {
-                            e.stopPropagation();
-                            openNotePopup(index);
-                          }}>
-                            <img src={EditIcon} alt="Edit" />
-                          </IconButton>
-                          <IconButton className="delete" onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNote(index);
-                          }}>
-                            <img src={DeleteIcon} alt="Delete" />
-                          </IconButton>
-                        </>
-                      )}
-                    </NoteItem>
-                  ))}
-                  {isEditing && (
-                    <FormButton onClick={() => openNotePopup()}>Add Note</FormButton>
-                  )}
-                </NoteContainer>
+                <NotesList sourceType="trade" sourceId={trade.id} />
               </div>
             </Row>
 

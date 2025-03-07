@@ -42,4 +42,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPerformanceAnalysis: (id) => ipcRenderer.invoke('getPerformanceAnalysis', id),
   updatePerformanceAnalysis: (id, analysis) => ipcRenderer.invoke('updatePerformanceAnalysis', id, analysis),
   deletePerformanceAnalysis: (id) => ipcRenderer.invoke('deletePerformanceAnalysis', id),
+  
+  // Notes methods
+  getAllNoteTags: () => ipcRenderer.invoke('getAllNoteTags'),
+  addNoteTag: (name) => ipcRenderer.invoke('addNoteTag', name),
+  addNote: (note) => ipcRenderer.invoke('addNote', note),
+  updateNote: (note) => ipcRenderer.invoke('updateNote', note),
+  getNoteById: (id) => ipcRenderer.invoke('getNoteById', id),
+  getNotesBySource: (sourceType, sourceId) => ipcRenderer.invoke('getNotesBySource', sourceType, sourceId),
+  getAllNotes: () => ipcRenderer.invoke('getAllNotes'),
+  deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
+  addNoteImage: (noteId, imagePath) => ipcRenderer.invoke('addNoteImage', noteId, imagePath),
+  getNoteImages: (noteId) => ipcRenderer.invoke('getNoteImages', noteId),
+  deleteNoteImage: (imageId) => ipcRenderer.invoke('deleteNoteImage', imageId),
+  updateNotesWithTradeData: (tradeId) => ipcRenderer.invoke('updateNotesWithTradeData', tradeId),
 });

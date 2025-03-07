@@ -5,6 +5,8 @@ import DeleteIcon from '../../assets/icons/delete-icon.svg';;
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import NotesList from '../Notes/NotesList.jsx';
+import NoteModal from '../Notes/NoteModal.jsx';
 
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined) return '$0.00';
@@ -657,15 +659,20 @@ const CloseButton = styled.button`
 `;
 
 const ModalOverlay = styled.div`
-  position: fixed;
+ position: fixed;
   inset: 0;
+  width: 100vw;
+  height: 100vh;
   background: rgba(0, 0, 0, 0.7);
   backdrop-filter: blur(2px);
-  z-index: 1001;
+  z-index: 2000;
   overflow-y: auto;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
+  padding: 20px;
+  box-sizing: border-box;
+  transform: translateY(${props => props.scrollOffset}px); // Додаємо трансформацію
 `;
 
 const NotePopup = styled.div`
@@ -844,10 +851,24 @@ const ActionButton = styled.button`
   }
 `;
 
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
 function CreateTrade() {
   const navigate = useNavigate();
   const [tradeCount, setTradeCount] = useState(0);
   const [accounts, setAccounts] = useState([]);
+  const [tradeId] = useState(crypto.randomUUID());
   const [executionItems, setExecutionItems] = useState({
     pointA: [],
     trigger: [],
@@ -863,6 +884,7 @@ function CreateTrade() {
     positionType: []
   });
   const [trade, setTrade] = useState({
+    id: tradeId,
     date: new Date().toISOString().split('T')[0],
     account: '',
     pair: '',
@@ -904,6 +926,7 @@ function CreateTrade() {
   const [editNoteIndex, setEditNoteIndex] = useState(null);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [scrollPosition, setScrollPosition] = useState(0);
+  const [notesToSave, setNotesToSave] = useState([]);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -931,13 +954,28 @@ function CreateTrade() {
         }
         
         setExecutionItems(executionData);
+
+        // Завантажуємо нотатки, якщо вони вже є
+        const notes = await window.electronAPI.getNotesBySource('trade', tradeId);
+        if (notes && notes.length > 0) {
+          setTrade(prev => ({
+            ...prev,
+            notes: notes.map(note => ({
+              title: note.title,
+              text: note.content,
+              id: note.id,
+              tagId: note.tag_id,
+              tagName: note.tag_name
+            }))
+          }));
+        }
       } catch (error) {
         console.error('Error loading initial data:', error);
         setTradeCount(1);
       }
     };
     loadInitialData();
-  }, []);
+  }, [tradeId]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -1116,71 +1154,66 @@ function CreateTrade() {
     setEditNoteIndex(null);
   };
 
-  const saveNote = async () => {
-    if (noteTitle && noteText) {
-      const note = {
-        title: noteTitle,
-        text: noteText,
-        // tradeId буде додано після створення трейду
-      };
-
-      try {
-        setTrade((prev) => {
-          if (editNoteIndex !== null) {
-            const updatedNotes = [...prev.notes];
-            updatedNotes[editNoteIndex] = note;
-            return { ...prev, notes: updatedNotes };
-          } else {
-            return { ...prev, notes: [...prev.notes, note] };
-          }
-        });
-
-        setShowNotePopup(false);
-        setNoteTitle('');
-        setNoteText('');
-        setEditNoteIndex(null);
-        
-      } catch (error) {
-        console.error('Error saving note:', error);
-        alert('Failed to save note');
-      }
-    }
-  };
-
-  const deleteNote = (index) => {
-    setTrade((prev) => ({
-      ...prev,
-      notes: prev.notes.filter((_, i) => i !== index),
-    }));
-    setShowNotePopup(false);
+  const handleNoteSave = (note) => {
+    setNotesToSave(prevNotes => [...prevNotes, note]);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       console.log('Початок збереження трейду');
-      console.log('volumeConfirmation перед підготовкою:', trade.volumeConfirmation);
+      
+      // Отримуємо поточну кількість трейдів для номера
+      const trades = await window.electronAPI.getTrades();
+      const tradeNo = trades.length + 1;
       
       const tradeData = {
         ...trade,
+        no: tradeNo,
         volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
       };
       
-      console.log('volumeConfirmation після підготовки:', tradeData.volumeConfirmation);
-      console.log('Повні дані трейду:', tradeData);
-      
-      const tradeDataWithId = {
-        ...tradeData,
-        id: crypto.randomUUID(),
-        notes: tradeData.notes
-      };
-      
-      console.log('Дані трейду перед відправкою в API:', tradeDataWithId);
-      console.log('volumeConfirmation перед відправкою:', tradeDataWithId.volumeConfirmation);
-
-      await window.electronAPI.saveTrade(tradeDataWithId);
+      // Спочатку зберігаємо трейд
+      await window.electronAPI.saveTrade(tradeData);
       console.log('Трейд успішно збережено');
-      
+
+      // Зберігаємо нотатки
+      if (notesToSave.length > 0) {
+        console.log('Починаємо зберігати нотатки. Кількість:', notesToSave.length);
+        
+        try {
+          for (const note of notesToSave) {
+            console.log('Зберігаємо нотатку:', note);
+            const noteId = await window.electronAPI.addNote({
+              ...note,
+              sourceId: tradeData.id
+            });
+            console.log('Нотатка успішно збережена з ID:', noteId);
+          }
+          
+          console.log('Всі нотатки успішно збережено');
+        } catch (error) {
+          console.error('Помилка при збереженні нотаток:', error);
+          throw error;
+        }
+      }
+
+      // Додаємо затримку 2 секунди
+      await new Promise(resolve => setTimeout(resolve, 2000));
+
+      console.log('Починаємо оновлення нотаток з даними трейду...');
+      // Оновлюємо всі нотатки з даними трейдів
+      console.log('Викликаємо updateNotesWithTradeData...');
+      await window.electronAPI.updateNotesWithTradeData(tradeData.id)
+        .then(() => {
+          console.log('Нотатки успішно оновлено з даними трейду');
+        })
+        .catch((error) => {
+          console.error('Помилка при оновленні нотаток:', error);
+          console.error('Деталі помилки:', error.message, error.stack);
+        });
+
+      // Оновлюємо баланс акаунту
       if (trade.account && trade.result && trade.profitLoss) {
         await window.electronAPI.updateAccountBalance(trade.account, parseFloat(trade.profitLoss));
       }
@@ -1188,6 +1221,11 @@ function CreateTrade() {
       navigate('/trade-journal');
     } catch (error) {
       console.error('Error saving trade:', error);
+      console.error('Full error details:', {
+        message: error.message,
+        stack: error.stack,
+        cause: error.cause
+      });
     }
   };
 
@@ -1595,53 +1633,22 @@ function CreateTrade() {
             </ScreenshotField>
           </div>
           <div style={{ flex: 1 }}>
-            <SectionTitle>Notes & Mistakes</SectionTitle>
             <NoteContainer>
-              {trade.notes.map((note, index) => (
-                <NoteItem key={index} onClick={(e) => openNotePopup(index, e)}>
-                  <NoteText>{note.title}</NoteText>
-                  <IconButton className="edit" onClick={(e) => { 
-                    e.stopPropagation(); 
-                    openNotePopup(index, e); 
-                  }}>
-                    <img src={EditIcon} alt="Edit" /> 
-                  </IconButton>
-                  <IconButton className="delete" onClick={(e) => { 
-                    e.stopPropagation(); 
-                    deleteNote(index); 
-                  }}>
-                    <img src={DeleteIcon} alt="Delete" />
-                  </IconButton>
-                </NoteItem>
-              ))}
-              <FormButton onClick={(e) => openNotePopup(null, e)}>Add Note or Mistake</FormButton>
+              <NotesList sourceType="trade" sourceId={trade.id} />
             </NoteContainer>
           </div>
         </Row>
 
         {showNotePopup && (
           <ModalOverlay onClick={closeNotePopup}>
-            <NotePopup onClick={e => e.stopPropagation()} top={scrollPosition}>
-              <NotePopupTitle>Adding Notes & Mistakes</NotePopupTitle>
-              <NotePopupInput
-                type="text"
-                placeholder="Enter note title"
-                value={noteTitle}
-                onChange={(e) => setNoteTitle(e.target.value)}
-              />
-              <NotePopupTextArea
-                placeholder="Enter note text"
-                value={noteText}
-                onChange={(e) => setNoteText(e.target.value)}
-              />
-              <NotePopupButtons>
-                <FormButton onClick={saveNote}>Save</FormButton>
-                <FormButton onClick={closeNotePopup}>Cancel</FormButton>
-                {editNoteIndex !== null && (
-                  <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
-                )}
-              </NotePopupButtons>
-            </NotePopup>
+            <NoteModal
+              isOpen={showNotePopup}
+              onClose={closeNotePopup}
+              onSave={handleNoteSave}
+              note={editNoteIndex !== null ? trade.notes[editNoteIndex] : null}
+              sourceType="trade"
+              sourceId={trade.id}
+            />
           </ModalOverlay>
         )}
 

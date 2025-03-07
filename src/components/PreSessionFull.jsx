@@ -3,6 +3,9 @@ import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import EditIcon from '../assets/icons/edit-icon.svg';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import NotesList from './Notes/NotesList.jsx';
 
 // Animations
 const fadeIn = keyframes`
@@ -60,6 +63,65 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
+const DatePickerStyles = createGlobalStyle`
+  .react-datepicker {
+    background-color: #2e2e2e;
+    border: 1px solid #5e2ca5;
+    font-family: inherit;
+  }
+
+  .react-datepicker__header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__current-month,
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    color: #fff;
+  }
+
+  .react-datepicker__day:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__day--selected,
+  .react-datepicker__day--keyboard-selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE);
+    color: #fff;
+  }
+
+  .react-datepicker__navigation {
+    top: 8px;
+  }
+
+  .react-datepicker__navigation-icon::before {
+    border-color: #B886EE;
+  }
+
+  .react-datepicker__time-container {
+    background-color: #2e2e2e;
+    border-left: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__time-box {
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item {
+    color: #fff;
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__time-list-item--selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE) !important;
+  }
+`;
+
 // Layout Components
 const Container = styled.div`
   max-width: 1820px;
@@ -96,23 +158,43 @@ const Header = styled.header`
 `;
 
 const BackButton = styled.button`
-  background: linear-gradient(135deg, #7425C9, #B886EE);
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: none;
-  padding: 10px 20px;
-  border-radius: 8px;
+  padding: 0;
+  width: 200px;
+  height: 100%;
+  border-radius: 0;
   cursor: pointer;
-  color: white;
-  font-weight: 500;
+  position: absolute;
+  left: 0;
+  top: 0;
+  opacity: 0;
   transition: all 0.3s ease;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+  color: transparent;
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+    opacity: 1;
+    transform: scale(1.1);
   }
 
   &:active {
-    transform: translateY(0);
+    transform: scale(0.98);
+  }
+
+  &:before {
+    content: "Back";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 1.2em;
+    color: rgba(255, 255, 255, 0);
+    transition: color 0.3s ease;
+  }
+
+  &:hover:before {
+    color: #fff;
   }
 `;
 
@@ -125,7 +207,7 @@ const Title = styled.h1`
 `;
 
 const Content = styled.div`
-  margin-top: 148px;
+  margin-top: 28px;
   padding-top: 20px;
   position: relative;
   min-height: calc(100vh - 168px);
@@ -339,7 +421,6 @@ const ImageContainer = styled.div`
 const ImageUploadArea = styled.div`
   border: 2px dashed #5e2ca5;
   border-radius: 8px;
-  padding: 20px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
@@ -488,7 +569,7 @@ const TextArea = styled.textarea`
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   color: white;
-  padding: 12px;
+  padding: 1px;
   resize: vertical;
   margin: 15px auto 0; // Центрируем с помощью auto по горизонтали
   display: block; // Важно для margin auto
@@ -665,40 +746,79 @@ const EmbedButton = styled(Button)`
 // Добавляем новые styled-components для модального окна
 const ImageModal = styled.div`
   position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background: rgba(0, 0, 0, 0.9);
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
   display: flex;
-  justify-content: center;
   align-items: center;
-  z-index: 1100;
+  justify-content: center;
+  z-index: 2000;
   padding: 20px;
-`;
+  box-sizing: border-box;
 
-const ModalImage = styled.img`
+  img {
   max-width: 90%;
   max-height: 90vh;
   object-fit: contain;
-  border-radius: 8px;
+    border-radius: 4px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+  }
+`;
+
+const NoteModal = styled.div`
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  box-sizing: border-box;
+  transform: translateY(${props => props.scrollOffset}px);
+`;
+
+const NoteModalContent = styled.div`
+  background: #2e2e2e;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px solid #5e2ca5;
+  width: 90%;
+  max-width: 600px;
+  position: relative;
+  max-height: 90vh;
+  overflow-y: auto;
+  animation: ${fadeIn} 0.3s ease;
 `;
 
 const ModalCloseButton = styled.button`
-  position: absolute;
+  position: fixed;
   top: 20px;
   right: 20px;
-  background: transparent;
+  background: conic-gradient(from 45deg, #7425c9, #b886ee);
   border: none;
-  color: white;
-  font-size: 24px;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
   cursor: pointer;
-  padding: 10px;
-  z-index: 1101;
+  color: #fff;
+  font-size: 1.2em;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.2s ease;
+  z-index: 2001;
 
   &:hover {
-    color: #B886EE;
+    transform: scale(1.1);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 `;
 
@@ -921,20 +1041,11 @@ const DeleteButton = styled.button`
 
 // Обновляем стиль ProcessList - удаляем правый padding
 const ProcessList = styled.div`
-  margin-top: 10px;
-  max-height: 500px;
-  overflow-y: auto;
-
-  &::-webkit-scrollbar {
-    width: 4px;
-  }
-  &::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  &::-webkit-scrollbar-thumb {
-    background: #7425C9;
-    border-radius: 3px;
-  }
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+  width: 100%;
 `;
 
 // Создаем отдельную кнопку для процессов, которая не будет вызывать submit формы
@@ -948,7 +1059,7 @@ const ButtonGroupProcess = styled.div`
 const ProcessTime = styled.div`
   color: #B886EE;
   font-size: 0.9em;
-  margin-bottom: 10px;
+  margin-top: 10px;
 `;
 
 const ImageUploadForm = styled.form`
@@ -1239,6 +1350,7 @@ function PreSessionFull() {
   const [sessionData, setSessionData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [embedVideo, setEmbedVideo] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
   
   // Состояния для основных секций
   const [mindsetChecks, setMindsetChecks] = useState({
@@ -1314,61 +1426,46 @@ function PreSessionFull() {
   const [noteText, setNoteText] = useState('');
   const [editNoteIndex, setEditNoteIndex] = useState(null);
 
-  const openNotePopup = (index = null) => {
-    if (!sessionData?.id) {
-      console.error('No session ID available');
-      return;
-    }
-  
-    if (index !== null) {
-      const note = notes[index];
-      setNoteTitle(note.title);
-      setNoteText(note.content); // Изменено с note.text на note.content
-      setEditNoteIndex(index);
-    } else {
-      setNoteTitle('');
-      setNoteText('');
-      setEditNoteIndex(null);
-    }
-  
-    setShowNotePopup(true);
-    document.body.style.overflow = 'hidden';
+  const [currencyPairs, setCurrencyPairs] = useState([]);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
+
+  useEffect(() => {
+    const loadCurrencyPairs = async () => {
+      try {
+        const pairs = await window.electronAPI.getAllExecutionItems('pairs');
+        setCurrencyPairs(pairs);
+      } catch (error) {
+        console.error('Error loading currency pairs:', error);
+      }
+    };
+    loadCurrencyPairs();
+  }, []);
+
+  const openNotePopup = (note = null) => {
+    setSelectedNote(note);
+    setIsNoteModalOpen(true);
   };
 
   const closeNotePopup = () => {
-    setShowNotePopup(false);
-    setNoteTitle('');
-    setNoteText('');
-    setEditNoteIndex(null);
-    document.body.style.overflow = 'auto';
+    setSelectedNote(null);
+    setIsNoteModalOpen(false);
   };
 
-  const saveNote = async () => {
-    if (noteTitle && noteText) {
-      const note = { 
-        title: noteTitle, 
-        text: noteText,
-        tradeId: trade.id
-      };
-
-      try {
-        const noteId = await window.electronAPI.saveNoteWithTrade(note);
-        setNotes(prev => [...prev, { ...note, id: noteId }]);
-        closeNotePopup();
-      } catch (error) {
-        console.error('Error saving note:', error);
-        alert('Failed to save note');
-      }
-    }
-  };
-
-  const deleteNote = async (id) => {
+  const saveNote = async (noteData) => {
     try {
-      await window.electronAPI.deleteNote(id);
-      setNotes(prev => prev.filter(note => note.id !== id));
+      if (noteData.id) {
+        await window.electronAPI.updateNote(noteData);
+      } else {
+        await window.electronAPI.addNote({
+          ...noteData,
+          sourceType: 'presession',
+          sourceId: id  // Використовуємо ID поточної pre-session
+        });
+      }
+      // Оновлення списку нотаток або інші дії
     } catch (error) {
-      console.error('Error deleting note:', error);
-      alert('Failed to delete note');
+      console.error('Error saving note:', error);
     }
   };
 
@@ -1669,12 +1766,16 @@ function PreSessionFull() {
     };
 
     const handleImageClick = (image) => {
-      if (image) {
         setSelectedImage(image);
-      }
+      document.body.style.overflow = 'hidden';
     };
   
     const handleCloseModal = () => {
+      const scrollY = document.body.style.top;
+      document.body.style.position = '';
+      document.body.style.top = '';
+      document.body.style.overflow = '';
+      window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
       setSelectedImage(null);
     };
 
@@ -1892,6 +1993,16 @@ function PreSessionFull() {
       }
     };
 
+    const handleCloseImage = () => {
+      setSelectedImage(null);
+      document.body.style.overflow = 'auto';
+    };
+
+    const handleCloseNote = () => {
+      setSelectedNote(null);
+      window.scrollTo(0, scrollOffset);
+    };
+
     if (isLoading) {
       return (
         <LoadingOverlay>
@@ -1912,6 +2023,7 @@ function PreSessionFull() {
     return (
       <>
         <GlobalStyle />
+        <DatePickerStyles />
         <Container>
           <Header>
             <BackButton onClick={handleBack}>← Back</BackButton>
@@ -1924,11 +2036,10 @@ function PreSessionFull() {
                   <SectionTitle>Basic Information</SectionTitle>
                   <FormGroup>
                     <Label>Date</Label>
-                    <Input
-                      type="date"
-                      name="date"
-                      value={sessionData.date}
-                      onChange={handleInputChange}
+                    <StyledDatePicker
+                      selected={new Date(sessionData.date)}
+                      onChange={(date) => handleInputChange({ target: { name: 'date', value: date.toISOString().split('T')[0] } })}
+                      dateFormat="yyyy-MM-dd"
                     />
                   </FormGroup>
   
@@ -1940,9 +2051,9 @@ function PreSessionFull() {
                       onChange={handleInputChange}
                     >
                       <option value="">Select Pair</option>
-                      <option value="EUR/USD">EUR/USD</option>
-                      <option value="GBP/USD">GBP/USD</option>
-                      <option value="USD/JPY">USD/JPY</option>
+                      {currencyPairs.map(pair => (
+                        <option key={pair.id} value={pair.name}>{pair.name}</option>
+                      ))}
                     </Select>
                   </FormGroup>
   
@@ -2139,95 +2250,15 @@ function PreSessionFull() {
                 <div>
                   <VideoSection>
                     <SectionTitle>Video Analysis URL (Optional)</SectionTitle>
-                    <FormGroup>
-                      <VideoUrlContainer>
-                        <Input
-                          type="url"
-                          placeholder="Enter YouTube video URL..."
-                          value={analysisData.videoUrl}
-                          onChange={(e) => {
-                            setAnalysisData(prev => ({
-                              ...prev,
-                              videoUrl: e.target.value
-                            }));
-                          }}
-                          style={{ flex: 1 }}
-                        />
-                        <EmbedButton 
-                          type="button" 
-                          onClick={handleVideoOpen}
-                          disabled={!analysisData.videoUrl}
-                        >
-                          View
-                        </EmbedButton>
-                      </VideoUrlContainer>
-                    </FormGroup>
+                    <Input
+                      type="text"
+                      name="videoUrl"
+                      value={analysisData.videoUrl}
+                      onChange={(e) => handleVideoUrlChange(e.target.value)}
+                      placeholder="Enter video URL"
+                    />
                   </VideoSection>
   
-                  <NotesSection>
-                    <SectionTitle>Notes</SectionTitle>
-                    <NoteContainer>
-                      {notes.map((note, index) => (
-                        <NoteItem key={note.id} onClick={() => openNotePopup(index)}>
-                          <NoteText>{note.title}</NoteText>
-                          <IconButton 
-                            className="edit" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              openNotePopup(index);
-                            }}
-                          >
-                            <img src={EditIcon} alt="Edit" />
-                          </IconButton>
-                          <IconButton 
-                            className="delete" 
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              deleteNote(note.id);
-                            }}
-                          >
-                            <img src={DeleteIcon} alt="Delete" />
-                          </IconButton>
-                        </NoteItem>
-                      ))}
-                      <ProcessButton 
-                        type="button"  // Обязательно указываем type="button"
-                        onClick={() => openNotePopup(null)}
-                      >
-                        Add Note
-                      </ProcessButton>
-                    </NoteContainer>
-              
-                    {showNotePopup && (
-                      <ModalOverlay onClick={closeNotePopup}>
-                        <NotePopup onClick={e => e.stopPropagation()}>
-                          <NotePopupTitle>
-                            {editNoteIndex !== null ? 'Edit Note' : 'Add Note'}
-                          </NotePopupTitle>
-                          <NotePopupInput
-                            type="text"
-                            placeholder="Enter note title"
-                            value={noteTitle}
-                            onChange={(e) => setNoteTitle(e.target.value)}
-                          />
-                          <NotePopupTextArea
-                            placeholder="Enter note text"
-                            value={noteText}
-                            onChange={(e) => setNoteText(e.target.value)}
-                          />
-                          <NotePopupButtons>
-                            <ProcessButton onClick={saveNote}>Save</ProcessButton>
-                            <ProcessButton onClick={closeNotePopup}>Cancel</ProcessButton>
-                            {editNoteIndex !== null && (
-                              <ProcessButton onClick={() => deleteNote(notes[editNoteIndex].id)}>
-                                Delete
-                              </ProcessButton>
-                            )}
-                          </NotePopupButtons>
-                        </NotePopup>
-                      </ModalOverlay>
-                    )}
-                  </NotesSection>
                 </div>
               </AnalyticsLayout>
 
@@ -2378,12 +2409,9 @@ function PreSessionFull() {
         </Container>
         {/* Добавляем модальное окно */}
         {selectedImage && (
-          <ImageModal onClick={handleCloseModal}>
-            <ModalCloseButton onClick={handleCloseModal}>×</ModalCloseButton>
-            <ModalImage 
-              src={selectedImage} 
-              onClick={(e) => e.stopPropagation()} 
-            />
+          <ImageModal onClick={handleCloseImage}>
+            <img src={selectedImage} alt="Full size" onClick={(e) => e.stopPropagation()} />
+            <ModalCloseButton onClick={handleCloseImage}>×</ModalCloseButton>
           </ImageModal>
         )}
         {showImageForm && (
@@ -2428,16 +2456,35 @@ function PreSessionFull() {
                   ))}
                 </ImagePreview>
               )}
-    
-              <ButtonGroup>
-                <Button type="button" onClick={handleImageFormClose}>Cancel</Button>
-                <Button type="submit" primary>Upload</Button>
-              </ButtonGroup>
             </ImageUploadForm>
           </>
         )}
+        {selectedNote && (
+          <NoteModal scrollOffset={scrollOffset} onClick={handleCloseNote}>
+            <NoteModalContent onClick={(e) => e.stopPropagation()}>
+              {/* ... existing note modal content ... */}
+              <ModalCloseButton onClick={handleCloseNote}>×</ModalCloseButton>
+            </NoteModalContent>
+          </NoteModal>
+        )}
+        <NotesList 
+          sourceType="presession" 
+          sourceId={id}
+          onAddNote={() => openNotePopup()}
+        />
+        {isNoteModalOpen && (
+          <NoteModal
+            isOpen={isNoteModalOpen}
+            onClose={closeNotePopup}
+            onSave={saveNote}
+            note={selectedNote}
+            sourceType="presession"
+            sourceId={id}
+          />
+        )}
       </>
     );
+    
   }
   
   export default PreSessionFull;
@@ -2566,4 +2613,79 @@ const NotePopupButtons = styled.div`
   gap: 10px;
   justify-content: center;
   width: 100%;
+`;
+
+const PreSessionCardContainer = styled.div`
+  background: #2e2e2e;
+  border: 2px solid #5e2ca5;
+  border-radius: 15px;
+  padding: 0;
+  margin-bottom: 20px;
+  width: 100%;
+  position: relative;
+`;
+
+const StyledDatePicker = styled(DatePicker)`
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  color: #fff;
+  padding: 8px;
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+  font-size: 14px;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+`;
+
+// Створюємо стилі для контейнера кнопок
+const BottomButtonContainer = styled.div`
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  padding: 20px;
+  background: linear-gradient(to top, rgba(26, 26, 26, 1), rgba(26, 26, 26, 0.8));
+  z-index: 1000;
+  box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
+`;
+
+const BottomButton = styled.button`
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  color: white;
+  border: none;
+  padding: 12px 24px;
+  border-radius: 8px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  min-width: 150px;
+
+  &:hover {
+    transform: translateY(-2px);
+    opacity: 0.9;
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;

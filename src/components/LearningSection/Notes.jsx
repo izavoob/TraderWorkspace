@@ -42,8 +42,7 @@ const Header = styled.header`
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
-  flex-direction: column;
-  justify-content: center;
+  justify-content: space-between;
   align-items: center;
 `;
 
@@ -91,8 +90,14 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
+const HeaderActions = styled.div`
+  display: flex;
+  align-items: center;
+  margin-right: 20px;
+`;
+
 const Content = styled.div`
-  margin-top: 178px; // Змінено з 148px на 178px (148 + 30)
+  margin-top: 208px; // Збільшено відступ з 178px на 208px (178 + 30)
   padding: 20px;
   width: 100%;
   max-width: 1200px;
@@ -221,18 +226,29 @@ const ButtonGroup = styled.div`
 `;
 
 const Button = styled.button`
-  background: ${props => props.variant === 'delete' ? '#dc3545' : 'conic-gradient(from 45deg, #7425c9, #b886ee)'};
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: white;
   border: none;
   padding: 8px 16px;
   border-radius: 8px;
   cursor: pointer;
   transition: all 0.2s ease;
+  top: 115px;
+  position: relative;
+  right: 200px;
 
   &:hover {
     transform: translateY(-2px);
     opacity: 0.9;
   }
+`;
+
+const TagBadge = styled.span`
+  background-color: ${props => props.type === 'presession' ? '#7425C9' : '#B886EE'};
+  color: #fff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 0.8em;
 `;
 
 function Notes() {
@@ -243,25 +259,49 @@ function Notes() {
   const [editedContent, setEditedContent] = useState('');
   const navigate = useNavigate();
 
-  useEffect(() => {
-    loadNotes();
-  }, []);
+  const getSourceText = (note) => {
+    switch (note.sourceType) {
+      case 'presession':
+        return `Pre-Session Analysis (${new Date(note.date).toLocaleDateString()})`;
+      case 'trade':
+        return `Trade #${note.tradeNo || 'N/A'} (${note.tradeDate ? new Date(note.tradeDate).toLocaleDateString() : 'Invalid Date'})`;
+      default:
+        return 'Unknown Source';
+    }
+  };
 
   const loadNotes = async () => {
     try {
       const allNotes = await window.electronAPI.getAllNotes();
-      const linkedNotes = allNotes.filter(note => note.tradeId); // Фільтруємо тільки пов'язані з трейдами нотатки
-      setNotes(linkedNotes.map(note => ({
+      const notesWithDetails = allNotes.map(note => ({
         id: note.id,
         title: note.title,
         content: note.content,
-        tradeId: note.tradeId,
+        sourceType: note.source_type,
+        sourceId: note.source_id,
+        date: note.created_at,
+        tagName: note.tag_name,
         tradeNo: note.tradeNo,
-        tradeDate: note.tradeDate,
-        date: note.created_at
-      })));
+        tradeDate: note.tradeDate
+      }));
+      setNotes(notesWithDetails);
     } catch (error) {
       console.error('Error loading notes:', error);
+    }
+  };
+
+  useEffect(() => {
+    loadNotes();
+  }, []);
+
+  const getSourceLink = (sourceType, sourceId) => {
+    switch (sourceType) {
+      case 'presession':
+        return `/daily-routine/pre-session/${sourceId}`;
+      case 'trade':
+        return `/trade/${sourceId}`;
+      default:
+        return null;
     }
   };
 
@@ -315,11 +355,25 @@ function Notes() {
     setIsEditing(false);
   };
 
+  const handleReload = async () => {
+    try {
+      console.log('Starting to reload notes with trade data...');
+      await window.electronAPI.updateNotesWithTradeData();
+      console.log('Notes reloaded with trade data successfully');
+      await loadNotes();
+    } catch (error) {
+      console.error('Error reloading notes with trade data:', error);
+    }
+  };
+
   return (
     <NotesContainer>
       <Header>
         <BackButton to="/learning-section" title="Back" aria-label="Back" />
         <Title>Trade Notes</Title>
+        <HeaderActions>
+          <Button onClick={handleReload}>Reload</Button>
+        </HeaderActions>
       </Header>
       <Content>
         <NotesList>
@@ -328,16 +382,25 @@ function Notes() {
               <NoteCard key={note.id} onClick={() => handleNoteClick(note)}>
                 <NoteHeader>
                   <NoteTitle>{note.title}</NoteTitle>
-                  <TradeLink onClick={() => handleTradeClick(note.tradeId)}>
-                    Trade #{note.tradeNo} - {new Date(note.tradeDate).toLocaleDateString()}
-                  </TradeLink>
+                  <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                    {note.tagName && (
+                      <TagBadge type={note.tagName}>{note.tagName}</TagBadge>
+                    )}
+                    <TradeLink onClick={(e) => {
+                      e.stopPropagation();
+                      const link = getSourceLink(note.sourceType, note.sourceId);
+                      if (link) navigate(link);
+                    }}>
+                      {getSourceText(note)}
+                    </TradeLink>
+                  </div>
                 </NoteHeader>
                 <NoteContent>{note.content}</NoteContent>
               </NoteCard>
             ))
           ) : (
             <NoNotesMessage>
-              No trade notes available. Add notes while creating or editing trades.
+              No notes available. Add notes from Pre-Session Analysis or Trade pages.
             </NoNotesMessage>
           )}
         </NotesList>
