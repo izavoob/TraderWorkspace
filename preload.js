@@ -2,10 +2,10 @@ const { contextBridge, ipcRenderer } = require('electron');
 
 contextBridge.exposeInMainWorld('electronAPI', {
   // Presession methods
-  savePresession: (presessionData) => ipcRenderer.invoke('save-presession', presessionData),
-  getPresession: (id) => ipcRenderer.invoke('get-presession', id),
-  getAllPresessions: () => ipcRenderer.invoke('get-all-presessions'),
-  deletePresession: (id) => ipcRenderer.invoke('delete-presession', id),
+  savePresession: (presessionData) => ipcRenderer.invoke('savePresession', presessionData),
+  getPresession: (id) => ipcRenderer.invoke('getPresession', id),
+  getAllPresessions: () => ipcRenderer.invoke('getAllPresessions'),
+  deletePresession: (id) => ipcRenderer.invoke('deletePresession', id),
   
   // Existing methods
   saveTrade: (trade) => ipcRenderer.invoke('save-trade', trade),

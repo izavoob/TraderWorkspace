@@ -262,9 +262,9 @@ function Notes() {
   const getSourceText = (note) => {
     switch (note.sourceType) {
       case 'presession':
-        return `Pre-Session Analysis (${new Date(note.date).toLocaleDateString()})`;
+        return `Pre-Session Analysis (${note.tradeDate ? new Date(note.tradeDate).toLocaleDateString() : 'N/A'})`;
       case 'trade':
-        return `Trade #${note.tradeNo || 'N/A'} (${note.tradeDate ? new Date(note.tradeDate).toLocaleDateString() : 'Invalid Date'})`;
+        return `Trade #${note.tradeNo || 'N/A'} (${note.tradeDate ? new Date(note.tradeDate).toLocaleDateString() : 'N/A'})`;
       default:
         return 'Unknown Source';
     }
@@ -297,7 +297,7 @@ function Notes() {
   const getSourceLink = (sourceType, sourceId) => {
     switch (sourceType) {
       case 'presession':
-        return `/daily-routine/pre-session/${sourceId}`;
+        return `/daily-routine/pre-session/full/${sourceId}`;
       case 'trade':
         return `/trade/${sourceId}`;
       default:
@@ -372,7 +372,7 @@ function Notes() {
         <BackButton to="/learning-section" title="Back" aria-label="Back" />
         <Title>Trade Notes</Title>
         <HeaderActions>
-          <Button onClick={handleReload}>Reload</Button>
+          <Button onClick={handleReload}>Update</Button>
         </HeaderActions>
       </Header>
       <Content>

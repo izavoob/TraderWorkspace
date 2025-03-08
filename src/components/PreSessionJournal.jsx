@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
@@ -265,55 +265,72 @@ const ActionButton = styled.button`
   }
 `;
 
+const Table = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 20px;
+  background: #2e2e2e;
+  color: #fff;
+`;
+
+const Th = styled.th`
+  padding: 12px;
+  text-align: left;
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  color: #fff;
+  font-weight: bold;
+  border: 1px solid #5e2ca5;
+  white-space: nowrap;
+`;
+
+const Td = styled.td`
+  padding: 12px;
+  border: 1px solid #5e2ca5;
+  background: #2e2e2e;
+`;
+
+const Tr = styled.tr`
+  &:hover {
+    background: rgba(116, 37, 201, 0.3);
+  }
+`;
+
+const ButtonsContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+`;
+
+const IconButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    opacity: 0.8;
+  }
+
+  img {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
 const EditableSelect = styled.select`
   width: 100%;
-  padding: 6px;
-  margin: 0;
-  background: ${props => {
-    switch (props.value) {
-      case 'Bullish':
-        return '#1a472a';
-      case 'Bearish':
-        return '#5c1919';
-      case 'Win':
-        return '#1a472a';
-      case 'Loss':
-        return '#5c1919';
-      case 'BE':
-        return '#714a14';
-      default:
-        return '#3e3e3e';
-    }
-  }};
-  color: ${props => {
-    switch (props.value) {
-      case 'Bullish':
-        return '#4ade80';
-      case 'Bearish':
-        return '#f87171';
-      case 'Win':
-        return '#4ade80';
-      case 'Loss':
-        return '#f87171';
-      case 'BE':
-        return '#fbbf24';
-      default:
-        return '#fff';
-    }
-  }};
+  padding: 8px;
   border: 1px solid #5e2ca5;
+  background: #3e3e3e;
+  color: #fff;
   border-radius: 4px;
-  cursor: pointer;
 
   &:focus {
     outline: none;
     border-color: #B886EE;
-  }
-
-  option {
-    background: #3e3e3e;
-    color: #fff;
-    padding: 8px;
   }
 `;
 
@@ -388,79 +405,21 @@ const FilterButton = styled.button`
   font-size: 14px;
 `;
 
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
-`;
-
-const TableHeader = styled.th`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  border: 1px solid #5e2ca5;
-  padding: 12px;
-  text-align: left;
-  color: #fff;
-  font-weight: bold;
-`;
-
-const TableCell = styled.td`
-  border: 1px solid #5e2ca5;
-  padding: 10px;
-  text-align: left;
-  color: #fff;
-  background-color: #2e2e2e;
-  position: relative;
-`;
-
-const TableRow = styled.tr`
-  &:nth-child(even) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
-  }
-  &:nth-child(odd) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
-  }
-`;
-
-const ButtonsContainer = styled.div`
-  display: flex;
-  gap: 5px;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
-`;
-
-const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  border: none;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-
-  img {
-    width: 14px;
-    height: 14px;
-    filter: brightness(0) invert(1);
-  }
-`;
-
 const StyledDatePicker = styled(DatePicker)`
-  background: #2e2e2e;
+  padding: 12px;
+  background: #3e3e3e;
   border: 1px solid #5e2ca5;
-  color: #fff;
-  padding: 8px;
   border-radius: 8px;
+  color: #fff;
   width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
   cursor: pointer;
-  font-size: 14px;
 
   &:focus {
     outline: none;
     border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
   }
 `;
 
@@ -534,6 +493,14 @@ const PopupButton = styled.button`
   margin: 0 10px;
 `;
 
+const ActionButtonsContainer = styled.div`
+  display: flex;
+  gap: 5px;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+`;
+
 function PreSessionJournal() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -557,6 +524,7 @@ function PreSessionJournal() {
   const [selectedEntries, setSelectedEntries] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+  const [pairOptions, setPairOptions] = useState([]);
 
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -565,6 +533,7 @@ function PreSessionJournal() {
 
   useEffect(() => {
     loadData();
+    loadPairOptions();
   }, [location]);
 
   useEffect(() => {
@@ -599,18 +568,28 @@ function PreSessionJournal() {
         id: presession.id,
         date: presession.date,
         weekDay: new Date(presession.date).toLocaleDateString('en-US', { weekday: 'long' }),
-        pair: presession.pair,
-        narrative: presession.narrative,
-        execution: presession.execution,
-        outcome: presession.outcome,
-        planOutcome: presession.planOutcome
+        pair: presession.pair || '',
+        narrative: presession.narrative || '',
+        execution: presession.execution || '',
+        outcome: presession.outcome || '',
+        planOutcome: presession.plan_outcome === 1
       }));
 
+      console.log('Processed presessions:', processedData);
       setData(processedData);
     } catch (error) {
       console.error('Error loading presessions:', error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const loadPairOptions = async () => {
+    try {
+      const pairs = await window.electronAPI.getAllExecutionItems('pairs');
+      setPairOptions(pairs);
+    } catch (error) {
+      console.error('Error loading pair options:', error);
     }
   };
 
@@ -679,7 +658,32 @@ function PreSessionJournal() {
       narrative: '',
       execution: '',
       outcome: '',
-      planOutcome: false
+      planOutcome: false,
+      forex_factory_news: JSON.stringify([]),
+      topDownAnalysis: JSON.stringify([]),
+      video_url: '',
+      plans: JSON.stringify({
+        narrative: { text: '' },
+        execution: { text: '' },
+        outcome: { text: '' }
+      }),
+      chart_processes: JSON.stringify([]),
+      mindset_preparation: JSON.stringify({
+        anythingCanHappen: false,
+        futureKnowledge: false,
+        randomDistribution: false,
+        edgeDefinition: false,
+        uniqueMoments: false
+      }),
+      the_zone: JSON.stringify([
+        { id: 1, text: "I objectively identify my edges", accepted: false },
+        { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
+        { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
+        { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
+        { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
+        { id: 6, text: "I predefine the risk of every trade", accepted: false },
+        { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
+      ])
     };
 
     navigate('/daily-routine/pre-session/full', { state: { sessionData: newRecord } });
@@ -688,16 +692,15 @@ function PreSessionJournal() {
   const handleEdit = (id) => {
     const entryToEdit = data.find(entry => String(entry.id) === String(id));
     if (entryToEdit) {
-      navigate(`/daily-routine/pre-session/${id}`, { 
-        state: { 
-          sessionData: entryToEdit,
-          timestamp: Date.now()
-        } 
-      });
+      navigate(`/daily-routine/pre-session/full/${id}`);
     }
   };
 
   const handleDelete = async (id) => {
+    setDeletePopup(id);
+  };
+
+  const confirmDelete = async (id) => {
     try {
       await window.electronAPI.deletePresession(id);
       setData(prevData => prevData.filter(entry => entry.id !== id));
@@ -711,7 +714,7 @@ function PreSessionJournal() {
     navigate('/daily-routine');
   };
 
-  const filteredEntries = React.useMemo(() => {
+  const filteredEntries = useMemo(() => {
     return data.filter((entry) => {
       if (!entry) return false;
       
@@ -729,7 +732,7 @@ function PreSessionJournal() {
     });
   }, [data, filterCriteria, startDate, endDate]);
 
-  const sortedAndFilteredEntries = React.useMemo(() => {
+  const sortedAndFilteredEntries = useMemo(() => {
     return filteredEntries.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
@@ -737,34 +740,40 @@ function PreSessionJournal() {
     });
   }, [filteredEntries, sortConfig]);
 
-  const columns = React.useMemo(
+  const columns = useMemo(
     () => [
       { 
-        Header: 'Action', 
-        accessor: 'action',
-        width: 20,
+        Header: 'Select', 
+        accessor: 'select',
+        width: 50,
+        Cell: ({ row }) => (
+          <Checkbox
+            type="checkbox"
+            checked={selectedEntries.includes(row.original.id)}
+            onChange={() => handleSelectEntry(row.original.id)}
+          />
+        )
+      },
+      {
+        Header: 'Actions',
+        accessor: 'actions',
+        width: 100,
         Cell: ({ row }) => (
           <ButtonsContainer>
-            <Checkbox
-              checked={selectedEntries.includes(row.original.id)}
-              onChange={() => handleSelectEntry(row.original.id)}
-              onClick={(e) => e.stopPropagation()}
-            />
-            <IconButton 
-              onClick={() => handleEdit(row.original.id)}
+            <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
+              <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+            </ActionButton>
+            <ActionButton 
+              onClick={() => handleDelete(row.original.id)} 
+              style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
             >
-              <img src={EditIcon} alt="Edit" />
-            </IconButton>
-            <IconButton 
-              onClick={() => setDeletePopup(row.original.id)}
-            >
-              <img src={DeleteIcon} alt="Delete" />
-            </IconButton>
+              <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+            </ActionButton>
           </ButtonsContainer>
         )
       },
       { Header: 'Date', accessor: 'date', width: 120 },
-      { Header: 'WeekDay', accessor: 'weekDay', width: 120 },
+      { Header: 'Week Day', accessor: 'weekDay', width: 120 },
       {
         Header: 'Pair',
         accessor: 'pair',
@@ -782,16 +791,16 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                preSession: updatedData,
+              window.electronAPI.savePresession({
+                ...row.original,
+                pair: e.target.value
               });
             }}
           >
             <option value="">Select</option>
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
+            {pairOptions.map(pair => (
+              <option key={pair.id} value={pair.name}>{pair.name}</option>
+            ))}
           </EditableSelect>
         ),
       },
@@ -824,9 +833,10 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                preSession: updatedData,
+              window.electronAPI.savePresession({
+                ...row.original,
+                narrative: newNarrative,
+                plan_outcome: shouldCheck ? 1 : 0
               });
             }}
           >
@@ -855,9 +865,9 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                preSession: updatedData,
+              window.electronAPI.savePresession({
+                ...row.original,
+                execution: e.target.value
               });
             }}
           >
@@ -901,9 +911,10 @@ function PreSessionJournal() {
               
               setData(updatedData);
               
-              window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                preSession: updatedData,
+              window.electronAPI.savePresession({
+                ...row.original,
+                outcome: newOutcome,
+                plan_outcome: shouldCheck ? 1 : 0
               });
             }}
           >
@@ -916,11 +927,10 @@ function PreSessionJournal() {
         ),
       },
       {
-        Header: 'Plan&Outcome',
+        Header: 'Plan & Outcome',
         accessor: 'planOutcome',
         width: 120,
         Cell: ({ row }) => {
-          // Автоматическая проверка совпадения narrative и outcome
           const shouldBeChecked = (() => {
             const narrative = row.original.narrative;
             const outcome = row.original.outcome;
@@ -934,29 +944,6 @@ function PreSessionJournal() {
             return narrative === outcome;
           })();
 
-          // Если состояние должно измениться, обновляем данные
-          if (shouldBeChecked !== row.original.planOutcome) {
-            const updatedData = data.map(item => {
-              if (item.id === row.original.id) {
-                return { 
-                  ...item, 
-                  planOutcome: shouldBeChecked,
-                  planOutcomeMatch: {
-                    checked: shouldBeChecked,
-                    timestamp: shouldBeChecked ? new Date().toISOString() : null
-                  }
-                };
-              }
-              return item;
-            });
-            
-            setData(updatedData);
-            window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              preSession: updatedData,
-            });
-          }
-
           return (
             <Checkbox
               type="checkbox"
@@ -968,7 +955,7 @@ function PreSessionJournal() {
         },
       },
     ],
-    [data, selectedEntries]
+    [data, selectedEntries, pairOptions]
   );
 
   const {
@@ -1045,9 +1032,9 @@ function PreSessionJournal() {
                         onChange={handleFilterChange}
                       >
                         <option value="">All Pairs</option>
-                        <option value="EUR/USD">EUR/USD</option>
-                        <option value="GBP/USD">GBP/USD</option>
-                        <option value="USD/JPY">USD/JPY</option>
+                        {pairOptions.map(pair => (
+                          <option key={pair.id} value={pair.name}>{pair.name}</option>
+                        ))}
                       </FilterSelect>
                     </FilterGroup>
 
@@ -1153,34 +1140,34 @@ function PreSessionJournal() {
           <Table {...getTableProps()}>
             <thead>
               {headerGroups.map(headerGroup => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
+                <Tr {...headerGroup.getHeaderGroupProps()}>
                   {headerGroup.headers.map(column => (
-                    <TableHeader {...column.getHeaderProps()} style={{ width: column.width }}>
+                    <Th {...column.getHeaderProps()} style={{ width: column.width }}>
                       {column.render('Header')}
-                    </TableHeader>
+                    </Th>
                   ))}
-                </tr>
+                </Tr>
               ))}
             </thead>
             <tbody {...getTableBodyProps()}>
               {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} style={{ textAlign: 'center' }}>
+                <Tr>
+                  <Td colSpan={columns.length} style={{ textAlign: 'center' }}>
                     No entries yet
-                  </TableCell>
-                </TableRow>
+                  </Td>
+                </Tr>
               ) : (
                 rows.map(row => {
                   prepareRow(row);
                   const isSelected = selectedEntries.includes(row.original.id);
                   return (
-                    <TableRow key={row.original.id} {...row.getRowProps()} selected={isSelected}>
+                    <Tr key={row.original.id} {...row.getRowProps()} selected={isSelected}>
                       {row.cells.map(cell => (
-                        <TableCell {...cell.getCellProps()} style={{ width: cell.column.width }}>
+                        <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
                           {cell.render('Cell')}
-                        </TableCell>
+                        </Td>
                       ))}
-                    </TableRow>
+                    </Tr>
                   );
                 })
               )}
@@ -1189,9 +1176,9 @@ function PreSessionJournal() {
 
           {deletePopup && (
             <Popup>
-              <p>Want to delete?</p>
-              <PopupButton onClick={() => handleDelete(deletePopup)}>Yes</PopupButton>
-              <PopupButton onClick={() => setDeletePopup(null)}>No</PopupButton>
+              <p>Ви впевнені, що хочете видалити цей запис?</p>
+              <PopupButton onClick={() => confirmDelete(deletePopup)}>Так</PopupButton>
+              <PopupButton onClick={() => setDeletePopup(null)}>Ні</PopupButton>
             </Popup>
           )}
 

@@ -259,6 +259,7 @@ const NoteModal = ({
     
     return () => {
       if (isOpen) {
+        const scrollY = parseInt(document.body.style.top || '0', 10) * -1;
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
@@ -310,21 +311,26 @@ const NoteModal = ({
   };
 
   const handlePaste = async (e) => {
+    e.preventDefault();
+    console.log('Paste event detected');
     const items = e.clipboardData.items;
     for (let item of items) {
+      console.log('Item type:', item.type);
       if (item.type.indexOf('image') !== -1) {
+        console.log('Image found in clipboard');
         const file = item.getAsFile();
         const reader = new FileReader();
         reader.onload = async (e) => {
           try {
-            const buffer = Buffer.from(e.target.result);
-            const imagePath = await window.electronAPI.saveBlobAsFile(buffer);
-            setImages(prev => [...prev, { image_path: imagePath }]);
+            console.log('Image loaded');
+            const imageData = e.target.result;
+            console.log('Setting image data');
+            setImages(prev => [...prev, { image_path: imageData }]);
           } catch (error) {
             console.error('Error saving image:', error);
           }
         };
-        reader.readAsArrayBuffer(file);
+        reader.readAsDataURL(file);
       }
     }
   };
@@ -359,7 +365,7 @@ const NoteModal = ({
 
   return (
     <ModalOverlay onClick={onClose} scrollOffset={scrollOffset}>
-      <Modal onClick={e => e.stopPropagation()}>
+      <Modal onClick={e => e.stopPropagation()} onPaste={handlePaste}>
         <Title>{note ? 'Edit Note' : 'Add New Note'}</Title>
         <Form onSubmit={handleSubmit}>
           <Input
@@ -402,9 +408,14 @@ const NoteModal = ({
             ))}
           </ImageContainer>
 
-          <AddImageButton type="button" onClick={() => {}}>
+          <AddImageButton 
+            type="button" 
+            onClick={() => {}}
+            onPaste={handlePaste}
+            tabIndex="0"
+          >
             <AddIcon>+</AddIcon>
-            Add Image
+            Add Image (або натисніть Ctrl+V для вставки з буфера обміну)
           </AddImageButton>
 
           <ButtonGroup>

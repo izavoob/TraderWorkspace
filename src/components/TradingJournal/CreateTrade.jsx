@@ -624,9 +624,10 @@ const FullscreenModal = styled.div`
 `;
 
 const FullscreenImage = styled.img`
-  max-width: 90%;
-  max-height: 90%;
+  max-width: 100%;
+  max-height: 100%;
   object-fit: contain;
+  border: 2px solid #5e2ca5;
   border-radius: 4px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 `;
@@ -927,6 +928,8 @@ function CreateTrade() {
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [notesToSave, setNotesToSave] = useState([]);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -1155,7 +1158,13 @@ function CreateTrade() {
   };
 
   const handleNoteSave = (note) => {
-    setNotesToSave(prevNotes => [...prevNotes, note]);
+    setTrade(prev => ({
+      ...prev,
+      notes: editNoteIndex !== null
+        ? prev.notes.map((n, i) => i === editNoteIndex ? { ...note, id: n.id } : n)
+        : [...prev.notes, note]
+    }));
+    closeNotePopup();
   };
 
   const handleSubmit = async (e) => {
@@ -1178,11 +1187,11 @@ function CreateTrade() {
       console.log('Трейд успішно збережено');
 
       // Зберігаємо нотатки
-      if (notesToSave.length > 0) {
-        console.log('Починаємо зберігати нотатки. Кількість:', notesToSave.length);
+      if (trade.notes && trade.notes.length > 0) {
+        console.log('Починаємо зберігати нотатки. Кількість:', trade.notes.length);
         
         try {
-          for (const note of notesToSave) {
+          for (const note of trade.notes) {
             console.log('Зберігаємо нотатку:', note);
             const noteId = await window.electronAPI.addNote({
               ...note,
@@ -1634,7 +1643,12 @@ function CreateTrade() {
           </div>
           <div style={{ flex: 1 }}>
             <NoteContainer>
-              <NotesList sourceType="trade" sourceId={trade.id} />
+              <SectionTitle>Notes</SectionTitle>
+              <NotesList 
+                sourceType="trade" 
+                sourceId={trade.id} 
+                onAddNote={(e) => openNotePopup(null, e)}
+              />
             </NoteContainer>
           </div>
         </Row>

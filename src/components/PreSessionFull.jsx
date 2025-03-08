@@ -1,11 +1,28 @@
+// PreSessionFull.jsx
 import React, { useState, useEffect } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
-import DeleteIcon from '../assets/icons/delete-icon.svg';
-import EditIcon from '../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import NotesList from './Notes/NotesList.jsx';
+import NoteModal from './Notes/NoteModal.jsx';
+import DeleteIcon from '../assets/icons/delete-icon.svg';
+import EditIcon from '../assets/icons/edit-icon.svg';
+
+// Перехоплюємо оригінальний JSON.parse
+const originalJSONParse = JSON.parse;
+JSON.parse = function(text) {
+  if (text === undefined || text === null) {
+    console.warn('Attempted to parse undefined or null JSON string');
+    return {};
+  }
+  try {
+    return originalJSONParse(text);
+  } catch (e) {
+    console.error('Error parsing JSON:', e, 'Text:', text);
+    return {};
+  }
+};
 
 // Animations
 const fadeIn = keyframes`
@@ -206,283 +223,64 @@ const Title = styled.h1`
   z-index: 1;
 `;
 
+// Нова структура контенту
 const Content = styled.div`
-  margin-top: 28px;
-  padding-top: 20px;
-  position: relative;
-  min-height: calc(100vh - 168px);
-  width: 100%;
-  overflow-y: visible;
-`;
-
-const Form = styled.form`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
+  margin-top: 148px;
   padding: 20px;
-  animation: ${fadeIn} 0.5s ease;
+  width: 100%;
+  box-sizing: border-box;
 `;
 
-const ThreeColumnLayout = styled.div`
+// Секція з двома колонками
+const TwoColumnSection = styled.div`
   display: grid;
-  grid-template-columns: 1fr;
-  gap: 30px;
-  margin-bottom: 20px;
-
-  @media (min-width: 1200px) {
-    grid-template-columns: repeat(2, 1fr);
-  }
+  grid-template-columns: repeat(2, 1fr);
+  gap: 40px;
+  margin-bottom: 40px;
+  width: 100%;
 `;
 
-const AnalyticsLayout = styled.div`
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 30px;
-  margin-bottom: 20px;
+// Секція на всю ширину
+const FullWidthSection = styled.div`
+  margin-bottom: 40px;
+  width: 100%;
 `;
-const Section = styled.section`
-  background: #2e2e2e;
-  border-radius: 15px;
-  padding: 25px;
+
+// Стилі для блоків
+const SectionBlock = styled.div`
+  background-color: #2e2e2e;
   border: 2px solid #5e2ca5;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  transition: all 0.3s ease;
-  animation: ${slideIn} 0.5s ease;
-
-  &:hover {
-    box-shadow: 0 6px 20px rgba(116, 37, 201, 0.2);
-    transform: translateY(-2px);
-  }
-`;
-
-const BasicInfoSection = styled(Section)`
+  border-radius: 15px;
+  padding: 30px;
+  box-sizing: border-box;
   height: fit-content;
 `;
 
-const MindsetSection = styled(Section)`
-  height: fit-content;
-`;
-
-const ZoneSection = styled(Section)`
-  grid-column: 1 / -1;
-  margin-top: 20px;
-`;
-
-const MainAnalysisSection = styled(Section)`
-  margin-top: 20px;
-`;
-
-const VideoSection = styled(Section)`
-  margin-top: 20px;
-  height: fit-content;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
-const NotesSection = styled(Section)`
-  grid-column: 2;
-  margin-top: 20px;
-`;
-
-const NewsSection = ({ data, onImagePaste, onImageRemove, onImageClick }) => {
-  const [currentImage, setCurrentImage] = useState(data.newsScreenshots[0] || null);
-
-  const handlePaste = (e) => {
-    e.preventDefault();
-    onImagePaste(e, 'news');
-  };
-
-  useEffect(() => {
-    setCurrentImage(data.newsScreenshots[0] || null);
-  }, [data.newsScreenshots]);
-
-  return (
-    <div>
-      <h4>Forex Factory News</h4>
-      <ChartDropZone 
-        onPaste={handlePaste}
-        tabIndex="0"
-        role="button"
-        hasImage={!!currentImage}
-        aria-label="Paste News Screenshot"
-        onClick={() => currentImage && onImageClick(currentImage)}
-        style={{ cursor: currentImage ? 'pointer' : 'default' }}
-      >
-        {currentImage ? (
-          <>
-            <img 
-              src={currentImage} 
-              alt="News Screenshot"
-              onClick={(e) => {
-                e.stopPropagation();
-                onImageClick(currentImage);
-              }}
-            />
-            <RemoveImageButton
-              className="remove-image"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onImageRemove('news', 'news', 0);
-              }}
-            >
-              ×
-            </RemoveImageButton>
-          </>
-        ) : (
-          <div className="placeholder">
-            <span>📰 Paste News Screenshot</span>
-            <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
-          </div>
-        )}
-      </ChartDropZone>
-    </div>
-  );
-};
-
-const TimeframeContainer = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
-`;
-
-const TimeframeHeader = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 15px;
-  margin-bottom: 15px;
-`;
-
-const TimeframeIcon = styled.div`
-  width: 40px;
-  height: 40px;
-  background: linear-gradient(135deg, #7425C9, #B886EE);
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  color: white;
-`;
-
-const ImageGrid = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 15px;
-  margin: 15px 0;
-  width: 100%;
-`;
-
-const ImageContainer = styled.div`
+const SectionTitle = styled.h3`
+  color: rgb(230, 243, 255);
+  margin: 0 0 20px 0;
+  font-size: 1.5em;
+  border-bottom: 2px solid rgba(94, 44, 165, 0.4);
+  padding-bottom: 10px;
   position: relative;
-  width: 100%;
-  height: 150px;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #5e2ca5;
-  cursor: pointer;
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: scale(1.05);
-  }
-
-  img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-  }
-
-  button {
-    position: absolute;
-    top: 5px;
-    right: 5px;
-    background: rgba(0, 0, 0, 0.7);
-    border: none;
-    border-radius: 50%;
-    width: 24px;
-    height: 24px;
-    color: white;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 14px;
-    z-index: 2;
-
-    &:hover {
-      background: rgba(255, 0, 0, 0.7);
-    }
-  }
-`;
-
-const ImageUploadArea = styled.div`
-  border: 2px dashed #5e2ca5;
-  border-radius: 8px;
   text-align: center;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  margin-bottom: 15px;
 
-  &:hover {
-    border-color: #B886EE;
-    background: rgba(94, 44, 165, 0.1);
+  
+
+  &:after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 50px;
+    height: 2px;
+    background: linear-gradient(90deg, #B886EE, #7425C9);
   }
 `;
+
+// Стилі для форм
 const FormGroup = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 15px;
-`;
-
-const QuotesList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-`;
-
-const Quote = styled.div`
-  background: #3e3e3e;
-  padding: 15px 20px;
-  border-radius: 8px;
-  border: 1px solid #5e2ca5;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  transition: all 0.3s ease;
-  font-family: 'Georgia', serif;
-  font-style: italic;
-  letter-spacing: 0.3px;
-  line-height: 1.5;
-  
-  &:hover {
-    border-color: #B886EE;
-    transform: translateX(5px);
-    background: #444444;
-  }
-`;
-
-const AcceptButton = styled.button`
-  padding: 8px 16px;
-  border-radius: 6px;
-  border: none;
-  background: ${props => props.accepted ? '#2ecc71' : '#3e3e3e'};
-  color: white;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  border: 1px solid ${props => props.accepted ? '#27ae60' : '#5e2ca5'};
-  
-  &:hover {
-    background: ${props => props.accepted ? '#27ae60' : '#4e4e4e'};
-    transform: translateY(-2px);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
+  margin-bottom: 20px;
 `;
 
 const Label = styled.label`
@@ -490,6 +288,7 @@ const Label = styled.label`
   font-size: 14px;
   font-weight: 500;
   margin-bottom: 5px;
+  display: block;
 `;
 
 const Input = styled.input`
@@ -500,6 +299,25 @@ const Input = styled.input`
   color: #fff;
   width: 100%;
   box-sizing: border-box;
+  transition: all 0.2s ease;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
+  }
+`;
+
+const TextArea = styled.textarea`
+  padding: 12px;
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  color: #fff;
+  width: 100%;
+  min-height: 120px;
+  box-sizing: border-box;
+  resize: vertical;
   transition: all 0.2s ease;
 
   &:focus {
@@ -546,63 +364,42 @@ const Select = styled.select`
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   width: 100%;
-  cursor: pointer;
+  box-sizing: border-box;
   transition: all 0.2s ease;
-
-  option {
-    background: #3e3e3e;
-    color: #fff;
-    padding: 8px;
-  }
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23ffffff' d='M6 9L1 4h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  cursor: pointer;
 
   &:focus {
     outline: none;
     border-color: #B886EE;
     box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
   }
+  
+  option {
+    background: #3e3e3e;
+    color: #fff;
+    padding: 8px;
+  }
 `;
 
-const TextArea = styled.textarea`
-  width: calc(100% - 40px); // Отступы по бокам
-  min-height: 100px;
+const StyledDatePicker = styled(DatePicker)`
+  padding: 12px;
   background: #3e3e3e;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
-  color: white;
-  padding: 1px;
-  resize: vertical;
-  margin: 15px auto 0; // Центрируем с помощью auto по горизонтали
-  display: block; // Важно для margin auto
-  font-family: 'Inter', sans-serif;
-  
+  color: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
   &:focus {
     outline: none;
     border-color: #B886EE;
-  }
-`;
-const MindsetCheckbox = styled.div`
-  background: #3e3e3e;
-  padding: 15px;
-  border-radius: 8px;
-  margin-bottom: 12px;
-  border: 1px solid #5e2ca5;
-  transition: all 0.3s ease;
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-
-  &:hover {
-    border-color: #B886EE;
-    transform: translateX(5px);
-    background: #444444;
-  }
-
-  label {
-    flex: 1;
-    line-height: 1.4;
-    color: #fff;
-    font-size: 14px;
-    cursor: pointer;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
   }
 `;
 
@@ -638,30 +435,22 @@ const Checkbox = styled.input`
   }
 `;
 
-const SectionTitle = styled.h3`
+const CheckboxLabel = styled.label`
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
   color: #fff;
-  margin: 0 0 20px 0;
-  font-size: 1.5em;
-  border-bottom: 2px solid #5e2ca5;
-  padding-bottom: 10px;
-  position: relative;
-
-  &:after {
-    content: '';
-    position: absolute;
-    bottom: -2px;
-    left: 0;
-    width: 50px;
-    height: 2px;
-    background: linear-gradient(90deg, #B886EE, #7425C9);
-  }
+  font-size: 14px;
+  margin-bottom: 10px;
+  cursor: pointer;
 `;
 
+// Кнопки
 const ButtonGroup = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 20px;
-  margin-top: 20px;
+  margin-top: 40px;
 `;
 
 const Button = styled.button`
@@ -688,6 +477,296 @@ const Button = styled.button`
   }
 `;
 
+// Компоненти для зони
+const Quote = styled.div`
+  background: #3e3e3e;
+  padding: 15px 20px;
+  border-radius: 8px;
+  border: 1px solid #5e2ca5;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  transition: all 0.3s ease;
+  font-family: 'Georgia', serif;
+  font-style: italic;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+  margin-bottom: 10px;
+  text-align: left;
+  
+  &:hover {
+    border-color: #B886EE;
+    transform: translateX(5px);
+    background: #444444;
+  }
+`;
+
+const AcceptButton = styled.button`
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  background: ${props => props.accepted ? '#2ecc71' : '#3e3e3e'};
+  color: white;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  border: 1px solid ${props => props.accepted ? '#27ae60' : '#5e2ca5'};
+  
+  &:hover {
+    background: ${props => props.accepted ? '#27ae60' : '#4e4e4e'};
+    transform: translateY(-2px);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+// Компоненти для модальних вікон
+const ImageModal = styled.div`
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(0, 0, 0, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 20px;
+  box-sizing: border-box;
+  transform: translateY(${props => props.scrollOffset}px);
+  
+  img {
+    max-width: 90%;
+    max-height: 90vh;
+    object-fit: contain;
+    border: 2px solid #5e2ca5;
+    border-radius: 8px;
+  }
+`;
+
+const ModalCloseButton = styled.button`
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  background: rgba(94, 44, 165, 0.7);
+  color: white;
+  border: none;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  font-size: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(94, 44, 165, 1);
+    transform: scale(1.1);
+  }
+`;
+
+// Компоненти для завантаження зображень
+const DropZone = styled.div`
+  border: 2px dashed ${props => props.isDragActive ? '#B886EE' : '#5e2ca5'};
+  border-radius: 10px;
+  padding: 40px 20px;
+  text-align: center;
+  color: #fff;
+  background: ${props => props.isDragActive ? 'rgba(184, 134, 238, 0.1)' : '#3e3e3e'};
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-bottom: 20px;
+  
+  &:hover {
+    border-color: #B886EE;
+    background: rgba(184, 134, 238, 0.05);
+  }
+`;
+
+const ImagePreview = styled.div`
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 10px;
+  margin-top: 20px;
+  
+  img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 8px;
+    border: 1px solid #5e2ca5;
+  }
+`;
+
+const ImageUploadForm = styled.form`
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: #2e2e2e;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px solid #5e2ca5;
+  width: 90%;
+  max-width: 600px;
+  z-index: 1002;
+  max-height: 80vh;
+  overflow-y: auto;
+`;
+
+// Компоненти для процесів
+const ProcessList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  margin-top: 20px;
+`;
+
+const ProcessItem = styled.div`
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 10px;
+  padding: 20px;
+  position: relative;
+`;
+
+const ProcessTextArea = styled.textarea`
+  width: 98%;
+  min-height: 100px;
+  padding-top: 12px;
+  padding-left: 12px;
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  color: #fff;
+  resize: vertical;
+  margin-bottom: 10px;
+  
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
+const ProcessImageContainer = styled.div`
+  margin-top: 10px;
+  
+  img {
+    max-width: 100%;
+    border-radius: 8px;
+    border: 1px solid #5e2ca5;
+    cursor: pointer;
+    transition: transform 0.3s ease;
+    
+    &:hover {
+      transform: scale(1.02);
+    }
+  }
+`;
+
+const ProcessTime = styled.div`
+  color: #B886EE;
+  font-size: 0.9em;
+  margin-bottom: 10px;
+`;
+
+const ProcessImageUpload = styled.div`
+  position: relative;
+  height: 520px;
+  border: 2px dashed #5e2ca5;
+  border-radius: 8px;
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin-top: 10px;
+  
+  img {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 6px;
+    cursor: pointer;
+  }
+
+  .placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+    color: #B886EE;
+    opacity: ${props => props.hasImage ? 0 : 1};
+  }
+
+  &:hover {
+    border-color: #B886EE;
+    background: rgba(94, 44, 165, 0.1);
+  }
+  
+  &:hover .remove-image {
+    opacity: 1;
+  }
+`;
+
+const AddButton = styled.button`
+  background: linear-gradient(135deg, #7425C9, #B886EE);
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:before {
+    content: '+';
+    font-size: 18px;
+  }
+`;
+
+const DeleteProcessButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(244, 67, 54, 0.7);
+  color: white;
+  border: none;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(244, 67, 54, 1);
+    transform: scale(1.1);
+  }
+  
+  &:before {
+    content: '×';
+    font-size: 20px;
+  }
+`;
+
 const LoadingOverlay = styled.div`
   position: fixed;
   top: 0;
@@ -704,418 +783,68 @@ const LoadingOverlay = styled.div`
   backdrop-filter: blur(5px);
 `;
 
-const LoadingSpinner = styled.div`
-  @keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-  }
-  
-  width: 50px;
-  height: 50px;
-  border: 5px solid #5e2ca5;
-  border-top: 5px solid #B886EE;
-  border-radius: 50%;
-  animation: spin 1s linear infinite;
-  margin-right: 15px;
-`;
-
+// Компонент для відео URL з кнопкою перегляду
 const VideoUrlContainer = styled.div`
   display: flex;
+  flex-direction: column;
   gap: 10px;
-  width: 100%;
-  align-items: center;
 `;
 
-const VideoContainer = styled.div`
-  width: 100%;
-  margin-top: 15px;
-  aspect-ratio: 16/9;
-  border-radius: 8px;
-  overflow: hidden;
-  border: 1px solid #5e2ca5;
-  background: #1a1a1a;
-`;
-
-const EmbedButton = styled(Button)`
-  padding: 11px 20px;
-  margin-top: 0;
-  white-space: nowrap;
-  min-width: 120px;
-`;
-
-// Добавляем новые styled-components для модального окна
-const ImageModal = styled.div`
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
+const VideoUrlInputGroup = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 20px;
-  box-sizing: border-box;
+  gap: 10px;
+`;
 
-  img {
-  max-width: 90%;
-  max-height: 90vh;
-  object-fit: contain;
-    border-radius: 4px;
-  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+const ViewButton = styled.button`
+  background: linear-gradient(135deg, #5C9DF5, #7425C9);
+  color: white;
+  border: none;
+  padding: 0 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
 `;
 
-const NoteModal = styled.div`
-  position: fixed;
-  inset: 0;
-  width: 100vw;
-  height: 100vh;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(2px);
+// Компоненти для таймфреймів
+const TimeframeContainer = styled.div`
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+  margin-top: 20px;
+`;
+
+const TimeframeHeader = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-  z-index: 2000;
-  padding: 20px;
-  box-sizing: border-box;
-  transform: translateY(${props => props.scrollOffset}px);
+  gap: 15px;
+  margin-bottom: 15px;
 `;
 
-const NoteModalContent = styled.div`
-  background: #2e2e2e;
-  padding: 30px;
-  border-radius: 15px;
-  border: 2px solid #5e2ca5;
-  width: 90%;
-  max-width: 600px;
-  position: relative;
-  max-height: 90vh;
-  overflow-y: auto;
-  animation: ${fadeIn} 0.3s ease;
-`;
-
-const ModalCloseButton = styled.button`
-  position: fixed;
-  top: 20px;
-  right: 20px;
-  background: conic-gradient(from 45deg, #7425c9, #b886ee);
-  border: none;
+const TimeframeIcon = styled.div`
   width: 40px;
   height: 40px;
-  border-radius: 50%;
-  cursor: pointer;
-  color: #fff;
-  font-size: 1.2em;
+  background: linear-gradient(135deg, #7425C9, #B886EE);
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  transition: transform 0.2s ease;
-  z-index: 2001;
-
-  &:hover {
-    transform: scale(1.1);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
-`;
-
-// Добавляем новые styled-components
-const PlanSection = styled(Section)`
-  margin-top: 20px;
-  grid-column: 1 / -1;
-`;
-
-const PlansContainer = styled.div`
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 20px;
-`;
-
-const PlanTable = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background: #2e2e2e;
-  border: 1px solid #5e2ca5;
-  border-radius: 8px;
-  overflow: hidden;
-  margin-bottom: 20px;
-  position: relative; // Добавляем для позиционирования кнопки удаления
-  max-width: 800px; // Добавляем максимальную ширину
-  margin: 0 auto 20px; // Центрируем таблицу
-`;
-
-const TableRow = styled.tr`
-  &:not(:last-child) {
-    border-bottom: 1px solid #5e2ca5;
-  }
-`;
-
-const TableHeaderCell = styled.th`
-  padding: 12px;
-  background: linear-gradient(135deg, #7425C9, #B886EE);
-  color: white;
-  text-align: left;
   font-weight: bold;
-`;
-
-const TableCell = styled.td`
-  padding: 12px;
-  border-right: ${props => props.isAspect ? '1px solid #5e2ca5' : 'none'};
   color: white;
-  background: ${props => props.isAspect ? '#3e3e3e' : 'transparent'};
-  width: ${props => props.isAspect ? '120px' : 'auto'};
 `;
 
-const PlanInput = styled.textarea`
-  width: 100%;
-  min-height: 40px;
-  background: #3e3e3e;
-  border: 1px solid transparent;
-  border-radius: 4px;
-  color: white;
-  padding: 8px;
-  resize: vertical;
-  font-family: 'Inter', sans-serif;
-  
-  &:focus {
-    outline: none;
-    border-color: #B886EE;
-  }
-`;
-
-const AddPlanButton = styled(Button)`
-  margin: 20px 0;
-`;
-
-// Обновляем стиль кнопки удаления
-const DeletePlanButton = styled.button`
-  position: absolute;
-  top: 12px;
-  right: 12px;
-  background: linear-gradient(135deg, #ff4757, #ff6b81);
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-  font-size: 16px;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-  z-index: 2;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
-    background: linear-gradient(135deg, #ff6b81, #ff4757);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-`;
-
-// Добавляем новые styled-components
-const DuringSessionSection = styled(Section)`
-  margin-top: 20px;
-  grid-column: 1 / -1;
-`;
-
-const DuringSessionLayout = styled.div`
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 30px;
-`;
-
-// Обновляем компоненты для DURING SESSION Process
-const ProcessColumn = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  height: fit-content;
-`;
-
-const ColumnTitle = styled.h4`
-  color: #fff;
-  margin: 0 0 15px 0;
-  font-size: 1.2em;
-  padding-bottom: 10px;
-  border-bottom: 1px solid #5e2ca5;
-`;
-
-const ProcessButton = styled.button`
-  padding: 12px 24px;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: 500;
-  color: white;
-  background: linear-gradient(135deg, #7425C9, #B886EE);
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-  width: fit-content;
-
-  &:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.3);
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-`;
-
-// Обновляем стиль ProcessCard - удаляем эффект hover и боковой скролл
-const ProcessCardContainer = styled.div`
-  background: #3e3e3e;
-  border-radius: 8px;
-  padding: 12px;
-  border: 1px solid #5e2ca5;
-  margin-bottom: 10px;
+const ChartDropZone = styled.div`
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  width: 100%;
-`;
-
-// Оставляем только одно определение ProcessImageUpload
-const ProcessImageUpload = styled(ImageUploadArea)`
-  margin-top: 8px;
-  height: 120px;
-  width: 90%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  position: relative;
-  transition: transform 0.2s ease;
-  
-  img {
-    max-height: 100%;
-    max-width: 100%;
-    object-fit: contain;
-  }
-
-  &:hover {
-    transform: ${props => props.hasImage ? 'scale(1.02)' : 'none'};
-  }
-`;
-
-const ProcessTextArea = styled(TextArea)`
-  width: 90%;
-  min-height: 60px;
-  margin: 8px 0;
-  resize: vertical;
-`;
-
-// Возвращаем DeleteButton к прежнему виду
-const DeleteButton = styled.button`
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  background: linear-gradient(135deg, #ff4757, #ff6b81);
-  border: none;
-  border-radius: 6px;
-  color: white;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  z-index: 2;
-
-  &:hover {
-    background: linear-gradient(135deg, #ff6b81, #ff4757);
-  }
-`;
-
-// Обновляем стиль ProcessList - удаляем правый padding
-const ProcessList = styled.div`
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-  margin-top: 20px;
-  width: 100%;
-`;
-
-// Создаем отдельную кнопку для процессов, которая не будет вызывать submit формы
-const ButtonGroupProcess = styled.div`
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  margin-top: 10px;
-`;
-
-const ProcessTime = styled.div`
-  color: #B886EE;
-  font-size: 0.9em;
-  margin-top: 10px;
-`;
-
-const ImageUploadForm = styled.form`
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  background: #2e2e2e;
-  padding: 40px;
-  border-radius: 20px;
-  border: 2px solid #5e2ca5;
-  color: #fff;
-  z-index: 1002;
-  width: 80%;
-  max-width: 600px;
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-`;
-
-const DropZone = styled.div`
+  height: 300px;
   border: 2px dashed #5e2ca5;
-  border-radius: 10px;
-  padding: 40px;
+  border-radius: 8px;
   text-align: center;
   cursor: pointer;
   transition: all 0.3s ease;
-  background: ${props => props.isDragActive ? 'rgba(94, 44, 165, 0.1)' : 'transparent'};
-
-  &:hover {
-    border-color: #B886EE;
-    background: rgba(94, 44, 165, 0.1);
-  }
-`;
-
-const ImagePreview = styled.div`
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
-  gap: 15px;
-  max-height: 300px;
-  overflow-y: auto;
-  padding: 10px;
-
-  img {
-    width: 100%;
-    height: 150px;
-    object-fit: cover;
-    border-radius: 8px;
-    border: 1px solid #5e2ca5;
-  }
-`;
-
-// Обновляем стили для области вставки изображений
-const ChartDropZone = styled(ImageUploadArea)`
-  position: relative;
-  height: 300px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -1129,7 +858,7 @@ const ChartDropZone = styled(ImageUploadArea)`
     height: 100%;
     object-fit: contain;
     border-radius: 6px;
-    cursor: pointer; // Добавляем курсор pointer для изображений
+    cursor: pointer;
   }
 
   .placeholder {
@@ -1141,6 +870,11 @@ const ChartDropZone = styled(ImageUploadArea)`
     opacity: ${props => props.hasImage ? 0 : 1};
   }
 
+  &:hover {
+    border-color: #B886EE;
+    background: rgba(94, 44, 165, 0.1);
+  }
+  
   &:hover .remove-image {
     opacity: 1;
   }
@@ -1163,13 +897,13 @@ const RemoveImageButton = styled.button`
   opacity: 0;
   transition: opacity 0.2s ease;
   z-index: 2;
-
+  
   &:hover {
     background: rgba(255, 71, 87, 1);
   }
 `;
 
-// Обновляем TimeframeBlock компонент
+// Компонент для таймфрейму
 const TimeframeBlock = ({ timeframe, data, onNotesChange, onImagePaste, onImageRemove, onImageClick }) => {
   const [currentImage, setCurrentImage] = useState(data.charts[0] || null);
 
@@ -1238,160 +972,141 @@ const TimeframeBlock = ({ timeframe, data, onNotesChange, onImagePaste, onImageR
   );
 };
 
-// Обновляем функцию handlePaste
-const handlePaste = (e, type, processId = null) => {
-  const items = e.clipboardData?.items;
-  if (!items) return;
-  
-  for (const item of items) {
-    if (item.type.indexOf('image') !== -1) {
-      const blob = item.getAsFile();
-      const reader = new FileReader();
-      
-      reader.onload = () => {
-        const imageData = reader.result;
-        
-        if (processId) {
-          // Для Chart Process
-          setChartProcesses(prev => prev.map(process => 
-            process.id === processId ? { ...process, image: imageData } : process
-          ));
-        } else if (type === 'news') {
-          // Для News Screenshots
-          setAnalysisData(prev => ({
-            ...prev,
-            newsScreenshots: [imageData] // Храним только одно изображение
-          }));
-        } else {
-          // Для таймфреймов
-          setAnalysisData(prev => ({
-            ...prev,
-            timeframes: {
-              ...prev.timeframes,
-              [type]: {
-                ...prev.timeframes[type],
-                charts: [imageData] // Храним только одно изображение
-              }
-            }
-          }));
-        }
-      };
-      
-      reader.readAsDataURL(blob);
-      break;
-    }
+// Компоненти для планів
+const PlanTable = styled.table`
+  width: 100%;
+  border-collapse: collapse;
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  overflow: hidden;
+  margin-bottom: 20px;
+  position: relative;
+  max-width: 800px;
+  margin: 0 auto 20px;
+`;
+
+const TableRow = styled.tr`
+  &:not(:last-child) {
+    border-bottom: 1px solid #5e2ca5;
   }
-};
+`;
 
-// Обновляем ProcessImageUpload компонент
-const ProcessCard = ({ process, onTextChange, onImagePaste, onDelete, onImageDelete, onImageClick }) => {
-  const handlePaste = (e) => {
-    e.preventDefault();
-    onImagePaste(e, null, process.id);
-  };
+const TableHeaderCell = styled.th`
+  padding: 12px;
+  background: linear-gradient(135deg, #7425C9, #B886EE);
+  color: white;
+  text-align: left;
+  font-weight: bold;
+`;
 
-  return (
-    <ProcessCardContainer>
-      <DeleteButton onClick={() => onDelete(process.id)} title="Delete process">
-        ×
-      </DeleteButton>
-      <ProcessTime>{process.time}</ProcessTime>
-      <ProcessTextArea
-        value={process.text}
-        onChange={(e) => onTextChange(process.id, e.target.value)}
-        placeholder="Enter your process notes..."
-      />
-      <ChartDropZone 
-        onPaste={handlePaste}
-        hasImage={!!process.image}
-        tabIndex="0"
-        role="button"
-        aria-label="Paste chart screenshot"
-        style={{ width: '90%', cursor: process.image ? 'pointer' : 'default' }}
-        onClick={() => process.image && onImageClick(process.image)}
-      >
-        {process.image ? (
-          <>
-            <img 
-              src={process.image} 
-              alt="Process Screenshot"
-              onClick={(e) => {
-                e.stopPropagation();
-                onImageClick(process.image);
-              }}
-            />
-            <RemoveImageButton
-              className="remove-image"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                onImageDelete(process.id);
-              }}
-            >
-              ×
-            </RemoveImageButton>
-          </>
-        ) : (
-          <div className="placeholder">
-            <span>📈 Paste Chart Screenshot (Ctrl + V)</span>
-            <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
-          </div>
-        )}
-      </ChartDropZone>
-    </ProcessCardContainer>
-  );
-};
+const TableCell = styled.td`
+  padding: 12px;
+  border-right: ${props => props.isAspect ? '1px solid #5e2ca5' : 'none'};
+  color: white;
+  background: ${props => props.isAspect ? '#3e3e3e' : 'transparent'};
+  width: ${props => props.isAspect ? '120px' : 'auto'};
+`;
 
-// Обновляем секцию с таймфреймами в основном компоненте
+const PlanInput = styled.textarea`
+  width: 100%;
+  min-height: 40px;
+  background: #3e3e3e;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  color: white;
+  padding: 8px;
+  resize: vertical;
+  font-family: 'Inter', sans-serif;
+  
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
+const PlansContainer = styled.div`
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 20px;
+`;
+
 function PreSessionFull() {
   const location = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
-  const [sessionData, setSessionData] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [embedVideo, setEmbedVideo] = useState(false);
-  const [selectedNote, setSelectedNote] = useState(null);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState(null);
+  const [scrollOffset, setScrollOffset] = useState(0);
+  const [showImageForm, setShowImageForm] = useState(false);
+  const [currentUploadSection, setCurrentUploadSection] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [dragActive, setDragActive] = useState(false);
+  const [currencyPairs, setCurrencyPairs] = useState([]);
+  const [noteSourceType, setNoteSourceType] = useState('presession');
+  const [noteSourceId, setNoteSourceId] = useState(null);
   
-  // Состояния для основных секций
-  const [mindsetChecks, setMindsetChecks] = useState({
-    anythingCanHappen: false,
-    futureKnowledge: false,
-    randomDistribution: false,
-    edgeDefinition: false,
-    uniqueMoments: false
+  // Безпечний парсинг JSON
+  const safeParse = (jsonString, defaultValue) => {
+    if (!jsonString) return defaultValue;
+    if (typeof jsonString === 'object') return jsonString;
+    try {
+      return JSON.parse(jsonString);
+    } catch (e) {
+      console.error('Error parsing JSON:', e);
+      return defaultValue;
+    }
+  };
+  
+  // Стан для даних пресесії
+  const [sessionData, setSessionData] = useState({
+    id: id || crypto.randomUUID(),
+    date: new Date().toISOString().split('T')[0],
+    pair: '',
+    narrative: '',
+    execution: '',
+    outcome: '',
+    plan_outcome: false,
+    mindset_preparation: {
+      anythingCanHappen: false,
+      futureKnowledge: false,
+      randomDistribution: false,
+      edgeDefinition: false,
+      uniqueMoments: false
+    },
+    the_zone: [
+      { id: 1, text: "I objectively identify my edges", accepted: false },
+      { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
+      { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
+      { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
+      { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
+      { id: 6, text: "I predefine the risk of every trade", accepted: false },
+      { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
+    ],
+    video_url: '',
+    topDownAnalysis: [],
+    forex_factory_news: [],
+    plans: {
+      narrative: { text: '' },
+      execution: { text: '' },
+      outcome: { text: '' }
+    },
+    chart_processes: []
   });
 
-  const [planOutcomeMatch, setPlanOutcomeMatch] = useState({
-    checked: false,
-    timestamp: null
-  });
-
-  const [zoneQuotes, setZoneQuotes] = useState([
-    { id: 1, text: "I objectively identify my edges", accepted: false },
-    { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
-    { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
-    { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
-    { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
-    { id: 6, text: "I predefine the risk of every trade", accepted: false },
-    { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
-  ]);
-
-  // Состояние для секций анализа
+  // Стан для аналізу таймфреймів
   const [analysisData, setAnalysisData] = useState({
-    newsScreenshots: [],
     timeframes: {
       weekly: { charts: [], notes: '' },
       daily: { charts: [], notes: '' },
       h4: { charts: [], notes: '' },
       h1: { charts: [], notes: '' }
-    },
-    videoUrl: '',
-    overallThoughts: ''
+    }
   });
 
-  const [selectedImage, setSelectedImage] = useState(null);
-
-  // Добавляем состояние для планов
+  // Стан для планів
   const [plans, setPlans] = useState({
     planA: {
       bias: '',
@@ -1411,859 +1126,965 @@ function PreSessionFull() {
     }
   });
 
+  // Стан для адаптацій планів
   const [adaptations, setAdaptations] = useState([]);
 
-  const [chartProcesses, setChartProcesses] = useState([]);
-
-  const [showImageForm, setShowImageForm] = useState(false);
-  const [currentUploadSection, setCurrentUploadSection] = useState(null);
-  const [selectedFiles, setSelectedFiles] = useState([]);
-  const [dragActive, setDragActive] = useState(false);
-
+  // Стан для зберігання нотаток
   const [notes, setNotes] = useState([]);
-  const [showNotePopup, setShowNotePopup] = useState(false);
-  const [noteTitle, setNoteTitle] = useState('');
-  const [noteText, setNoteText] = useState('');
-  const [editNoteIndex, setEditNoteIndex] = useState(null);
+  const [tempNotes, setTempNotes] = useState([]);
 
-  const [currencyPairs, setCurrencyPairs] = useState([]);
-  const [scrollOffset, setScrollOffset] = useState(0);
-  const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
-
+  // Завантаження даних при ініціалізації
   useEffect(() => {
-    const loadCurrencyPairs = async () => {
-      try {
-        const pairs = await window.electronAPI.getAllExecutionItems('pairs');
-        setCurrencyPairs(pairs);
-      } catch (error) {
-        console.error('Error loading currency pairs:', error);
-      }
-    };
-    loadCurrencyPairs();
-  }, []);
-
-  const openNotePopup = (note = null) => {
-    setSelectedNote(note);
-    setIsNoteModalOpen(true);
-  };
-
-  const closeNotePopup = () => {
-    setSelectedNote(null);
-    setIsNoteModalOpen(false);
-  };
-
-  const saveNote = async (noteData) => {
-    try {
-      if (noteData.id) {
-        await window.electronAPI.updateNote(noteData);
-      } else {
-        await window.electronAPI.addNote({
-          ...noteData,
-          sourceType: 'presession',
-          sourceId: id  // Використовуємо ID поточної pre-session
-        });
-      }
-      // Оновлення списку нотаток або інші дії
-    } catch (error) {
-      console.error('Error saving note:', error);
-    }
-  };
-
-  useEffect(() => {
-    const loadSessionData = async () => {
+    const loadData = async () => {
       setIsLoading(true);
       try {
-        if (location.state?.sessionData) {
-          setSessionData(location.state.sessionData);
-          // Ініціалізуємо початкові стани для нового запису
-          setAnalysisData({
-            newsScreenshots: [],
-            timeframes: {
+        // Завантаження списку валютних пар
+        const pairs = await window.electronAPI.getAllExecutionItems('pairs');
+        setCurrencyPairs(pairs);
+
+        // Якщо є id, завантажуємо дані пресесії
+        if (id) {
+          console.log('Loading presession with ID:', id);
+          const presession = await window.electronAPI.getPresession(id);
+          console.log('Loaded presession data:', presession);
+          
+          if (presession) {
+            // Парсимо дані планів
+            let plansData = safeParse(presession.plans, { planA: {}, planB: {} });
+            let adaptationsData = plansData.adaptations || [];
+            
+            // Парсимо дані аналізу таймфреймів
+            let timeframesData = {
               weekly: { charts: [], notes: '' },
               daily: { charts: [], notes: '' },
               h4: { charts: [], notes: '' },
               h1: { charts: [], notes: '' }
-            },
-            videoUrl: ''
-          });
-          setPlans({
-            planA: {
-              bias: '',
-              background: '',
-              what: '',
-              entry: '',
-              target: '',
-              invalidation: ''
-            },
-            planB: {
-              bias: '',
-              background: '',
-              what: '',
-              entry: '',
-              target: '',
-              invalidation: ''
-            }
-          });
-          setChartProcesses([]);
-          setMindsetChecks({
-            anythingCanHappen: false,
-            futureKnowledge: false,
-            randomDistribution: false,
-            edgeDefinition: false,
-            uniqueMoments: false
-          });
-          setZoneQuotes([
-            { id: 1, text: "I objectively identify my edges", accepted: false },
-            { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
-            { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
-            { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
-            { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
-            { id: 6, text: "I predefine the risk of every trade", accepted: false },
-            { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
-          ]);
-        } else if (id) {
-          const presession = await window.electronAPI.getPresession(id);
-          if (presession) {
-            setSessionData({
-              id: presession.id,
-              date: presession.date,
-              pair: presession.pair,
-              narrative: presession.narrative,
-              execution: presession.execution,
-              outcome: presession.outcome,
-              planOutcome: presession.plan_outcome
-            });
-
-            // Встановлюємо дані аналізу
-            const timeframes = {
-              weekly: { notes: '', charts: [] },
-              daily: { notes: '', charts: [] },
-              h4: { notes: '', charts: [] },
-              h1: { notes: '', charts: [] }
             };
-
-            // Заповнюємо дані з topDownAnalysis
-            presession.topDownAnalysis.forEach(analysis => {
-              if (timeframes[analysis.timeframe]) {
-                timeframes[analysis.timeframe].notes = analysis.notes;
-                timeframes[analysis.timeframe].charts = analysis.charts;
-              }
+            
+            const parsedAnalysis = safeParse(presession.topDownAnalysis, []);
+            if (Array.isArray(parsedAnalysis)) {
+              parsedAnalysis.forEach(item => {
+                if (timeframesData[item.timeframe]) {
+                  timeframesData[item.timeframe] = {
+                    charts: item.charts || [],
+                    notes: item.notes || ''
+                  };
+                }
+              });
+            }
+            
+            // Оновлюємо стан
+            setSessionData({
+              ...presession,
+              mindset_preparation: safeParse(presession.mindset_preparation, {
+                anythingCanHappen: false,
+                futureKnowledge: false,
+                randomDistribution: false,
+                edgeDefinition: false,
+                uniqueMoments: false
+              }),
+              the_zone: safeParse(presession.the_zone, [
+                { id: 1, text: "I objectively identify my edges", accepted: false },
+                { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
+                { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
+                { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
+                { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
+                { id: 6, text: "I predefine the risk of every trade", accepted: false },
+                { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
+              ]),
+              forex_factory_news: safeParse(presession.forex_factory_news, []),
+              topDownAnalysis: safeParse(presession.topDownAnalysis, []),
+              plans: safeParse(presession.plans, {
+                narrative: { text: '' },
+                execution: { text: '' },
+                outcome: { text: '' }
+              }),
+              chart_processes: safeParse(presession.chart_processes, [])
             });
+            
+            setPlans(plansData);
+            setAdaptations(adaptationsData);
+            setAnalysisData({ timeframes: timeframesData });
 
-            setAnalysisData({
-              newsScreenshots: presession.forex_factory_news || [],
-              timeframes,
-              videoUrl: presession.video_url || ''
-            });
-
-            // Встановлюємо інші дані
-            setPlans(presession.plans || []);
-            setChartProcesses(presession.chart_processes || []);
-            setMindsetChecks(presession.mindset_preparation || {});
-            setZoneQuotes(presession.the_zone || []);
-            setPlanOutcomeMatch({
-              checked: presession.plan_outcome,
-              timestamp: presession.updated_at
-            });
+            // Load notes
+            console.log('Loading notes for presession ID:', id);
+            const presessionNotes = await window.electronAPI.getNotesBySource('presession', id);
+            console.log('Loaded notes:', presessionNotes);
+            setNotes(presessionNotes || []);
           }
         }
       } catch (error) {
-        console.error('Error loading session data:', error);
+        console.error('Error loading data:', error);
       } finally {
         setIsLoading(false);
       }
     };
 
-    loadSessionData();
-  }, [id, location.state]);
+    loadData();
+  }, [id]);
 
-    // Обработчики для изображений
-    const handleImageUpload = (section, type) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-      input.multiple = true;
-  
-      input.onchange = async (e) => {
-        const files = Array.from(e.target.files);
-        const newImages = await Promise.all(
-          files.map(async (file) => {
-            return new Promise((resolve) => {
-              const reader = new FileReader();
-              reader.onloadend = () => resolve(reader.result);
-              reader.readAsDataURL(file);
-            });
-          })
-        );
-  
-        setAnalysisData(prev => {
-          if (type === 'news') {
-            return {
+  const handleForexFactoryNewsChange = (index, field, value) => {
+    const updatedForexFactoryNews = [...sessionData.forex_factory_news];
+    updatedForexFactoryNews[index] = {
+      ...updatedForexFactoryNews[index],
+      [field]: value
+    };
+    setSessionData(prev => ({
+      ...prev,
+      forex_factory_news: updatedForexFactoryNews
+    }));
+  };
+
+  const handleDelete = async () => {
+    if (window.confirm('Are you sure you want to delete this pre-session?')) {
+      try {
+        await window.electronAPI.deletePresession(id);
+        navigate('/pre-session-journal');
+      } catch (error) {
+        console.error('Error deleting pre-session:', error);
+      }
+    }
+  };
+
+  // Функція для обробки зміни полів вводу
+  const handleInputChange = (e) => {
+    const { name, value, type, checked } = e.target;
+    const newValue = type === 'checkbox' ? checked : value;
+    
+    const newSessionData = {
+      ...sessionData,
+      [name]: newValue
+    };
+    
+    if (name === 'narrative' || name === 'outcome') {
+      const shouldCheck = 
+        newSessionData.narrative && 
+        newSessionData.outcome && 
+        newSessionData.narrative !== 'Neutral' && 
+        newSessionData.narrative !== 'Day off' && 
+        newSessionData.narrative === newSessionData.outcome;
+
+      newSessionData.plan_outcome = shouldCheck;
+    }
+    
+    setSessionData(newSessionData);
+  };
+
+  // Функція для обробки чекбоксів у розділі Mindset Preparation
+  const handleMindsetChange = (key) => {
+    const mindsetData = safeParse(sessionData.mindset_preparation, {
+      anythingCanHappen: false,
+      futureKnowledge: false,
+      randomDistribution: false,
+      edgeDefinition: false,
+      uniqueMoments: false
+    });
+    
+    mindsetData[key] = !mindsetData[key];
+    
+    setSessionData(prev => ({
+      ...prev,
+      mindset_preparation: mindsetData
+    }));
+  };
+
+  // Функція для обробки прийняття цитат у розділі The Zone
+  const handleAcceptQuote = (id) => {
+    const zoneData = safeParse(sessionData.the_zone, [
+      { id: 1, text: "I objectively identify my edges", accepted: false },
+      { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
+      { id: 3, text: "I completely accept the risk or I am willing to let go of the trade", accepted: false },
+      { id: 4, text: "I continually monitor my susceptibility for making errors", accepted: false },
+      { id: 5, text: "I pay myself as the market makes money available to me", accepted: false },
+      { id: 6, text: "I predefine the risk of every trade", accepted: false },
+      { id: 7, text: "I understand the absolute necessity of these principles of consistent success and, therefore, never violate them", accepted: false }
+    ]);
+    
+    const updatedZone = zoneData.map(quote => 
+      quote.id === id ? { ...quote, accepted: !quote.accepted } : quote
+    );
+    
+    setSessionData(prev => ({
+      ...prev,
+      the_zone: updatedZone
+    }));
+  };
+
+  // Функція для обробки зміни планів
+  const handlePlanChange = (planType, value) => {
+    const plansData = safeParse(sessionData.plans, { planA: {}, planB: {} });
+    plansData[planType].text = value;
+    
+    setSessionData(prev => ({
+      ...prev,
+      plans: plansData
+    }));
+  };
+
+  // Функція для додавання нового процесу
+  const handleAddChartProcess = () => {
+    const processes = safeParse(sessionData.chart_processes, []);
+    const now = new Date();
+    processes.push({
+      id: crypto.randomUUID(),
+      text: '',
+      image: null,
+      timestamp: now.toISOString(),
+      time: now.toLocaleTimeString()
+    });
+    
+    setSessionData(prev => ({
+      ...prev,
+      chart_processes: processes
+    }));
+  };
+
+  // Функція для зміни тексту процесу
+  const handleChartProcessChange = (id, text) => {
+    const processes = safeParse(sessionData.chart_processes, []);
+    const updatedProcesses = processes.map(process => 
+      process.id === id ? { ...process, text } : process
+    );
+    
+    setSessionData(prev => ({
+      ...prev,
+      chart_processes: updatedProcesses
+    }));
+  };
+
+  // Функція для видалення процесу
+  const handleDeleteProcess = (processId) => {
+    const processes = safeParse(sessionData.chart_processes, []);
+    const updatedProcesses = processes.filter(process => process.id !== processId);
+    
+    setSessionData(prev => ({
+      ...prev,
+      chart_processes: updatedProcesses
+    }));
+  };
+
+  // Функція для завантаження зображення процесу
+  const handleProcessImageUpload = (processId) => {
+    setCurrentUploadSection({ section: 'process', processId });
+    setShowImageForm(true);
+  };
+
+  // Функція для видалення зображення процесу
+  const handleDeleteProcessImage = (processId) => {
+    const processes = safeParse(sessionData.chart_processes, []);
+    const updatedProcesses = processes.map(process => 
+      process.id === processId ? { ...process, image: null } : process
+    );
+    
+    setSessionData(prev => ({
+      ...prev,
+      chart_processes: updatedProcesses
+    }));
+  };
+
+  // Функції для роботи з формою завантаження зображень
+  const handleImageFormOpen = (section, type) => {
+    setCurrentUploadSection({ section, type });
+    setShowImageForm(true);
+    setSelectedFiles([]);
+  };
+
+  const handleImageFormClose = () => {
+    setShowImageForm(false);
+    setCurrentUploadSection(null);
+    setSelectedFiles([]);
+  };
+
+  const handleDrag = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    const files = [...e.dataTransfer.files];
+    handleFiles(files);
+  };
+
+  const handleFiles = async (files) => {
+    const imageFiles = files.filter(file => file.type.startsWith('image/'));
+    const imagePromises = imageFiles.map(file => {
+      return new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result);
+        reader.readAsDataURL(file);
+      });
+    });
+
+    const images = await Promise.all(imagePromises);
+    setSelectedFiles(prev => [...prev, ...images]);
+  };
+
+  const handleFileSelect = (e) => {
+    const files = [...e.target.files];
+    handleFiles(files);
+  };
+
+  const handleImageUploadSubmit = (e) => {
+    e.preventDefault();
+    
+    if (selectedFiles.length === 0 || !currentUploadSection) return;
+    
+    if (currentUploadSection.section === 'process' && currentUploadSection.processId) {
+      const processes = safeParse(sessionData.chart_processes, []);
+      const updatedProcesses = processes.map(process => 
+        process.id === currentUploadSection.processId ? { ...process, image: selectedFiles[0] } : process
+      );
+      
+      setSessionData(prev => ({
+        ...prev,
+        chart_processes: updatedProcesses
+      }));
+    } else if (currentUploadSection.section === 'timeframe' && currentUploadSection.timeframe) {
+      const updatedTimeframes = { ...analysisData.timeframes };
+      updatedTimeframes[currentUploadSection.timeframe].charts.push(selectedFiles[0]);
+      
+      setAnalysisData(prev => ({
+        ...prev,
+        timeframes: updatedTimeframes
+      }));
+    } else if (currentUploadSection.section === 'news') {
+      setSessionData(prev => ({
+        ...prev,
+        forex_factory_news: selectedFiles[0]
+      }));
+    }
+    
+    setShowImageForm(false);
+    setCurrentUploadSection(null);
+    setSelectedFiles([]);
+  };
+
+  // Функції для роботи з нотатками
+  const handleAddNote = () => {
+    const scrollOffset = window.pageYOffset || document.documentElement.scrollTop;
+    setScrollOffset(scrollOffset);
+    document.body.style.position = 'fixed';
+    document.body.style.top = `-${scrollOffset}px`;
+    document.body.style.width = '100%';
+    setNoteSourceId(sessionData.id);
+    setShowNoteModal(true);
+  };
+
+  const handleSaveNote = async (note) => {
+    // Підготовка нотатки для збереження
+    const noteData = {
+      title: note.title,
+      content: note.content,
+      tagId: note.tagId,
+      sourceType: 'presession',
+      sourceId: sessionData.id
+    };
+    
+    // Додаємо нотатку до тимчасового масиву, щоб зберегти пізніше
+    setTempNotes(prev => [...prev, noteData]);
+    
+    // Додаємо нотатку до відображення
+    setNotes(prev => [...prev, { 
+      id: Date.now(), // Тимчасовий ID для відображення
+      title: note.title,
+      content: note.content,
+      tag_id: note.tagId,
+      tag_name: note.tagName,
+      source_type: 'presession',
+      source_id: sessionData.id,
+      created_at: new Date().toISOString()
+    }]);
+    
+    setShowNoteModal(false);
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, scrollOffset);
+  };
+
+  const handleCloseNoteModal = () => {
+    setShowNoteModal(false);
+    document.body.style.position = '';
+    document.body.style.top = '';
+    document.body.style.width = '';
+    window.scrollTo(0, scrollOffset);
+  };
+
+  // Функція для відкриття зображення у повноекранному режимі
+  const handleImageClick = (image) => {
+    const scrollOffset = window.pageYOffset || document.documentElement.scrollTop;
+    setSelectedImage(image);
+    setScrollOffset(scrollOffset);
+    document.body.style.overflow = 'hidden';
+  };
+
+  // Функція для закриття повноекранного зображення
+  const handleCloseImage = () => {
+    setSelectedImage(null);
+    document.body.style.overflow = 'auto';
+  };
+
+  // Функція для відкриття відео у новому вікні
+  const handleViewVideo = () => {
+    if (sessionData.video_url) {
+      window.open(sessionData.video_url, '_blank');
+    }
+  };
+
+  // Функція для повернення назад
+  const handleBack = () => {
+    navigate('/daily-routine/pre-session');
+  };
+
+  // Функція для збереження пресесії
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsLoading(true);
+    
+    try {
+      // Підготовка даних для збереження
+      const presessionData = {
+        id: sessionData.id,
+        date: sessionData.date,
+        pair: sessionData.pair,
+        narrative: sessionData.narrative,
+        execution: sessionData.execution,
+        outcome: sessionData.outcome,
+        plan_outcome: sessionData.plan_outcome,
+        forex_factory_news: sessionData.forex_factory_news,
+        topDownAnalysis: Object.entries(analysisData.timeframes).map(([timeframe, data]) => ({
+          timeframe,
+          notes: data.notes,
+          charts: data.charts
+        })),
+        video_url: sessionData.video_url,
+        plans: {
+          ...plans,
+          adaptations
+        },
+        chart_processes: sessionData.chart_processes,
+        mindset_preparation: sessionData.mindset_preparation,
+        the_zone: sessionData.the_zone
+      };
+      
+      console.log('Saving presession data:', presessionData);
+      
+      // Зберігаємо пресесію
+      const result = await window.electronAPI.savePresession(presessionData);
+      console.log('Save presession result:', result);
+      
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to save presession');
+      }
+      
+      // Зберігаємо нотатки з затримкою
+      if (tempNotes.length > 0) {
+        console.log('Saving notes with delay:', tempNotes);
+        setTimeout(async () => {
+          for (const note of tempNotes) {
+            try {
+              await window.electronAPI.saveNote(note);
+              console.log('Note saved successfully');
+            } catch (noteError) {
+              console.error('Error saving note:', noteError);
+            }
+          }
+          setTempNotes([]);
+        }, 2000);
+      }
+      
+      navigate('/daily-routine/pre-session');
+    } catch (error) {
+      console.error('Error saving presession:', error);
+      alert('Failed to save presession: ' + error.message);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Функція для обробки зміни нотаток таймфрейму
+  const handleNotesChange = (timeframe, value) => {
+    setAnalysisData(prev => ({
+      ...prev,
+      timeframes: {
+        ...prev.timeframes,
+        [timeframe]: {
+          ...prev.timeframes[timeframe],
+          notes: value
+        }
+      }
+    }));
+  };
+
+  // Функція для обробки вставки зображення з буфера обміну
+  const handlePasteImage = (e, type, processId = null) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (const item of items) {
+      if (item.type.indexOf('image') !== -1) {
+        const blob = item.getAsFile();
+        const reader = new FileReader();
+        
+        reader.onload = () => {
+          const imageData = reader.result;
+          
+          if (processId) {
+            // Для Chart Process
+            const processes = safeParse(sessionData.chart_processes, []);
+            const updatedProcesses = processes.map(process => 
+              process.id === processId ? { ...process, image: imageData } : process
+            );
+            
+            setSessionData(prev => ({
               ...prev,
-              newsScreenshots: [...prev.newsScreenshots, ...newImages]
-            };
+              chart_processes: updatedProcesses
+            }));
+          } else if (type === 'news') {
+            // Для News Screenshots
+            setSessionData(prev => ({
+              ...prev,
+              forex_factory_news: [imageData]
+            }));
           } else {
-            return {
+            // Для таймфреймів
+            setAnalysisData(prev => ({
               ...prev,
               timeframes: {
                 ...prev.timeframes,
                 [type]: {
                   ...prev.timeframes[type],
-                  charts: [...prev.timeframes[type].charts, ...newImages]
+                  charts: [...prev.timeframes[type].charts, imageData]
                 }
               }
-            };
+            }));
           }
-        });
-      };
-  
-      input.click();
-    };
-  
-    const handleRemoveImage = (section, type, index) => {
-      // Предотвращаем всплытие события
-      setAnalysisData(prev => {
-        if (type === 'news') {
-          return {
-            ...prev,
-            newsScreenshots: []
-          };
-        } else {
-          return {
-            ...prev,
-            timeframes: {
-              ...prev.timeframes,
-              [type]: {
-                ...prev.timeframes[type],
-                charts: []
-              }
-            }
-          };
+        };
+        
+        reader.readAsDataURL(blob);
+        break;
+      }
+    }
+  };
+
+  // Функція для видалення зображення таймфрейму
+  const handleRemoveImage = (timeframe, index) => {
+    setAnalysisData(prev => ({
+      ...prev,
+      timeframes: {
+        ...prev.timeframes,
+        [timeframe]: {
+          ...prev.timeframes[timeframe],
+          charts: []
         }
+      }
+    }));
+  };
+
+  // Функція для обробки зміни планів
+  const handlePlanTableChange = (planType, aspect, value) => {
+    if (planType.startsWith('adaptation')) {
+      const adaptationIndex = parseInt(planType.replace('adaptation', ''));
+      setAdaptations(prev => {
+        const newAdaptations = [...prev];
+        if (!newAdaptations[adaptationIndex]) {
+          newAdaptations[adaptationIndex] = {};
+        }
+        newAdaptations[adaptationIndex] = {
+          ...newAdaptations[adaptationIndex],
+          [aspect]: value
+        };
+        return newAdaptations;
       });
-    };
-  
-    const handleNotesChange = (timeframe, value) => {
-      setAnalysisData(prev => ({
+    } else {
+      setPlans(prev => ({
         ...prev,
-        timeframes: {
-          ...prev.timeframes,
-          [timeframe]: {
-            ...prev.timeframes[timeframe],
-            notes: value
-          }
+        [planType]: {
+          ...prev[planType],
+          [aspect]: value
         }
       }));
-    };
-  
-    const handleInputChange = (e) => {
-      const { name, value, type, checked } = e.target;
-      const newSessionData = {
-        ...sessionData,
-        [name]: type === 'checkbox' ? checked : value
-      };
-      
-      if (name === 'narrative' || name === 'outcome') {
-        const shouldCheck = 
-          newSessionData.narrative && 
-          newSessionData.outcome && 
-          newSessionData.narrative !== 'Neutral' && 
-          newSessionData.narrative !== 'Day off' && 
-          newSessionData.narrative === newSessionData.outcome;
-  
-        newSessionData.planOutcome = shouldCheck;
-        setPlanOutcomeMatch({
-          checked: shouldCheck,
-          timestamp: shouldCheck ? new Date().toISOString() : null
-        });
-      }
-  
-      setSessionData(newSessionData);
-    };
-  
-    const handleAcceptQuote = (id) => {
-      setZoneQuotes(prev => prev.map(quote => 
-        quote.id === id ? { ...quote, accepted: !quote.accepted } : quote
-      ));
-    };
-  
-    const handleSubmit = async (e) => {
-      e.preventDefault();
-      setIsLoading(true);
-      try {
-        const presessionData = {
-          id: id || String(Date.now()),
-          date: sessionData.date,
-          pair: sessionData.pair,
-          narrative: sessionData.narrative,
-          execution: sessionData.execution,
-          outcome: sessionData.outcome,
-          plan_outcome: planOutcomeMatch.checked,
-          forex_factory_news: analysisData.newsScreenshots,
-          topDownAnalysis: [
-            {
-              timeframe: 'weekly',
-              notes: analysisData.timeframes.weekly.notes,
-              charts: analysisData.timeframes.weekly.charts
-            },
-            {
-              timeframe: 'daily',
-              notes: analysisData.timeframes.daily.notes,
-              charts: analysisData.timeframes.daily.charts
-            },
-            {
-              timeframe: 'h4',
-              notes: analysisData.timeframes.h4.notes,
-              charts: analysisData.timeframes.h4.charts
-            },
-            {
-              timeframe: 'h1',
-              notes: analysisData.timeframes.h1.notes,
-              charts: analysisData.timeframes.h1.charts
-            }
-          ],
-          video_url: analysisData.videoUrl,
-          plans: plans,
-          chart_processes: chartProcesses,
-          mindset_preparation: mindsetChecks,
-          the_zone: zoneQuotes
-        };
-
-        await window.electronAPI.savePresession(presessionData);
-        navigate('/daily-routine/pre-session');
-      } catch (error) {
-        console.error('Error saving presession data:', error);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-  
-    const handleBack = () => {
-      navigate('/daily-routine/pre-session');
-    };
-
-    const getYouTubeVideoId = (url) => {
-      if (!url) return null;
-      
-      // Поддержка разных форматов URL YouTube
-      const patterns = [
-        /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/)([^#\&\?]*).*/,
-        /^.*(youtu.be\/|v\/|u\/\w\/|embed\/|watch\?v=|\&v=)([^#\&\?]*).*/
-      ];
-
-      for (const pattern of patterns) {
-        const match = url.match(pattern);
-        if (match && match[1]?.length === 11) return match[1];
-      }
-      
-      return null;
-    };
-
-    const handleVideoOpen = () => {
-      if (analysisData.videoUrl) {
-        window.open(analysisData.videoUrl, '_blank');
-      }
-    };
-
-    const handleImageClick = (image) => {
-        setSelectedImage(image);
-      document.body.style.overflow = 'hidden';
-    };
-  
-    const handleCloseModal = () => {
-      const scrollY = document.body.style.top;
-      document.body.style.position = '';
-      document.body.style.top = '';
-      document.body.style.overflow = '';
-      window.scrollTo(0, parseInt(scrollY || '0', 10) * -1);
-      setSelectedImage(null);
-    };
-
-    const handlePlanChange = (planType, aspect, value) => {
-      if (planType.startsWith('adaptation')) {
-        const adaptationIndex = parseInt(planType.replace('adaptation', ''));
-        setAdaptations(prev => {
-          const newAdaptations = [...prev];
-          if (!newAdaptations[adaptationIndex]) {
-            newAdaptations[adaptationIndex] = {};
-          }
-          newAdaptations[adaptationIndex] = {
-            ...newAdaptations[adaptationIndex],
-            [aspect]: value
-          };
-          return newAdaptations;
-        });
-      } else {
-        setPlans(prev => ({
-          ...prev,
-          [planType]: {
-            ...prev[planType],
-            [aspect]: value
-          }
-        }));
-      }
-    };
-  
-    const handleAddAdaptation = () => {
-      setAdaptations(prev => [...prev, {
-        bias: '',
-        background: '',
-        what: '',
-        entry: '',
-        target: '',
-        invalidation: ''
-      }]);
-    };
-
-    const handleRemoveAdaptation = (indexToRemove) => {
-      setAdaptations(prev => prev.filter((_, index) => index !== indexToRemove));
-    };
-
-    const handleAddChartProcess = () => {
-      const newProcess = {
-        id: Date.now(),
-        time: new Date().toLocaleTimeString(),
-        text: '',
-        image: null
-      };
-      setChartProcesses(prev => [...prev, newProcess]);
-    };
-  
-    const handleChartProcessChange = (id, text) => {
-      setChartProcesses(prev => 
-        prev.map(process => 
-          process.id === id ? { ...process, text } : process
-        )
-      );
-    };
-
-    const handleProcessImageUpload = (processId) => {
-      const input = document.createElement('input');
-      input.type = 'file';
-      input.accept = 'image/*';
-  
-      input.onchange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const reader = new FileReader();
-          reader.onloadend = () => {
-            setChartProcesses(prev => prev.map(process => 
-              process.id === processId ? { ...process, image: reader.result } : process
-            ));
-          };
-          reader.readAsDataURL(file);
-        }
-      };
-  
-      input.click();
-    };
-
-    // Добавляем функцию удаления процесса
-    const handleDeleteProcess = (processId) => {
-      setChartProcesses(prev => prev.filter(process => process.id !== processId));
-    };
-
-    // Добавляем функцию удаления скриншота
-    const handleDeleteProcessImage = (processId) => {
-      setChartProcesses(prev => prev.map(process => 
-        process.id === processId ? { ...process, image: null } : process
-      ));
-    };
-
-    const handleImageFormOpen = (section, type) => {
-      setCurrentUploadSection({ section, type });
-      setShowImageForm(true);
-      setSelectedFiles([]);
-    };
-  
-    const handleImageFormClose = () => {
-      setShowImageForm(false);
-      setCurrentUploadSection(null);
-      setSelectedFiles([]);
-    };
-  
-    const handleDrag = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (e.type === "dragenter" || e.type === "dragover") {
-        setDragActive(true);
-      } else {
-        setDragActive(false);
-      }
-    };
-  
-    const handleDrop = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-      setDragActive(false);
-  
-      const files = [...e.dataTransfer.files];
-      handleFiles(files);
-    };
-  
-    const handleFiles = async (files) => {
-      const imageFiles = files.filter(file => file.type.startsWith('image/'));
-      const imagePromises = imageFiles.map(file => {
-        return new Promise((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result);
-          reader.readAsDataURL(file);
-        });
-      });
-  
-      const images = await Promise.all(imagePromises);
-      setSelectedFiles(prev => [...prev, ...images]);
-    };
-  
-    const handleFileSelect = (e) => {
-      const files = [...e.target.files];
-      handleFiles(files);
-    };
-  
-    const handleImageUploadSubmit = (e) => {
-      e.preventDefault();
-      if (!currentUploadSection) return;
-  
-      const { section, type } = currentUploadSection;
-      
-      setAnalysisData(prev => {
-        if (type === 'news') {
-          return {
-            ...prev,
-            newsScreenshots: [...prev.newsScreenshots, ...selectedFiles]
-          };
-        } else {
-          return {
-            ...prev,
-            timeframes: {
-              ...prev.timeframes,
-              [type]: {
-                ...prev.timeframes[type],
-                charts: [...prev.timeframes[type].charts, ...selectedFiles]
-              }
-            }
-          };
-        }
-      });
-  
-      handleImageFormClose();
-    };
-
-    const handlePasteImage = (e, type, processId = null) => {
-      const items = e.clipboardData?.items;
-      if (!items) return;
-      
-      for (const item of items) {
-        if (item.type.indexOf('image') !== -1) {
-          const blob = item.getAsFile();
-          const reader = new FileReader();
-          
-          reader.onload = () => {
-            const imageData = reader.result;
-            
-            if (processId) {
-              // Для Chart Process
-              setChartProcesses(prev => prev.map(process => 
-                process.id === processId ? { ...process, image: imageData } : process
-              ));
-            } else if (type === 'news') {
-              // Для News Screenshots
-              setAnalysisData(prev => ({
-                ...prev,
-                newsScreenshots: [imageData] // Храним только одно изображение
-              }));
-            } else {
-              // Для таймфреймов
-              setAnalysisData(prev => ({
-                ...prev,
-                timeframes: {
-                  ...prev.timeframes,
-                  [type]: {
-                    ...prev.timeframes[type],
-                    charts: [imageData] // Храним только одно изображение
-                  }
-                }
-              }));
-            }
-          };
-          
-          reader.readAsDataURL(blob);
-          break;
-        }
-      }
-    };
-
-    const handleCloseImage = () => {
-      setSelectedImage(null);
-      document.body.style.overflow = 'auto';
-    };
-
-    const handleCloseNote = () => {
-      setSelectedNote(null);
-      window.scrollTo(0, scrollOffset);
-    };
-
-    if (isLoading) {
-      return (
-        <LoadingOverlay>
-          <LoadingSpinner />
-          <span>Loading...</span>
-        </LoadingOverlay>
-      );
     }
-  
-    if (!sessionData) {
-      return (
-        <LoadingOverlay>
-          <span>No data found</span>
-        </LoadingOverlay>
-      );
-    }
-  
-    return (
-      <>
-        <GlobalStyle />
-        <DatePickerStyles />
-        <Container>
-          <Header>
-            <BackButton onClick={handleBack}>← Back</BackButton>
-            <Title>Pre-Session Details</Title>
-          </Header>
-          <Content>
-            <Form onSubmit={handleSubmit}>
-              <ThreeColumnLayout>
-                <BasicInfoSection>
-                  <SectionTitle>Basic Information</SectionTitle>
-                  <FormGroup>
-                    <Label>Date</Label>
-                    <StyledDatePicker
-                      selected={new Date(sessionData.date)}
-                      onChange={(date) => handleInputChange({ target: { name: 'date', value: date.toISOString().split('T')[0] } })}
-                      dateFormat="yyyy-MM-dd"
-                    />
-                  </FormGroup>
-  
-                  <FormGroup>
-                    <Label>Currency Pair</Label>
-                    <Select
-                      name="pair"
-                      value={sessionData.pair}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select Pair</option>
-                      {currencyPairs.map(pair => (
-                        <option key={pair.id} value={pair.name}>{pair.name}</option>
-                      ))}
-                    </Select>
-                  </FormGroup>
-  
-                  <FormGroup>
-                    <Label>Narrative</Label>
-                    <Select
-                      name="narrative"
-                      value={sessionData.narrative}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select</option>
-                      <option value="Bullish">Bullish</option>
-                      <option value="Bearish">Bearish</option>
-                      <option value="Neutral">Neutral</option>
-                      <option value="Day off">Day off</option>
-                    </Select>
-                  </FormGroup>
-  
-                  <FormGroup>
-                    <Label>Execution</Label>
-                    <Select
-                      name="execution"
-                      value={sessionData.execution}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select</option>
-                      <option value="Day off">Day off</option>
-                      <option value="No Trades">No Trades</option>
-                      <option value="Skipped">Skipped</option>
-                      <option value="Missed">Missed</option>
-                      <option value="BE">BE</option>
-                      <option value="Loss">Loss</option>
-                      <option value="Win">Win</option>
-                    </Select>
-                  </FormGroup>
-  
-                  <FormGroup>
-                    <Label>Outcome</Label>
-                    <Select
-                      name="outcome"
-                      value={sessionData.outcome}
-                      onChange={handleInputChange}
-                    >
-                      <option value="">Select</option>
-                      <option value="Bullish">Bullish</option>
-                      <option value="Bearish">Bearish</option>
-                      <option value="Neutral">Neutral</option>
-                      <option value="Day off">Day off</option>
-                    </Select>
-                  </FormGroup>
-  
-                  <FormGroup>
-                    <MindsetCheckbox>
-                      <Checkbox
-                        type="checkbox"
-                        checked={sessionData.planOutcome}
-                        disabled={true}
-                        onChange={() => {}}
-                      />
-                      <label>
-                        Plan&Outcome
-                        {planOutcomeMatch.timestamp && (
-                          <span style={{ 
-                            marginLeft: '10px', 
-                            fontSize: '12px', 
-                            color: '#2ecc71' 
-                          }}>
-                            ✓ {new Date(planOutcomeMatch.timestamp).toLocaleTimeString()}
-                          </span>
-                        )}
-                      </label>
-                    </MindsetCheckbox>
-  
-                    <MindsetCheckbox>
-                      <Checkbox
-                        type="checkbox"
-                        name="addPair"
-                        checked={sessionData.addPair}
-                        onChange={handleInputChange}
-                      />
-                      <label>Additional Pair</label>
-                    </MindsetCheckbox>
-                  </FormGroup>
-                </BasicInfoSection>
-  
-                <MindsetSection>
-                  <SectionTitle>PRE-SESSION Mindset Preparation</SectionTitle>
-                  <MindsetCheckbox>
-                    <Checkbox
-                      type="checkbox"
-                      checked={mindsetChecks.anythingCanHappen}
-                      onChange={(e) => setMindsetChecks(prev => ({
-                        ...prev,
-                        anythingCanHappen: e.target.checked
-                      }))}
-                    />
-                    <label>Все может случиться</label>
-                  </MindsetCheckbox>
-  
-                  <MindsetCheckbox>
-                    <Checkbox
-                      type="checkbox"
-                      checked={mindsetChecks.futureKnowledge}
-                      onChange={(e) => setMindsetChecks(prev => ({
-                        ...prev,
-                        futureKnowledge: e.target.checked
-                      }))}
-                    />
-                    <label>Вам не нужно знать, что будет дальше, чтобы заработать деньги</label>
-                  </MindsetCheckbox>
-  
-                  <MindsetCheckbox>
-                    <Checkbox
-                      type="checkbox"
-                      checked={mindsetChecks.randomDistribution}
-                      onChange={(e) => setMindsetChecks(prev => ({
-                        ...prev,
-                        randomDistribution: e.target.checked
-                      }))}
-                    />
-                    <label>Существует случайное распределение между выигрышами и проигрышами для любого заданного набора переменных, которые определяют преимущество</label>
-                  </MindsetCheckbox>
-  
-                  <MindsetCheckbox>
-                    <Checkbox
-                      type="checkbox"
-                      checked={mindsetChecks.edgeDefinition}
-                      onChange={(e) => setMindsetChecks(prev => ({
-                        ...prev,
-                        edgeDefinition: e.target.checked
-                      }))}
-                    />
-                    <label>Преимущество — это не что иное, как указание на более высокую вероятность того, что одно событие произойдет, а не другое</label>
-                  </MindsetCheckbox>
-  
-                  <MindsetCheckbox>
-                    <Checkbox
-                      type="checkbox"
-                      checked={mindsetChecks.uniqueMoments}
-                      onChange={(e) => setMindsetChecks(prev => ({
-                        ...prev,
-                        uniqueMoments: e.target.checked
-                      }))}
-                    />
-                    <label>Каждый момент на рынке уникален</label>
-                  </MindsetCheckbox>
-                </MindsetSection>
-  
-                <ZoneSection>
-                  <SectionTitle>The Zone</SectionTitle>
-                  <QuotesList>
-                    {zoneQuotes.map(quote => (
-                      <Quote key={quote.id}>
-                        <span>{quote.text}</span>
-                        <AcceptButton
-                          accepted={quote.accepted}
-                          onClick={() => handleAcceptQuote(quote.id)}
-                          type="button"
-                        >
-                          {quote.accepted ? 'Accepted ✓' : 'Accept'}
-                        </AcceptButton>
-                      </Quote>
+  };
+
+  // Функція для додавання адаптації плану
+  const handleAddAdaptation = () => {
+    setAdaptations(prev => [...prev, {
+      bias: '',
+      background: '',
+      what: '',
+      entry: '',
+      target: '',
+      invalidation: ''
+    }]);
+  };
+
+  // Функція для видалення адаптації плану
+  const handleRemoveAdaptation = (indexToRemove) => {
+    setAdaptations(prev => prev.filter((_, index) => index !== indexToRemove));
+  };
+
+  return (
+    <>
+      <GlobalStyle />
+      <DatePickerStyles />
+      <Container>
+        <Header>
+          <BackButton onClick={handleBack}>← Back</BackButton>
+          <Title>Pre-Session Details</Title>
+        </Header>
+        <Content>
+          <form onSubmit={handleSubmit}>
+            {/* Перша секція: Basic Information та Mindset Preparation */}
+            <TwoColumnSection>
+              {/* Basic Information */}
+              <SectionBlock>
+                <SectionTitle>Basic Information</SectionTitle>
+                <FormGroup>
+                  <Label>Date</Label>
+                  <StyledDatePicker
+                    selected={new Date(sessionData.date)}
+                    onChange={(date) => handleInputChange({ target: { name: 'date', value: date.toISOString().split('T')[0] } })}
+                    dateFormat="yyyy-MM-dd"
+                  />
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Currency Pair</Label>
+                  <Select
+                    name="pair"
+                    value={sessionData.pair}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select Pair</option>
+                    {currencyPairs.map(pair => (
+                      <option key={pair.id} value={pair.name}>{pair.name}</option>
                     ))}
-                  </QuotesList>
-                </ZoneSection>
-              </ThreeColumnLayout>
+                  </Select>
+                </FormGroup>
 
-              <AnalyticsLayout>
-                <MainAnalysisSection>
-                  <SectionTitle>PRE-SESSION Analysis</SectionTitle>
+                <FormGroup>
+                  <Label>Narrative</Label>
+                  <Select
+                    name="narrative"
+                    value={sessionData.narrative}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select</option>
+                    <option value="Bullish">Bullish</option>
+                    <option value="Bearish">Bearish</option>
+                    <option value="Neutral">Neutral</option>
+                    <option value="Day off">Day off</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Execution</Label>
+                  <Select
+                    name="execution"
+                    value={sessionData.execution}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select</option>
+                    <option value="Day off">Day off</option>
+                    <option value="No Trades">No Trades</option>
+                    <option value="Skipped">Skipped</option>
+                    <option value="Missed">Missed</option>
+                    <option value="BE">BE</option>
+                    <option value="Loss">Loss</option>
+                    <option value="Win">Win</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <Label>Outcome</Label>
+                  <Select
+                    name="outcome"
+                    value={sessionData.outcome}
+                    onChange={handleInputChange}
+                  >
+                    <option value="">Select</option>
+                    <option value="Bullish">Bullish</option>
+                    <option value="Bearish">Bearish</option>
+                    <option value="Neutral">Neutral</option>
+                    <option value="Day off">Day off</option>
+                  </Select>
+                </FormGroup>
+
+                <FormGroup>
+                  <CheckboxLabel style={{ 
+                    background: '#3e3e3e',
+                    padding: '15px',
+                    borderRadius: '8px',
+                    marginBottom: '12px',
+                    border: '1px solid #5e2ca5',
+                    transition: 'all 0.3s ease',
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: '12px'
+                  }}>
+                    <Checkbox
+                      type="checkbox"
+                      name="plan_outcome"
+                      checked={sessionData.plan_outcome}
+                      onChange={handleInputChange}
+                      disabled={true}
+                    />
+                    <div>
+                      Plan&Outcome
+                      {sessionData.plan_outcome && (
+                        <span style={{ 
+                          marginLeft: '10px', 
+                          fontSize: '12px', 
+                          color: '#2ecc71' 
+                        }}>
+                          
+                        </span>
+                      )}
+                    </div>
+                  </CheckboxLabel>
+                </FormGroup>
+              </SectionBlock>
+
+              {/* PRE-SESSION Mindset Preparation */}
+              <SectionBlock>
+                <SectionTitle>PRE-SESSION Mindset Preparation</SectionTitle>
+                <FormGroup style={{ textAlign: 'left' }}>
+                  {sessionData.mindset_preparation.anythingCanHappen !== undefined && (
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={sessionData.mindset_preparation.anythingCanHappen}
+                        onChange={() => handleMindsetChange('anythingCanHappen')}
+                      />
+                      Anything can happen in the markets
+                    </CheckboxLabel>
+                  )}
                   
-                  <NewsSection
-                    data={analysisData}
+                  {sessionData.mindset_preparation.futureKnowledge !== undefined && (
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={sessionData.mindset_preparation.futureKnowledge}
+                        onChange={() => handleMindsetChange('futureKnowledge')}
+                      />
+                      You don't need to know what will happen next to make money
+                    </CheckboxLabel>
+                  )}
+                  
+                  {sessionData.mindset_preparation.randomDistribution !== undefined && (
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={sessionData.mindset_preparation.randomDistribution}
+                        onChange={() => handleMindsetChange('randomDistribution')}
+                      />
+                      There is a random distribution between wins and losses for any given set of variables
+                    </CheckboxLabel>
+                  )}
+                  
+                  {sessionData.mindset_preparation.edgeDefinition !== undefined && (
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={sessionData.mindset_preparation.edgeDefinition}
+                        onChange={() => handleMindsetChange('edgeDefinition')}
+                      />
+                      An edge is nothing more than an indication of a higher probability of one thing happening over another
+                    </CheckboxLabel>
+                  )}
+                  
+                  {sessionData.mindset_preparation.uniqueMoments !== undefined && (
+                    <CheckboxLabel>
+                      <Checkbox
+                        type="checkbox"
+                        checked={sessionData.mindset_preparation.uniqueMoments}
+                        onChange={() => handleMindsetChange('uniqueMoments')}
+                      />
+                      Every moment in the market is unique
+                    </CheckboxLabel>
+                  )}
+                </FormGroup>
+              </SectionBlock>
+            </TwoColumnSection>
+
+            {/* Друга секція: The Zone та Video Analysis URL + Notes & Mistakes */}
+            <TwoColumnSection>
+              {/* The Zone */}
+              <SectionBlock>
+                <SectionTitle>The Zone</SectionTitle>
+                <FormGroup>
+                  {sessionData.the_zone.map(quote => (
+                    <Quote key={quote.id}>
+                      <div>{quote.text}</div>
+                      <AcceptButton 
+                        accepted={quote.accepted}
+                        onClick={() => handleAcceptQuote(quote.id)}
+                        type="button"
+                      >
+                        {quote.accepted ? 'Accepted' : 'Accept'}
+                      </AcceptButton>
+                    </Quote>
+                  ))}
+                </FormGroup>
+              </SectionBlock>
+
+              <div>
+                {/* Video Analysis URL */}
+                <SectionBlock>
+                  <SectionTitle>Video Analysis URL</SectionTitle>
+                  <VideoUrlContainer>
+                    <VideoUrlInputGroup>
+                      <Input
+                        type="text"
+                        name="video_url"
+                        value={sessionData.video_url}
+                        onChange={handleInputChange}
+                        placeholder="Enter YouTube or other video URL"
+                      />
+                      <ViewButton 
+                        type="button" 
+                        onClick={handleViewVideo}
+                        disabled={!sessionData.video_url}
+                      >
+                        View
+                      </ViewButton>
+                    </VideoUrlInputGroup>
+                  </VideoUrlContainer>
+                </SectionBlock>
+
+                {/* Notes & Mistakes */}
+                <SectionBlock style={{ marginTop: '40px' }}>
+                  <SectionTitle>Notes & Mistakes</SectionTitle>
+                  <NotesList 
+                    sourceType="presession" 
+                    sourceId={sessionData.id} 
+                    onAddNote={handleAddNote}
+                    notes={notes}
+                  />
+                </SectionBlock>
+              </div>
+            </TwoColumnSection>
+
+            {/* Третя секція: PRE-SESSION Analysis */}
+            <FullWidthSection>
+              <SectionBlock>
+                <SectionTitle>PRE-SESSION Analysis</SectionTitle>
+                
+                {/* Forex Factory News */}
+                <FormGroup>
+                  <Label>Forex Factory News</Label>
+                  <div style={{ position: 'relative', marginBottom: '20px' }}>
+                    {sessionData.forex_factory_news.length > 0 ? (
+                      <div style={{ position: 'relative' }}>
+                        <img 
+                          src={sessionData.forex_factory_news[0]} 
+                          alt="Forex Factory News" 
+                          style={{ 
+                            width: '100%', 
+                            borderRadius: '8px', 
+                            border: '1px solid #5e2ca5',
+                            cursor: 'pointer'
+                          }}
+                          onClick={() => handleImageClick(sessionData.forex_factory_news[0])}
+                        />
+                        <Button 
+                          type="button" 
+                          onClick={() => setSessionData(prev => ({ ...prev, forex_factory_news: [] }))}
+                          style={{ 
+                            position: 'absolute', 
+                            top: '10px', 
+                            right: '10px',
+                            background: 'rgba(244, 67, 54, 0.7)',
+                            width: '30px',
+                            height: '30px',
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontSize: '20px',
+                            padding: '0'
+                          }}
+                        >
+                          ×
+                        </Button>
+                      </div>
+                    ) : (
+                      <ChartDropZone 
+                        onPaste={(e) => handlePasteImage(e, 'news')}
+                        tabIndex="0"
+                        role="button"
+                        hasImage={false}
+                        aria-label="Paste News Screenshot"
+                        style={{ height: '200px' }}
+                      >
+                        <div className="placeholder">
+                          <span>📰 Paste News Screenshot</span>
+                          <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
+                        </div>
+                      </ChartDropZone>
+                    )}
+                  </div>
+                </FormGroup>
+                
+                {/* Таймфрейми */}
+                <TimeframeContainer>
+                  {/* Перший рядок: Weekly та Daily */}
+                  <TimeframeBlock
+                    key="weekly"
+                    timeframe="weekly"
+                    data={analysisData.timeframes.weekly}
+                    onNotesChange={handleNotesChange}
                     onImagePaste={handlePasteImage}
                     onImageRemove={handleRemoveImage}
                     onImageClick={handleImageClick}
                   />
-  
-                  <TimeframeContainer>
-                    {Object.entries(analysisData.timeframes).map(([timeframe, data]) => (
-                      <TimeframeBlock
-                        key={timeframe}
-                        timeframe={timeframe}
-                        data={data}
-                        onNotesChange={handleNotesChange}
-                        onImagePaste={handlePasteImage}
-                        onImageRemove={(timeframe, index) => handleRemoveImage(timeframe, timeframe, index)}
-                        onImageClick={handleImageClick}
-                      />
-                    ))}
-                  </TimeframeContainer>
-                </MainAnalysisSection>
-  
-                <div>
-                  <VideoSection>
-                    <SectionTitle>Video Analysis URL (Optional)</SectionTitle>
-                    <Input
-                      type="text"
-                      name="videoUrl"
-                      value={analysisData.videoUrl}
-                      onChange={(e) => handleVideoUrlChange(e.target.value)}
-                      placeholder="Enter video URL"
-                    />
-                  </VideoSection>
-  
-                </div>
-              </AnalyticsLayout>
+                  <TimeframeBlock
+                    key="daily"
+                    timeframe="daily"
+                    data={analysisData.timeframes.daily}
+                    onNotesChange={handleNotesChange}
+                    onImagePaste={handlePasteImage}
+                    onImageRemove={handleRemoveImage}
+                    onImageClick={handleImageClick}
+                  />
+                  {/* Другий рядок: H4 та H1 */}
+                  <TimeframeBlock
+                    key="h4"
+                    timeframe="h4"
+                    data={analysisData.timeframes.h4}
+                    onNotesChange={handleNotesChange}
+                    onImagePaste={handlePasteImage}
+                    onImageRemove={handleRemoveImage}
+                    onImageClick={handleImageClick}
+                  />
+                  <TimeframeBlock
+                    key="h1"
+                    timeframe="h1"
+                    data={analysisData.timeframes.h1}
+                    onNotesChange={handleNotesChange}
+                    onImagePaste={handlePasteImage}
+                    onImageRemove={handleRemoveImage}
+                    onImageClick={handleImageClick}
+                  />
+                </TimeframeContainer>
+              </SectionBlock>
+            </FullWidthSection>
 
-              <PlanSection>
+            {/* Четверта секція: Your Plans */}
+            <FullWidthSection>
+              <SectionBlock>
                 <SectionTitle>Your Plans</SectionTitle>
+                
                 <PlansContainer>
                   {/* План A */}
                   <PlanTable>
@@ -2282,7 +2103,7 @@ function PreSessionFull() {
                           <TableCell>
                             <PlanInput
                               value={plans.planA[aspect]}
-                              onChange={(e) => handlePlanChange('planA', aspect, e.target.value)}
+                              onChange={(e) => handlePlanTableChange('planA', aspect, e.target.value)}
                               placeholder={`Enter ${aspect}...`}
                             />
                           </TableCell>
@@ -2290,7 +2111,7 @@ function PreSessionFull() {
                       ))}
                     </tbody>
                   </PlanTable>
-    
+
                   {/* План B */}
                   <PlanTable>
                     <thead>
@@ -2308,7 +2129,7 @@ function PreSessionFull() {
                           <TableCell>
                             <PlanInput
                               value={plans.planB[aspect]}
-                              onChange={(e) => handlePlanChange('planB', aspect, e.target.value)}
+                              onChange={(e) => handlePlanTableChange('planB', aspect, e.target.value)}
                               placeholder={`Enter ${aspect}...`}
                             />
                           </TableCell>
@@ -2318,102 +2139,152 @@ function PreSessionFull() {
                   </PlanTable>
                 </PlansContainer>
     
-                <AddPlanButton type="button" onClick={handleAddAdaptation}>
+                <Button 
+                  type="button" 
+                  onClick={handleAddAdaptation}
+                  style={{ margin: '20px 0' }}
+                >
                   Plan Adaptation
-                </AddPlanButton>
+                </Button>
     
                 {/* План Adaptations */}
-                <PlansContainer>
+                <PlansContainer style={{ flexDirection: 'column' }}>
                   {adaptations.map((adaptation, index) => (
-                    <PlanTable key={`adaptation${index}`}>
-                      <DeletePlanButton 
+                    <div key={`adaptation${index}`} style={{ position: 'relative', width: '100%' }}>
+                      <Button 
+                        type="button"
                         onClick={() => handleRemoveAdaptation(index)}
-                        title="Delete adaptation plan"
+                        style={{ 
+                          position: 'absolute', 
+                          top: '12px', 
+                          right: '12px',
+                          zIndex: 2,
+                          background: 'linear-gradient(135deg, #ff4757, #ff6b81)',
+                          width: '28px',
+                          height: '28px',
+                          padding: 0,
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontSize: '16px'
+                        }}
                       >
                         ×
-                      </DeletePlanButton>
-                      <thead>
-                        <TableRow>
-                          <TableHeaderCell>ASPECT</TableHeaderCell>
-                          <TableHeaderCell>Plan Adaptation {index + 1}</TableHeaderCell>
-                        </TableRow>
-                      </thead>
-                      <tbody>
-                        {['bias', 'background', 'what', 'entry', 'target', 'invalidation'].map((aspect) => (
-                          <TableRow key={aspect}>
-                            <TableCell isAspect>
-                              {aspect.charAt(0).toUpperCase() + aspect.slice(1)}
-                            </TableCell>
-                            <TableCell>
-                              <PlanInput
-                                value={adaptation[aspect] || ''}
-                                onChange={(e) => handlePlanChange(`adaptation${index}`, aspect, e.target.value)}
-                                placeholder={`Enter ${aspect}...`}
-                              />
-                            </TableCell>
+                      </Button>
+                      <PlanTable>
+                        <thead>
+                          <TableRow>
+                            <TableHeaderCell>ASPECT</TableHeaderCell>
+                            <TableHeaderCell>Plan Adaptation {index + 1}</TableHeaderCell>
                           </TableRow>
-                        ))}
-                      </tbody>
-                    </PlanTable>
+                        </thead>
+                        <tbody>
+                          {['bias', 'background', 'what', 'entry', 'target', 'invalidation'].map((aspect) => (
+                            <TableRow key={aspect}>
+                              <TableCell isAspect>
+                                {aspect.charAt(0).toUpperCase() + aspect.slice(1)}
+                              </TableCell>
+                              <TableCell>
+                                <PlanInput
+                                  value={adaptation[aspect] || ''}
+                                  onChange={(e) => handlePlanTableChange(`adaptation${index}`, aspect, e.target.value)}
+                                  placeholder={`Enter ${aspect}...`}
+                                />
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </tbody>
+                      </PlanTable>
+                    </div>
                   ))}
                 </PlansContainer>
-              </PlanSection>
+              </SectionBlock>
+            </FullWidthSection>
 
-              <DuringSessionSection>
+            {/* П'ята секція: DURING SESSION Process */}
+            <FullWidthSection>
+              <SectionBlock>
                 <SectionTitle>DURING SESSION Process</SectionTitle>
-                <DuringSessionLayout>
-                  {/* Левая колонка */}
-                  <ProcessColumn>
-                    <ColumnTitle>Chart Process</ColumnTitle>
-                    <ProcessButton 
-                      type="button"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        handleAddChartProcess();
-                      }}
-                    >
-                      Add Chart Process
-                    </ProcessButton>
-                    <ProcessList>
-                      {chartProcesses.map(process => (
-                        <ProcessCard
-                          key={process.id}
-                          process={process}
-                          onTextChange={handleChartProcessChange}
-                          onImagePaste={handlePasteImage}
-                          onDelete={handleDeleteProcess}
-                          onImageDelete={handleDeleteProcessImage}
-                          onImageClick={handleImageClick}
-                        />
-                      ))}
-                    </ProcessList>
-                  </ProcessColumn>
+                <ProcessList>
+                  {sessionData.chart_processes.map(process => (
+                    <ProcessItem key={process.id}>
+                      <DeleteProcessButton 
+                        onClick={() => handleDeleteProcess(process.id)}
+                        type="button"
+                      />
+                      <ProcessTime>{process.time}</ProcessTime>
+                      <ProcessTextArea
+                        value={process.text}
+                        onChange={(e) => handleChartProcessChange(process.id, e.target.value)}
+                        placeholder="Describe your process..."
+                      />
+                      <ProcessImageUpload 
+                        onPaste={(e) => handlePasteImage(e, null, process.id)}
+                        tabIndex="0"
+                        role="button"
+                        hasImage={!!process.image}
+                        aria-label="Paste chart screenshot"
+                      >
+                        {process.image ? (
+                          <>
+                            <img 
+                              src={process.image} 
+                              alt="Process visualization" 
+                              onClick={() => handleImageClick(process.image)}
+                            />
+                            <RemoveImageButton
+                              className="remove-image"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+                                handleDeleteProcessImage(process.id);
+                              }}
+                            >
+                              ×
+                            </RemoveImageButton>
+                          </>
+                        ) : (
+                          <div className="placeholder">
+                            <span>📈 Paste Chart Screenshot</span>
+                            <span style={{ fontSize: '12px' }}>Press Ctrl + V to paste screenshot</span>
+                          </div>
+                        )}
+                      </ProcessImageUpload>
+                    </ProcessItem>
+                  ))}
+                </ProcessList>
+                <AddButton 
+                  type="button" 
+                  onClick={handleAddChartProcess}
+                  style={{ marginTop: '20px' }}
+                >
+                  Add Process
+                </AddButton>
+              </SectionBlock>
+            </FullWidthSection>
 
-                  {/* Правая колонка */}
-                  <ProcessColumn>
-                    <ColumnTitle>Thought Process</ColumnTitle>
-                    <ButtonGroupProcess>
-                      <ProcessButton type="button">Add Thought</ProcessButton>
-                      <ProcessButton type="button">STER Analysis</ProcessButton>
-                    </ButtonGroupProcess>
-                  </ProcessColumn>
-                </DuringSessionLayout>
-              </DuringSessionSection>
+            {/* Кнопки дій */}
+            <ButtonGroup>
+              <Button type="button" onClick={handleBack}>Cancel</Button>
+              <Button type="submit" primary>Save</Button>
+            </ButtonGroup>
+          </form>
+        </Content>
 
-              <ButtonGroup>
-                <Button type="button" onClick={handleBack}>Cancel</Button>
-                <Button type="submit" primary>Save</Button>
-              </ButtonGroup>
-            </Form>
-          </Content>
-        </Container>
-        {/* Добавляем модальное окно */}
+        {/* Модальні вікна */}
+        {isLoading && (
+          <LoadingOverlay>
+            <div>Loading...</div>
+          </LoadingOverlay>
+        )}
+
         {selectedImage && (
-          <ImageModal onClick={handleCloseImage}>
+          <ImageModal onClick={handleCloseImage} scrollOffset={scrollOffset}>
             <img src={selectedImage} alt="Full size" onClick={(e) => e.stopPropagation()} />
             <ModalCloseButton onClick={handleCloseImage}>×</ModalCloseButton>
           </ImageModal>
         )}
+
         {showImageForm && (
           <>
             <div
@@ -2456,236 +2327,26 @@ function PreSessionFull() {
                   ))}
                 </ImagePreview>
               )}
+              <ButtonGroup style={{ marginTop: '20px' }}>
+                <Button type="button" onClick={handleImageFormClose}>Cancel</Button>
+                <Button type="submit" primary>Upload</Button>
+              </ButtonGroup>
             </ImageUploadForm>
           </>
         )}
-        {selectedNote && (
-          <NoteModal scrollOffset={scrollOffset} onClick={handleCloseNote}>
-            <NoteModalContent onClick={(e) => e.stopPropagation()}>
-              {/* ... existing note modal content ... */}
-              <ModalCloseButton onClick={handleCloseNote}>×</ModalCloseButton>
-            </NoteModalContent>
-          </NoteModal>
-        )}
-        <NotesList 
-          sourceType="presession" 
-          sourceId={id}
-          onAddNote={() => openNotePopup()}
-        />
-        {isNoteModalOpen && (
+
+        {showNoteModal && (
           <NoteModal
-            isOpen={isNoteModalOpen}
-            onClose={closeNotePopup}
-            onSave={saveNote}
-            note={selectedNote}
+            isOpen={showNoteModal}
+            onClose={handleCloseNoteModal}
+            onSave={handleSaveNote}
             sourceType="presession"
-            sourceId={id}
+            sourceId={noteSourceId}
           />
         )}
-      </>
-    );
-    
-  }
-  
-  export default PreSessionFull;
+      </Container>
+    </>
+  );
+}
 
-// Добавляем styled-components для Notes (такие же как в CreateTrade)
-const NoteContainer = styled.div`
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-`;
-
-const NoteItem = styled.div`
-  background-color: #2e2e2e;
-  padding: 10px;
-  border-radius: 5px;
-  border: 1px solid #5e2ca5;
-  margin-bottom: 10px;
-  cursor: pointer;
-  position: relative;
-  width: 100%;
-  max-width: 400px;
-`;
-
-const NoteText = styled.p`
-  margin: 0;
-  color: #fff;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  text-align: center;
-`;
-
-const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425c9, #b886ee);
-  border: none;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  position: absolute;
-  top: 10px;
-
-  &:hover {
-    filter: brightness(1.5);
-  }
-
-  img {
-    width: 16px;
-    height: 16px;
-  }
-
-  &.edit {
-    right: 40px;
-  }
-
-  &.delete {
-    right: 10px;
-  }
-`;
-
-const ModalOverlay = styled.div`
-  position: fixed;
-  inset: 0;
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(2px);
-  z-index: 1001;
-  overflow-y: auto;
-  display: flex;
-  align-items: flex-end;
-  justify-content: center;
-`;
-
-const NotePopup = styled.div`
-  width: calc(100% - 60px);
-  max-height: 80vh;
-  background-color: #2e2e2e;
-  padding: 20px;
-  border-radius: 10px 10px 0 0;
-  border: 2px solid #5e2ca5;
-  border-bottom: none;
-  color: #fff;
-  box-shadow: 0 -4px 8px rgba(0, 0, 0, 0.3);
-  margin: 0 100px 100px 100px;
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  overflow: hidden;
-  animation: ${fadeIn} 0.3s ease;
-  align-items: center;
-`;
-
-const NotePopupTitle = styled.h3`
-  color: #fff;
-  margin: 0 0 10px;
-  text-align: center;
-`;
-
-const NotePopupInput = styled.input`
-  padding: 8px;
-  background-color: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 5px;
-  width: 100%;
-  text-align: center;
-`;
-
-const NotePopupTextArea = styled.textarea`
-  padding: 8px;
-  background-color: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 5px;
-  width: 100%;
-  flex-grow: 1;
-  text-align: center;
-`;
-
-const NotePopupButtons = styled.div`
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  width: 100%;
-`;
-
-const PreSessionCardContainer = styled.div`
-  background: #2e2e2e;
-  border: 2px solid #5e2ca5;
-  border-radius: 15px;
-  padding: 0;
-  margin-bottom: 20px;
-  width: 100%;
-  position: relative;
-`;
-
-const StyledDatePicker = styled(DatePicker)`
-  background: #2e2e2e;
-  border: 1px solid #5e2ca5;
-  color: #fff;
-  padding: 8px;
-  border-radius: 8px;
-  width: 100%;
-  cursor: pointer;
-  font-size: 14px;
-
-  &:focus {
-    outline: none;
-    border-color: #B886EE;
-  }
-`;
-
-const Modal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-`;
-
-// Створюємо стилі для контейнера кнопок
-const BottomButtonContainer = styled.div`
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  width: 100%;
-  display: flex;
-  justify-content: center;
-  gap: 20px;
-  padding: 20px;
-  background: linear-gradient(to top, rgba(26, 26, 26, 1), rgba(26, 26, 26, 0.8));
-  z-index: 1000;
-  box-shadow: 0 -4px 6px rgba(0, 0, 0, 0.1);
-`;
-
-const BottomButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  color: white;
-  border: none;
-  padding: 12px 24px;
-  border-radius: 8px;
-  font-size: 1em;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  min-width: 150px;
-
-  &:hover {
-    transform: translateY(-2px);
-    opacity: 0.9;
-  }
-
-  &:active {
-    transform: translateY(0);
-  }
-`;
+export default PreSessionFull; 

@@ -613,8 +613,9 @@ const FullscreenModal = styled.div`
 `;
 
 const FullscreenImage = styled.img`
-  max-width: 90%;
-  max-height: 90%;
+  max-width: 100%;
+  max-height: 100%;
+  border: 2px solid #5e2ca5;
 `;
 
 const CloseButton = styled.button`

@@ -157,8 +157,15 @@ class NotesDB {
     return new Promise((resolve, reject) => {
       this.db.all(
         `SELECT n.*, nt.name as tag_name,
-         n.trade_no as tradeNo,
-         n.trade_date as tradeDate
+         CASE 
+           WHEN n.source_type = 'trade' THEN n.trade_no 
+           ELSE NULL 
+         END as tradeNo,
+         CASE 
+           WHEN n.source_type = 'trade' THEN n.trade_date 
+           WHEN n.source_type = 'presession' THEN n.created_at
+           ELSE NULL 
+         END as tradeDate
          FROM notes n 
          LEFT JOIN note_tags nt ON n.tag_id = nt.id 
          ORDER BY n.created_at DESC`,

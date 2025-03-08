@@ -130,25 +130,32 @@ const AddText = styled.span`
   font-size: 1.2em;
 `;
 
-const NotesListComponent = ({ sourceType, sourceId, onAddNote }) => {
-  const [notes, setNotes] = useState([]);
+const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => {
+  const [localNotes, setLocalNotes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
 
   useEffect(() => {
-    loadNotes();
-  }, [sourceType, sourceId]);
+    if (notes && notes.length > 0) {
+      // Якщо передані зовнішні нотатки, використовуємо їх
+      setLocalNotes(notes);
+    } else {
+      // Інакше завантажуємо з бази даних
+      loadNotes();
+    }
+  }, [sourceType, sourceId, notes]);
 
   const loadNotes = async () => {
     try {
       const notesData = await window.electronAPI.getNotesBySource(sourceType, sourceId);
-      setNotes(notesData);
+      setLocalNotes(notesData);
     } catch (error) {
       console.error('Error loading notes:', error);
     }
   };
 
-  const handleAddNote = () => {
+  const handleAddNote = (e) => {
+    e.preventDefault();
     if (onAddNote) {
       onAddNote();
     } else {
@@ -180,9 +187,8 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote }) => {
 
   return (
     <NotesSection>
-      <SectionTitle>Notes & Mistakes</SectionTitle>
       <NotesList>
-        {notes.map(note => (
+        {localNotes.map(note => (
           <NoteItem key={note.id} onClick={() => handleNoteClick(note)}>
             <DeleteButton 
               className="delete-button"
@@ -195,7 +201,7 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote }) => {
           </NoteItem>
         ))}
       </NotesList>
-      <AddNoteButton onClick={handleAddNote}>
+      <AddNoteButton onClick={(e) => handleAddNote(e)}>
         <AddIcon>+</AddIcon>
         <AddText>Add Note or Mistake</AddText>
       </AddNoteButton>

@@ -1,4 +1,5 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const electron = require('electron');
+const { app, BrowserWindow, ipcMain } = electron;
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
@@ -41,6 +42,8 @@ async function initializeDatabase() {
   if (vaultPath && db) return;
   
   vaultPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault');
+  console.log('Vault path:', vaultPath);
+  
   const dbPath = path.join(vaultPath, 'trades.db');
   const accountsDbPath = path.join(vaultPath, 'accounts.db');
   const executionDbPath = path.join(vaultPath, 'execution.db');
@@ -48,43 +51,38 @@ async function initializeDatabase() {
   const notesDbPath = path.join(vaultPath, 'notes.db');
   const routinesDbPath = path.join(vaultPath, 'routines.db');
   
+  console.log('Database paths:');
+  console.log('- trades.db:', dbPath);
+  console.log('- accounts.db:', accountsDbPath);
+  console.log('- execution.db:', executionDbPath);
+  console.log('- performance.db:', performanceDbPath);
+  console.log('- notes.db:', notesDbPath);
+  console.log('- routines.db:', routinesDbPath);
+  
   try {
     await fs.mkdir(vaultPath, { recursive: true });
+    console.log('Vault directory created/verified');
     
     db = new sqlite3.Database(dbPath, (err) => {
-      if (err) throw new Error(`Database connection failed: ${err.message}`);
-      console.log('SQLite database initialized at:', dbPath);
-    });
-
-    // Initialize accounts database
-    accountsDB = new AccountsDB(accountsDbPath);
-    
-    // Initialize execution database
-    executionDB = new ExecutionDB(executionDbPath);
-
-    // Initialize performance database
-    performanceDB = new sqlite3.Database(performanceDbPath, (err) => {
-      if (err) throw new Error(`Performance database connection failed: ${err.message}`);
-      console.log('Performance database initialized at:', performanceDbPath);
-    });
-
-    // Initialize notes database
-    notesDB = new NotesDB(notesDbPath);
-
-    // Initialize routines database
-    routinesDB = new RoutinesDB(routinesDbPath);
-
-    await new Promise((resolve, reject) => {
-      db.serialize(() => {
-        // 1. Створюємо основну таблицю trades
+      if (err) {
+        console.error('Error connecting to trades database:', err);
+      } else {
+        // Create trades table if it doesn't exist
         db.run(`
           CREATE TABLE IF NOT EXISTS trades (
             id TEXT PRIMARY KEY,
             no INTEGER,
             date TEXT,
-            account TEXT,
             pair TEXT,
             direction TEXT,
+            entry_price REAL,
+            stop_loss REAL,
+            take_profit REAL,
+            risk_reward REAL,
+            outcome TEXT,
+            pnl REAL,
+            notes TEXT,
+            account TEXT,
             positionType TEXT,
             risk TEXT,
             result TEXT,
@@ -107,135 +105,49 @@ async function initializeDatabase() {
             execution TEXT,
             management TEXT,
             conclusion TEXT,
-            notes TEXT,
-            parentTradeId TEXT
+            parentTradeId TEXT,
+            created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+            updated_at TEXT DEFAULT CURRENT_TIMESTAMP
           )
-        `);
-
-        // 2. Створюємо таблицю learning_notes з правильними полями
-        db.run(`
-          CREATE TABLE IF NOT EXISTS learning_notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            title TEXT NOT NULL,
-            content TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            tradeId TEXT,
-            FOREIGN KEY (tradeId) REFERENCES trades(id)
-          )
-        `);
-
-        // 3. Створюємо таблицю presession
-        db.run(`
-          CREATE TABLE IF NOT EXISTS presession (
-            id TEXT PRIMARY KEY,
-            date TEXT NOT NULL,
-            pair TEXT,
-            narrative TEXT,
-            execution TEXT,
-            outcome TEXT,
-            plan_outcome INTEGER DEFAULT 0,
-            forex_factory_news TEXT,
-            topDownAnalysis TEXT,
-            video_url TEXT,
-            plans TEXT,
-            chart_processes TEXT,
-            mindset_preparation TEXT,
-            the_zone TEXT,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `);
-
-        // Перевіряємо чи існує стовпець tradeId
-        db.all("PRAGMA table_info(learning_notes)", [], (err, rows) => {
-          if (!err) {
-            const hasTradeId = rows.some(row => row.name === 'tradeId');
-            if (!hasTradeId) {
-              db.run("ALTER TABLE learning_notes ADD COLUMN tradeId TEXT REFERENCES trades(id)");
-            }
+        `, (err) => {
+          if (err) {
+            console.error('Error creating trades table:', err);
+          } else {
+            console.log('trades.db initialized successfully');
           }
         });
-
-        db.run(`
-          CREATE TABLE IF NOT EXISTS notes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            tradeId TEXT,
-            title TEXT,
-            text TEXT,
-            FOREIGN KEY (tradeId) REFERENCES trades(id)
-          )
-        `, (err) => {
-          if (err) reject(new Error(`Table notes creation failed: ${err.message}`));
-        });
-
-        db.run(`
-          CREATE TABLE IF NOT EXISTS daily_routines (
-            date TEXT PRIMARY KEY,
-            preSession TEXT,
-            postSession TEXT,
-            emotions TEXT,
-            notes TEXT
-          )
-        `, (err) => {
-          if (err) reject(new Error(`Table daily_routines creation failed: ${err.message}`));
-        });
-
-        // Перевіряємо чи існує стовпець parentTradeId
-        db.all("PRAGMA table_info(trades)", [], (err, rows) => {
-          if (!err) {
-            const hasParentTradeId = rows.some(row => row.name === 'parentTradeId');
-            if (!hasParentTradeId) {
-              db.run("ALTER TABLE trades ADD COLUMN parentTradeId TEXT");
-            }
-          }
-        });
-
-        resolve();
-      });
+      }
     });
 
-    // Перенумеровуємо trades після створення всіх таблиць
-    await reorderTradeNumbers();
+    // Initialize accounts database
+    accountsDB = new AccountsDB(accountsDbPath);
+    
+    // Initialize execution database
+    executionDB = new ExecutionDB(executionDbPath);
 
-    await new Promise((resolve, reject) => {
-      performanceDB.serialize(() => {
-        performanceDB.run(`
-          CREATE TABLE IF NOT EXISTS performance_analysis (
-            id TEXT PRIMARY KEY,
-            type TEXT NOT NULL,
-            startDate TEXT NOT NULL,
-            endDate TEXT NOT NULL,
-            weekNumber INTEGER,
-            monthNumber INTEGER,
-            quarterNumber INTEGER,
-            year INTEGER,
-            totalTrades INTEGER,
-            missedTrades INTEGER,
-            executionCoefficient REAL,
-            winrate REAL,
-            followingPlan INTEGER,
-            narrativeAccuracy REAL,
-            gainedRR REAL,
-            potentialRR REAL,
-            averageRR REAL,
-            profit REAL,
-            realisedPL REAL,
-            averagePL REAL,
-            averageLoss REAL,
-            created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-          )
-        `, (err) => {
-          if (err) reject(new Error(`Table performance_analysis creation failed: ${err.message}`));
-        });
-      });
-      resolve();
+    // Initialize performance database
+    performanceDB = new sqlite3.Database(performanceDbPath, (err) => {
+      if (err) {
+        console.error('performance.db connection failed:', err);
+        throw new Error(`Performance database connection failed: ${err.message}`);
+      }
+      console.log('performance.db initialized successfully');
     });
 
+    // Initialize notes database
+    notesDB = new NotesDB(notesDbPath);
+    console.log('notes.db initialized');
+
+    // Initialize routines database
+    routinesDB = new RoutinesDB(routinesDbPath);
+    if (!routinesDB) {
+      throw new Error('Failed to create routinesDB instance');
+    }
+    console.log('routines.db initialized at:', routinesDbPath);
+    console.log('routinesDB:', routinesDB); // Added this line to log routinesDB
   } catch (error) {
     console.error('Error initializing database:', error);
-    throw new Error('Database initialization failed');
+    throw error;
   }
 }
 
@@ -285,36 +197,27 @@ const ensureDatabaseInitialized = async () => {
 };
 
 ipcMain.handle('saveNote', async (event, note) => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
+  try {
     if (note.id) {
-      db.run(
-        'UPDATE learning_notes SET title = ?, content = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?',
-        [note.title, note.content, note.id],
-        function(err) {
-          if (err) {
-            console.error('Error updating learning note:', err);
-            reject(err);
-          } else {
-            resolve(note.id);
-          }
-        }
-      );
+      await notesDB.updateNote(note);
+      return note.id;
     } else {
-      db.run(
-        'INSERT INTO learning_notes (title, content) VALUES (?, ?)',
-        [note.title, note.content],
-        function(err) {
-          if (err) {
-            console.error('Error creating learning note:', err);
-            reject(err);
-          } else {
-            resolve(this.lastID);
-          }
-        }
-      );
+      const noteId = await notesDB.addNote(note);
+      return noteId;
     }
-  });
+  } catch (error) {
+    console.error('Error saving note:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getAllNotes', async () => {
+  try {
+    return await notesDB.getAllNotes();
+  } catch (error) {
+    console.error('Error getting all notes:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('deleteNote', async (event, id) => {
@@ -435,36 +338,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
             return;
           }
 
-          // Видаляємо старі нотатки перед додаванням нових
-          try {
-            await new Promise((resolve, reject) => {
-              db.run('DELETE FROM notes WHERE tradeId = ?', [trade.id], (err) => {
-                if (err) reject(err);
-                else resolve();
-              });
-            });
-
-            // Додаємо нові нотатки
-            if (trade.notes && trade.notes.length > 0) {
-              for (const note of trade.notes) {
-                await new Promise((resolve, reject) => {
-                  db.run(
-                    'INSERT INTO notes (tradeId, title, text) VALUES (?, ?, ?)',
-                    [trade.id, note.title, note.text],
-                    (err) => {
-                      if (err) reject(err);
-                      else resolve();
-                    }
-                  );
-                });
-              }
-            }
-            
-            resolve(true);
-          } catch (error) {
-            console.error('Error handling notes:', error);
-            reject(error);
-          }
+          console.log('Трейд успішно збережено');
+          resolve(true);
         }
       );
     });
@@ -711,7 +586,7 @@ ipcMain.handle('saveNoteWithTrade', async (event, note) => {
   await ensureDatabaseInitialized();
   return new Promise((resolve, reject) => {
     const query = `
-      INSERT INTO learning_notes (title, content, tradeId) 
+      INSERT INTO notes (title, text, tradeId) 
       VALUES (?, ?, ?)
     `;
     
@@ -726,12 +601,62 @@ ipcMain.handle('saveNoteWithTrade', async (event, note) => {
   });
 });
 
-ipcMain.handle('getAllNotes', async () => {
-  return await notesDB.getAllNotes();
+ipcMain.handle('getAllNoteTags', async () => {
+  return await notesDB.getAllTags();
 });
 
-ipcMain.handle('app-ready', () => {
-  return true;
+ipcMain.handle('addNoteTag', async (event, name) => {
+  return await notesDB.addTag(name);
+});
+
+ipcMain.handle('addNote', async (event, note) => {
+  return await notesDB.addNote(note);
+});
+
+ipcMain.handle('updateNote', async (event, note) => {
+  return await notesDB.updateNote(note);
+});
+
+ipcMain.handle('getNoteById', async (event, id) => {
+  return await notesDB.getNoteById(id);
+});
+
+ipcMain.handle('getNotesBySource', async (event, sourceType, sourceId) => {
+  return await notesDB.getNotesBySource(sourceType, sourceId);
+});
+
+ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
+  await ensureDatabaseInitialized();
+  try {
+    console.log('Starting to update notes with trade data for tradeId:', tradeId);
+    await notesDB.updateNotesWithTradeData(db, tradeId);
+    console.log('Notes updated with trade data successfully');
+  } catch (error) {
+    console.error('Error updating notes with trade data:', error);
+  }
+});
+
+ipcMain.handle('addNoteImage', async (event, noteId, imagePath) => {
+  return await notesDB.addNoteImage(noteId, imagePath);
+});
+
+ipcMain.handle('getNoteImages', async (event, noteId) => {
+  return await notesDB.getNoteImages(noteId);
+});
+
+ipcMain.handle('deleteNoteImage', async (event, imageId) => {
+  return await notesDB.deleteNoteImage(imageId);
+});
+
+ipcMain.handle('testUpdateNotes', async (event, tradeId) => {
+  try {
+    await ensureDatabaseInitialized();
+    console.log('Testing updateNotesWithTradeData for tradeId:', tradeId);
+    await notesDB.updateNotesWithTradeData(db, tradeId);
+    console.log('Test completed successfully');
+  } catch (error) {
+    console.error('Error during test:', error);
+  }
 });
 
 // Account management handlers
@@ -858,9 +783,8 @@ ipcMain.handle('savePerformanceAnalysis', async (event, analysis) => {
         quarterNumber, year, totalTrades, missedTrades,
         executionCoefficient, winrate, followingPlan,
         narrativeAccuracy, gainedRR, potentialRR, averageRR,
-        profit, realisedPL, averagePL, averageLoss,
-        updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+        profit, realisedPL, averagePL, averageLoss
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       id, type, startDate, endDate, weekNumber, monthNumber,
       quarterNumber, year, totalTrades, missedTrades,
@@ -872,7 +796,7 @@ ipcMain.handle('savePerformanceAnalysis', async (event, analysis) => {
         console.error('Error saving performance analysis:', err);
         reject(err);
       } else {
-        resolve(id);
+        resolve(this.lastID);
       }
     });
   });
@@ -970,108 +894,70 @@ ipcMain.handle('deletePerformanceAnalysis', async (event, id) => {
   });
 });
 
-// Presession handlers
-ipcMain.handle('save-presession', async (event, presessionData) => {
-  try {
-    if (presessionData.id) {
-      await routinesDB.updatePreSession(presessionData);
-    } else {
-      // Генеруємо унікальний ID якщо він не надано
-      presessionData.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
-      await routinesDB.addPreSession(presessionData);
-    }
-    return { success: true, id: presessionData.id };
-  } catch (error) {
-    console.error('Error saving pre-session:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-ipcMain.handle('get-presession', async (event, id) => {
-  try {
-    const preSession = await routinesDB.getPreSessionById(id);
-    return preSession;
-  } catch (error) {
-    console.error('Error getting pre-session:', error);
-    return null;
-  }
-});
-
-ipcMain.handle('get-all-presessions', async () => {
-  try {
-    const preSessions = await routinesDB.getAllPreSessions();
-    return preSessions;
-  } catch (error) {
-    console.error('Error getting all pre-sessions:', error);
-    return [];
-  }
-});
-
-ipcMain.handle('delete-presession', async (event, id) => {
-  try {
-    await routinesDB.deletePreSession(id);
-    return { success: true };
-  } catch (error) {
-    console.error('Error deleting pre-session:', error);
-    return { success: false, error: error.message };
-  }
-});
-
-// Notes handlers
-ipcMain.handle('getAllNoteTags', async () => {
-  return await notesDB.getAllTags();
-});
-
-ipcMain.handle('addNoteTag', async (event, name) => {
-  return await notesDB.addTag(name);
-});
-
-ipcMain.handle('addNote', async (event, note) => {
-  return await notesDB.addNote(note);
-});
-
-ipcMain.handle('updateNote', async (event, note) => {
-  return await notesDB.updateNote(note);
-});
-
-ipcMain.handle('getNoteById', async (event, id) => {
-  return await notesDB.getNoteById(id);
-});
-
-ipcMain.handle('getNotesBySource', async (event, sourceType, sourceId) => {
-  return await notesDB.getNotesBySource(sourceType, sourceId);
-});
-
-ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
+// Pre-session handlers
+ipcMain.handle('getPresession', async (event, id) => {
   await ensureDatabaseInitialized();
   try {
-    console.log('Starting to update notes with trade data for tradeId:', tradeId);
-    await notesDB.updateNotesWithTradeData(db, tradeId);
-    console.log('Notes updated with trade data successfully');
+    console.log('Getting pre-session by ID:', id);
+    const presession = await routinesDB.getPreSessionById(id);
+    console.log('Retrieved pre-session:', presession);
+    return presession;
   } catch (error) {
-    console.error('Error updating notes with trade data:', error);
+    console.error('Error getting pre-session:', error);
+    throw error;
   }
 });
 
-ipcMain.handle('addNoteImage', async (event, noteId, imagePath) => {
-  return await notesDB.addNoteImage(noteId, imagePath);
-});
-
-ipcMain.handle('getNoteImages', async (event, noteId) => {
-  return await notesDB.getNoteImages(noteId);
-});
-
-ipcMain.handle('deleteNoteImage', async (event, imageId) => {
-  return await notesDB.deleteNoteImage(imageId);
-});
-
-ipcMain.handle('testUpdateNotes', async (event, tradeId) => {
+ipcMain.handle('getAllPresessions', async () => {
+  await ensureDatabaseInitialized();
   try {
-    await ensureDatabaseInitialized();
-    console.log('Testing updateNotesWithTradeData for tradeId:', tradeId);
-    await notesDB.updateNotesWithTradeData(db, tradeId);
-    console.log('Test completed successfully');
+    console.log('Getting all pre-sessions');
+    const presessions = await routinesDB.getAllPreSessions();
+    console.log(`Retrieved ${presessions.length} pre-sessions`);
+    return presessions;
   } catch (error) {
-    console.error('Error during test:', error);
+    console.error('Error getting all pre-sessions:', error);
+    throw error;
   }
+});
+
+ipcMain.handle('savePresession', async (event, presessionData) => {
+  await ensureDatabaseInitialized();
+  try {
+    console.log('Saving pre-session data:', presessionData);
+    console.log('Database path:', routinesDB.dbPath);
+    
+    let result;
+    if (presessionData.id) {
+      console.log('Updating existing pre-session with ID:', presessionData.id);
+      result = await routinesDB.updatePreSession(presessionData);
+    } else {
+      console.log('Creating new pre-session');
+      result = await routinesDB.addPreSession(presessionData);
+    }
+    
+    console.log('Pre-session saved successfully. Result:', result);
+    console.log('Database location:', path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'routines.db'));
+    
+    return { success: true, id: presessionData.id || result };
+  } catch (error) {
+    console.error('Error saving pre-session:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('deletePresession', async (event, id) => {
+  await ensureDatabaseInitialized();
+  try {
+    console.log('Deleting pre-session:', id);
+    await routinesDB.deletePreSession(id);
+    return true;
+  } catch (error) {
+    console.error('Error deleting pre-session:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('app-ready', () => {
+  return true;
 });

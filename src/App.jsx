@@ -258,7 +258,8 @@ function App() {
             <Route path="/create-trade" element={<CreateTrade />} />
             <Route path="/daily-routine" element={<DailyRoutine />} />
             <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
-            <Route path="/daily-routine/pre-session/:id" element={<PreSessionFull />} />
+            <Route path="/daily-routine/pre-session/full" element={<PreSessionFull />} />
+            <Route path="/daily-routine/pre-session/full/:id" element={<PreSessionFull />} />
             <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
             <Route path="/learning-section" element={<LearningSection />} />
             <Route path="/learning-section/strategy" element={<Strategy />} />
