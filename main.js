@@ -275,74 +275,174 @@ ipcMain.handle('get-trade', async (event, id) => {
 
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    console.log('Початок збереження трейду');
-    console.log('volumeConfirmation до перетворення:', trade.volumeConfirmation);
-    
-    db.get('SELECT MAX(no) as maxNo FROM trades', [], (err, row) => {
-      if (err) {
-        console.error('Помилка при отриманні maxNo:', err);
-        reject(err);
-        return;
-      }
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log('Початок збереження трейду');
+      
+      // Get next trade number
+      const row = await new Promise((res, rej) => {
+        db.get('SELECT MAX(no) as maxNo FROM trades', [], (err, row) => {
+          if (err) rej(err);
+          else res(row);
+        });
+      });
       
       const nextNo = (row.maxNo || 0) + 1;
       const volumeConfirmationJson = JSON.stringify(Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []);
-      console.log('volumeConfirmation після перетворення в JSON:', volumeConfirmationJson);
       
-      db.run(
-        `INSERT OR REPLACE INTO trades (
-          id, no, date, account, pair, direction, positionType, 
-          risk, result, rr, profitLoss, gainedPoints, 
-          followingPlan, bestTrade, session, pointA, trigger, 
-          volumeConfirmation, entryModel, entryTF, fta, 
-          slPosition, score, category, topDownAnalysis, 
-          execution, management, conclusion, notes, parentTradeId
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-        [
-          trade.id,
-          nextNo,
-          trade.date || '',
-          trade.account || '',
-          trade.pair || '',
-          trade.direction || '',
-          trade.positionType || '',
-          trade.risk || '',
-          trade.result || '',
-          trade.rr || '',
-          trade.profitLoss || '',
-          trade.gainedPoints || '',
-          trade.followingPlan ? 1 : 0,
-          trade.bestTrade ? 1 : 0,
-          trade.session || '',
-          trade.pointA || '',
-          trade.trigger || '',
-          volumeConfirmationJson,
-          trade.entryModel || '',
-          trade.entryTF || '',
-          trade.fta || '',
-          trade.slPosition || '',
-          trade.score || '',
-          trade.category || '',
-          JSON.stringify(trade.topDownAnalysis || []),
-          JSON.stringify(trade.execution || {}),
-          JSON.stringify(trade.management || {}),
-          JSON.stringify(trade.conclusion || {}),
-          JSON.stringify(trade.notes || []),
-          trade.parentTradeId || null
-        ],
-        async function(err) {
-          if (err) {
-            console.error('Error saving trade:', err);
-            reject(err);
-            return;
+      // Save trade
+      await new Promise((res, rej) => {
+        db.run(
+          `INSERT OR REPLACE INTO trades (
+            id, no, date, account, pair, direction, positionType, 
+            risk, result, rr, profitLoss, gainedPoints, 
+            followingPlan, bestTrade, session, pointA, trigger, 
+            volumeConfirmation, entryModel, entryTF, fta, 
+            slPosition, score, category, topDownAnalysis, 
+            execution, management, conclusion, parentTradeId
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          [
+            trade.id,
+            nextNo,
+            trade.date || '',
+            trade.account || '',
+            trade.pair || '',
+            trade.direction || '',
+            trade.positionType || '',
+            trade.risk || '',
+            trade.result || '',
+            trade.rr || '',
+            trade.profitLoss || '',
+            trade.gainedPoints || '',
+            trade.followingPlan ? 1 : 0,
+            trade.bestTrade ? 1 : 0,
+            trade.session || '',
+            trade.pointA || '',
+            trade.trigger || '',
+            volumeConfirmationJson,
+            trade.entryModel || '',
+            trade.entryTF || '',
+            trade.fta || '',
+            trade.slPosition || '',
+            trade.score || '',
+            trade.category || '',
+            JSON.stringify(trade.topDownAnalysis || []),
+            JSON.stringify(trade.execution || {}),
+            JSON.stringify(trade.management || {}),
+            JSON.stringify(trade.conclusion || {}),
+            trade.parentTradeId || null
+          ],
+          function(err) {
+            if (err) rej(err);
+            else res();
           }
+        );
+      });
 
-          console.log('Трейд успішно збережено');
-          resolve(true);
+      // Save notes if present
+      if (trade.notes && trade.notes.length > 0) {
+        for (const note of trade.notes) {
+          await notesDB.addNote({
+            ...note,
+            sourceType: 'trade',
+            sourceId: trade.id,
+            tradeNo: nextNo,
+            tradeDate: trade.date
+          });
         }
-      );
-    });
+      }
+
+      console.log('Трейд успішно збережено');
+      resolve(true);
+    } catch (error) {
+      console.error('Error saving trade:', error);
+      reject(error);
+    }
+  });
+});
+
+ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
+  await ensureDatabaseInitialized();
+  return new Promise(async (resolve, reject) => {
+    try {
+      console.log('Початок оновлення трейду');
+      
+      const volumeConfirmationJson = JSON.stringify(Array.isArray(updatedTrade.volumeConfirmation) ? updatedTrade.volumeConfirmation : []);
+      
+      // Update trade
+      await new Promise((res, rej) => {
+        db.run(
+          `UPDATE trades SET 
+            date = ?, account = ?, pair = ?, direction = ?, 
+            positionType = ?, risk = ?, result = ?, rr = ?, 
+            profitLoss = ?, gainedPoints = ?, followingPlan = ?, 
+            bestTrade = ?, session = ?, pointA = ?, trigger = ?, 
+            volumeConfirmation = ?, entryModel = ?, entryTF = ?, 
+            fta = ?, slPosition = ?, score = ?, category = ?, 
+            topDownAnalysis = ?, execution = ?, management = ?, 
+            conclusion = ?, parentTradeId = ? 
+          WHERE id = ?`,
+          [
+            updatedTrade.date || '',
+            updatedTrade.account || '',
+            updatedTrade.pair || '',
+            updatedTrade.direction || '',
+            updatedTrade.positionType || '',
+            updatedTrade.risk || '',
+            updatedTrade.result || '',
+            updatedTrade.rr || '',
+            updatedTrade.profitLoss || '',
+            updatedTrade.gainedPoints || '',
+            updatedTrade.followingPlan ? 1 : 0,
+            updatedTrade.bestTrade ? 1 : 0,
+            updatedTrade.session || '',
+            updatedTrade.pointA || '',
+            updatedTrade.trigger || '',
+            volumeConfirmationJson,
+            updatedTrade.entryModel || '',
+            updatedTrade.entryTF || '',
+            updatedTrade.fta || '',
+            updatedTrade.slPosition || '',
+            updatedTrade.score || '',
+            updatedTrade.category || '',
+            JSON.stringify(updatedTrade.topDownAnalysis) || '[]',
+            JSON.stringify(updatedTrade.execution) || '{}',
+            JSON.stringify(updatedTrade.management) || '{}',
+            JSON.stringify(updatedTrade.conclusion) || '{}',
+            updatedTrade.parentTradeId || null,
+            tradeId
+          ],
+          function(err) {
+            if (err) rej(err);
+            else res();
+          }
+        );
+      });
+
+      // Delete existing notes for this trade
+      const existingNotes = await notesDB.getNotesBySource('trade', tradeId);
+      for (const note of existingNotes) {
+        await notesDB.deleteNote(note.id);
+      }
+
+      // Add new notes
+      if (updatedTrade.notes && updatedTrade.notes.length > 0) {
+        for (const note of updatedTrade.notes) {
+          await notesDB.addNote({
+            ...note,
+            sourceType: 'trade',
+            sourceId: tradeId,
+            tradeNo: updatedTrade.no,
+            tradeDate: updatedTrade.date
+          });
+        }
+      }
+
+      resolve(true);
+    } catch (error) {
+      console.error('Error updating trade:', error);
+      reject(error);
+    }
   });
 });
 
@@ -367,10 +467,8 @@ ipcMain.handle('get-trades', async () => {
         return;
       }
 
-      const trades = tradeRows.map(row => {
-        console.log('Отримано трейд з бази даних:', row.id);
-        console.log('volumeConfirmation до парсингу:', row.volumeConfirmation);
-        const trade = {
+      try {
+        const trades = tradeRows.map(row => ({
           ...row,
           topDownAnalysis: JSON.parse(row.topDownAnalysis || '[]'),
           execution: JSON.parse(row.execution || '{}'),
@@ -378,120 +476,20 @@ ipcMain.handle('get-trades', async () => {
           conclusion: JSON.parse(row.conclusion || '{}'),
           volumeConfirmation: JSON.parse(row.volumeConfirmation || '[]'),
           notes: [],
-        };
-        console.log('volumeConfirmation після парсингу:', trade.volumeConfirmation);
-        return trade;
-      });
+        }));
 
-      if (trades.length === 0) {
+        // Get notes for each trade using notesDB
+        for (const trade of trades) {
+          const notes = await notesDB.getNotesBySource('trade', trade.id);
+          trade.notes = notes || [];
+        }
+
         resolve(trades);
-        return;
+      } catch (error) {
+        console.error('Error processing trades:', error);
+        reject(error);
       }
-
-      // Отримуємо нотатки для трейдів
-      const tradeIds = trades.map(trade => trade.id);
-      db.all(
-        'SELECT * FROM notes WHERE tradeId IN (' + tradeIds.map(() => '?').join(',') + ')',
-        tradeIds,
-        (err, noteRows) => {
-          if (err) {
-            console.error('Error fetching notes:', err);
-            reject(err);
-            return;
-          }
-
-          trades.forEach(trade => {
-            trade.notes = noteRows
-              .filter(note => note.tradeId === trade.id)
-              .map(note => ({ title: note.title, text: note.text }));
-          });
-          resolve(trades);
-        }
-      );
     });
-  });
-});
-
-ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
-  await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    console.log('Початок оновлення трейду');
-    console.log('volumeConfirmation до перетворення:', updatedTrade.volumeConfirmation);
-    
-    const volumeConfirmationJson = JSON.stringify(Array.isArray(updatedTrade.volumeConfirmation) ? updatedTrade.volumeConfirmation : []);
-    console.log('volumeConfirmation після перетворення в JSON:', volumeConfirmationJson);
-    
-    db.run(
-      `UPDATE trades SET 
-        date = ?, account = ?, pair = ?, direction = ?, 
-        positionType = ?, risk = ?, result = ?, rr = ?, 
-        profitLoss = ?, gainedPoints = ?, followingPlan = ?, 
-        bestTrade = ?, session = ?, pointA = ?, trigger = ?, 
-        volumeConfirmation = ?, entryModel = ?, entryTF = ?, 
-        fta = ?, slPosition = ?, score = ?, category = ?, 
-        topDownAnalysis = ?, execution = ?, management = ?, 
-        conclusion = ?, notes = ?, parentTradeId = ? 
-      WHERE id = ?`,
-      [
-        updatedTrade.date || '',
-        updatedTrade.account || '',
-        updatedTrade.pair || '',
-        updatedTrade.direction || '',
-        updatedTrade.positionType || '',
-        updatedTrade.risk || '',
-        updatedTrade.result || '',
-        updatedTrade.rr || '',
-        updatedTrade.profitLoss || '',
-        updatedTrade.gainedPoints || '',
-        updatedTrade.followingPlan ? 1 : 0,
-        updatedTrade.bestTrade ? 1 : 0,
-        updatedTrade.session || '',
-        updatedTrade.pointA || '',
-        updatedTrade.trigger || '',
-        volumeConfirmationJson,
-        updatedTrade.entryModel || '',
-        updatedTrade.entryTF || '',
-        updatedTrade.fta || '',
-        updatedTrade.slPosition || '',
-        updatedTrade.score || '',
-        updatedTrade.category || '',
-        JSON.stringify(updatedTrade.topDownAnalysis) || '[]',
-        JSON.stringify(updatedTrade.execution) || '{}',
-        JSON.stringify(updatedTrade.management) || '{}',
-        JSON.stringify(updatedTrade.conclusion) || '{}',
-        JSON.stringify(updatedTrade.notes) || '[]',
-        updatedTrade.parentTradeId || null,
-        tradeId,
-      ],
-      async (err) => {
-        if (err) {
-          console.error('Error updating trade:', err);
-          reject(err);
-          return;
-        }
-        await new Promise((delResolve, delReject) => {
-          db.run('DELETE FROM notes WHERE tradeId = ?', [tradeId], (delErr) => {
-            if (delErr) delReject(delErr);
-            else delResolve();
-          });
-        });
-        if (updatedTrade.notes && updatedTrade.notes.length > 0) {
-          for (const note of updatedTrade.notes) {
-            await new Promise((noteResolve, noteReject) => {
-              db.run(
-                'INSERT INTO notes (tradeId, title, text) VALUES (?, ?, ?)',
-                [tradeId, note.title, note.text],
-                (noteErr) => {
-                  if (noteErr) noteReject(noteErr);
-                  else noteResolve();
-                }
-              );
-            });
-          }
-        }
-        resolve(true);
-      }
-    );
   });
 });
 
