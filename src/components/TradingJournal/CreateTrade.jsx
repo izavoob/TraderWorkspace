@@ -1170,6 +1170,7 @@ function CreateTrade() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      setIsSubmitting(true);
       console.log('Початок збереження трейду');
       
       // Отримуємо поточну кількість трейдів для номера
@@ -1182,7 +1183,7 @@ function CreateTrade() {
         volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
       };
       
-      // Спочатку зберігаємо трейд
+      // Зберігаємо трейд
       await window.electronAPI.saveTrade(tradeData);
       console.log('Трейд успішно збережено');
 
@@ -1193,34 +1194,20 @@ function CreateTrade() {
         try {
           for (const note of trade.notes) {
             console.log('Зберігаємо нотатку:', note);
-            const noteId = await window.electronAPI.addNote({
+            await window.electronAPI.addNote({
               ...note,
-              sourceId: tradeData.id
+              sourceType: 'trade',
+              sourceId: tradeData.id,
+              tradeNo: tradeNo,
+              tradeDate: tradeData.date
             });
-            console.log('Нотатка успішно збережена з ID:', noteId);
           }
-          
           console.log('Всі нотатки успішно збережено');
         } catch (error) {
           console.error('Помилка при збереженні нотаток:', error);
           throw error;
         }
       }
-
-      // Додаємо затримку 2 секунди
-      await new Promise(resolve => setTimeout(resolve, 2000));
-
-      console.log('Починаємо оновлення нотаток з даними трейду...');
-      // Оновлюємо всі нотатки з даними трейдів
-      console.log('Викликаємо updateNotesWithTradeData...');
-      await window.electronAPI.updateNotesWithTradeData(tradeData.id)
-        .then(() => {
-          console.log('Нотатки успішно оновлено з даними трейду');
-        })
-        .catch((error) => {
-          console.error('Помилка при оновленні нотаток:', error);
-          console.error('Деталі помилки:', error.message, error.stack);
-        });
 
       // Оновлюємо баланс акаунту
       if (trade.account && trade.result && trade.profitLoss) {
@@ -1230,11 +1217,9 @@ function CreateTrade() {
       navigate('/trade-journal');
     } catch (error) {
       console.error('Error saving trade:', error);
-      console.error('Full error details:', {
-        message: error.message,
-        stack: error.stack,
-        cause: error.cause
-      });
+      setError(error.message);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -1682,7 +1667,7 @@ function CreateTrade() {
         )}
 
         <ButtonGroup>
-          <ActionButton onClick={handleSubmit}>Save Trade</ActionButton>
+          <ActionButton onClick={handleSubmit} disabled={isSubmitting}>Save Trade</ActionButton>
           <ActionButton onClick={handleBack}>Cancel</ActionButton>
         </ButtonGroup>
       </TradeContent>

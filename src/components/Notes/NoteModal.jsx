@@ -136,6 +136,11 @@ const AddImageButton = styled.button`
     background: rgba(94, 44, 165, 0.2);
     transform: translateY(-2px);
   }
+
+  &:focus {
+    outline: 2px solid #B886EE;
+    outline-offset: 2px;
+  }
 `;
 
 const AddIcon = styled.div`
@@ -245,21 +250,24 @@ const NoteModal = ({
       document.body.style.position = 'fixed';
       document.body.style.width = '100%';
       document.body.style.top = `-${scrollY}px`;
-    }
-    
-    loadTags();
-    if (note) {
-      setTitle(note.title);
-      setContent(note.content);
-      setSelectedTag({ value: note.tag_id, label: note.tag_name });
-      loadImages();
-    } else {
-      resetForm();
+      
+      console.log('Modal opened with note:', note);
+      loadTags();
+      
+      if (note) {
+        console.log('Setting form with existing note data:', note);
+        setTitle(note.title);
+        setContent(note.content);
+        setSelectedTag({ value: note.tag_id, label: note.tag_name });
+        loadImages();
+      } else {
+        console.log('Creating new note, resetting form');
+        resetForm();
+      }
     }
     
     return () => {
       if (isOpen) {
-        const scrollY = parseInt(document.body.style.top || '0', 10) * -1;
         document.body.style.overflow = '';
         document.body.style.position = '';
         document.body.style.width = '';
@@ -282,10 +290,12 @@ const NoteModal = ({
   };
 
   const loadImages = async () => {
-    if (note) {
+    if (note?.id) {
       try {
+        console.log('Loading images for note ID:', note.id);
         const imagesData = await window.electronAPI.getNoteImages(note.id);
-        setImages(imagesData);
+        console.log('Loaded images:', imagesData);
+        setImages(imagesData || []);
       } catch (error) {
         console.error('Error loading images:', error);
       }
@@ -312,42 +322,103 @@ const NoteModal = ({
 
   const handlePaste = async (e) => {
     e.preventDefault();
-    console.log('Paste event detected');
-    const items = e.clipboardData.items;
-    for (let item of items) {
-      console.log('Item type:', item.type);
-      if (item.type.indexOf('image') !== -1) {
-        console.log('Image found in clipboard');
-        const file = item.getAsFile();
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-          try {
-            console.log('Image loaded');
-            const imageData = e.target.result;
-            console.log('Setting image data');
-            setImages(prev => [...prev, { image_path: imageData }]);
-          } catch (error) {
-            console.error('Error saving image:', error);
-          }
-        };
-        reader.readAsDataURL(file);
+    console.log('Paste event triggered in NoteModal');
+    
+    const items = e.clipboardData?.items;
+    if (!items) {
+      console.log('No clipboard items found');
+      return;
+    }
+    
+    for (const item of items) {
+      if (item.type.startsWith('image/')) {
+        try {
+          console.log('Processing pasted image');
+          const blob = item.getAsFile();
+          const buffer = await blob.arrayBuffer();
+          const filePath = await window.electronAPI.saveBlobAsFile(buffer);
+          
+          setImages(prev => {
+            const isDuplicate = prev.some(img => img.image_path === filePath);
+            if (isDuplicate) {
+              console.log('Image already exists, skipping');
+              return prev;
+            }
+            console.log('Adding new image:', filePath);
+            return [...prev, { id: null, image_path: filePath }];
+          });
+          
+          break; // Only process one image at a time
+        } catch (error) {
+          console.error('Error processing pasted image:', error);
+        }
       }
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const noteData = {
+    e.stopPropagation();
+    
+    console.log('Submitting note with data:', {
       title,
       content,
-      tagId: selectedTag?.value,
+      selectedTag,
       sourceType,
       sourceId,
-      ...(note && { id: note.id })
-    };
+      images
+    });
 
-    onSave(noteData);
-    onClose();
+    try {
+      // Підготовка даних для збереження
+      const noteData = {
+        id: note ? note.id : undefined,
+        title,
+        content,
+        tagId: selectedTag ? selectedTag.value : null,
+        tagName: selectedTag ? selectedTag.label : null,
+        sourceType: sourceType || (note ? note.sourceType : null),
+        sourceId: sourceId || (note ? note.sourceId : null),
+        images: images
+      };
+
+      console.log('Prepared note data for saving:', noteData);
+      
+      // Збереження нотатки через переданий callback
+      if (typeof onSave === 'function') {
+        await onSave(noteData);
+        console.log('Note saved successfully through callback');
+      } else {
+        // Пряме збереження, якщо callback не переданий
+        if (note && note.id) {
+          console.log('Directly updating existing note:', noteData);
+          await window.electronAPI.updateNote(noteData);
+          
+          // Зберігаємо нові зображення
+          for (const image of images) {
+            if (!image.id) {
+              await window.electronAPI.addNoteImage(note.id, image.image_path);
+            }
+          }
+        } else {
+          console.log('Directly saving new note:', noteData);
+          const newNoteId = await window.electronAPI.saveNote(noteData);
+          
+          // Зберігаємо зображення для нової нотатки
+          for (const image of images) {
+            if (!image.id) {
+              await window.electronAPI.addNoteImage(newNoteId, image.image_path);
+            }
+          }
+        }
+        console.log('Note saved successfully directly');
+      }
+      
+      // Закриття модального вікна
+      onClose();
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
   };
 
   const handleDeleteImage = async (index, imageId) => {
@@ -409,13 +480,12 @@ const NoteModal = ({
           </ImageContainer>
 
           <AddImageButton 
-            type="button" 
-            onClick={() => {}}
+            type="button"
             onPaste={handlePaste}
             tabIndex="0"
           >
             <AddIcon>+</AddIcon>
-            Add Image (або натисніть Ctrl+V для вставки з буфера обміну)
+            Add Image (натисніть Ctrl+V для вставки з буфера обміну)
           </AddImageButton>
 
           <ButtonGroup>

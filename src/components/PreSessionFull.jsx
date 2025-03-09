@@ -1032,12 +1032,256 @@ const PlansContainer = styled.div`
   gap: 20px;
 `;
 
+// Компонент для відображення нотаток
+const NotesBlock = ({ sessionId }) => {
+  const [notes, setNotes] = useState([]);
+  const [showNoteModal, setShowNoteModal] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
+  
+  useEffect(() => {
+    loadNotes();
+  }, [sessionId]);
+  
+  const loadNotes = async () => {
+    try {
+      console.log('Завантаження нотаток для сесії:', sessionId);
+      if (!sessionId) return;
+      
+      const notesData = await window.electronAPI.getNotesBySource('presession', sessionId);
+      console.log('Отримані нотатки:', notesData);
+      setNotes(notesData);
+    } catch (error) {
+      console.error('Помилка завантаження нотаток:', error);
+    }
+  };
+  
+  const handleAddNote = () => {
+    console.log('Додавання нової нотатки');
+    setSelectedNote(null);
+    setShowNoteModal(true);
+  };
+  
+  const handleEditNote = (note) => {
+    console.log('Редагування нотатки:', note);
+    setSelectedNote(note);
+    setShowNoteModal(true);
+  };
+  
+  const handleDeleteNote = async (noteId, e) => {
+    e.stopPropagation();
+    e.preventDefault();
+    
+    if (window.confirm('Ви впевнені, що хочете видалити цю нотатку?')) {
+      try {
+        console.log('Видалення нотатки:', noteId);
+        await window.electronAPI.deleteNote(noteId);
+        await loadNotes();
+      } catch (error) {
+        console.error('Помилка видалення нотатки:', error);
+      }
+    }
+  };
+  
+  const handleSaveNote = async (noteData) => {
+    try {
+      console.log('Збереження нотатки:', noteData);
+      
+      // Додаємо інформацію про джерело
+      const noteWithSource = {
+        ...noteData,
+        sourceType: 'presession',
+        sourceId: sessionId
+      };
+      
+      if (noteData.id) {
+        // Оновлюємо існуючу нотатку
+        console.log('Оновлюємо існуючу нотатку:', noteWithSource);
+        await window.electronAPI.updateNote(noteWithSource);
+        
+        // Зберігаємо нові зображення
+        if (noteData.images && noteData.images.length > 0) {
+          for (const image of noteData.images) {
+            if (!image.id) {
+              console.log('Додаємо нове зображення до існуючої нотатки:', image);
+              await window.electronAPI.addNoteImage(noteData.id, image.image_path);
+            }
+          }
+        }
+      } else {
+        // Створюємо нову нотатку
+        console.log('Створюємо нову нотатку:', noteWithSource);
+        const newNoteId = await window.electronAPI.saveNote(noteWithSource);
+        
+        // Зберігаємо зображення для нової нотатки
+        if (noteData.images && noteData.images.length > 0) {
+          for (const image of noteData.images) {
+            if (!image.id) {
+              console.log('Додаємо зображення до нової нотатки:', image);
+              await window.electronAPI.addNoteImage(newNoteId, image.image_path);
+            }
+          }
+        }
+      }
+      
+      // Оновлюємо список нотаток
+      await loadNotes();
+      
+      // Закриваємо модальне вікно
+      setShowNoteModal(false);
+      setSelectedNote(null);
+      
+      console.log('Нотатка успішно збережена');
+    } catch (error) {
+      console.error('Помилка збереження нотатки:', error);
+    }
+  };
+  
+  const handleCloseModal = () => {
+    setShowNoteModal(false);
+    setSelectedNote(null);
+  };
+  
+  return (
+    <SectionBlock>
+      <SectionTitle>Notes</SectionTitle>
+      <div style={{ marginBottom: '20px' }}>
+        <Button onClick={handleAddNote} primary>Add Note</Button>
+      </div>
+      
+      {notes.length > 0 ? (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px' }}>
+          {notes.map(note => (
+            <div 
+              key={note.id}
+              style={{
+                background: 'rgba(116, 37, 201, 0.1)',
+                border: '2px solid #5e2ca5',
+                borderRadius: '15px',
+                padding: '15px',
+                position: 'relative'
+              }}
+            >
+              <div style={{ 
+                display: 'flex', 
+                justifyContent: 'space-between', 
+                alignItems: 'center',
+                marginBottom: '10px',
+                borderBottom: '1px solid rgba(94, 44, 165, 0.3)',
+                paddingBottom: '10px'
+              }}>
+                <h3 style={{ margin: 0, color: '#fff' }}>{note.title}</h3>
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  {note.tag_name && (
+                    <span style={{
+                      backgroundColor: '#7425C9',
+                      color: '#fff',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.8em'
+                    }}>
+                      {note.tag_name}
+                    </span>
+                  )}
+                  <button 
+                    onClick={() => handleEditNote(note)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#B886EE',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.9em'
+                    }}
+                  >
+                    Edit
+                  </button>
+                  <button 
+                    onClick={(e) => handleDeleteNote(note.id, e)}
+                    style={{
+                      background: 'none',
+                      border: 'none',
+                      color: '#e53935',
+                      cursor: 'pointer',
+                      padding: '4px 8px',
+                      borderRadius: '4px',
+                      fontSize: '0.9em'
+                    }}
+                  >
+                    Delete
+                  </button>
+                </div>
+              </div>
+              <div style={{ color: '#fff', whiteSpace: 'pre-wrap' }}>
+                {note.content}
+              </div>
+              
+              {/* Відображення зображень */}
+              {note.images && note.images.length > 0 && (
+                <div style={{ 
+                  display: 'flex', 
+                  flexWrap: 'wrap', 
+                  gap: '10px',
+                  marginTop: '15px' 
+                }}>
+                  {note.images.map((image, index) => (
+                    <div 
+                      key={index}
+                      style={{
+                        width: '100px',
+                        height: '100px',
+                        position: 'relative'
+                      }}
+                    >
+                      <img 
+                        src={image.image_path} 
+                        alt={`Note image ${index + 1}`}
+                        style={{
+                          width: '100%',
+                          height: '100%',
+                          objectFit: 'cover',
+                          borderRadius: '8px',
+                          border: '1px solid #5e2ca5'
+                        }}
+                      />
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div style={{ 
+          textAlign: 'center', 
+          padding: '20px', 
+          color: '#fff',
+          background: 'rgba(116, 37, 201, 0.1)',
+          borderRadius: '8px'
+        }}>
+          No notes yet. Click "Add Note" to create one.
+        </div>
+      )}
+      
+      {showNoteModal && (
+        <NoteModal
+          isOpen={showNoteModal}
+          onClose={handleCloseModal}
+          onSave={handleSaveNote}
+          note={selectedNote}
+          sourceType="presession"
+          sourceId={sessionId}
+        />
+      )}
+    </SectionBlock>
+  );
+};
+
 function PreSessionFull() {
   const location = useLocation();
   const { id } = useParams();
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
-  const [showNoteModal, setShowNoteModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
   const [scrollOffset, setScrollOffset] = useState(0);
   const [showImageForm, setShowImageForm] = useState(false);
@@ -1045,8 +1289,13 @@ function PreSessionFull() {
   const [selectedFiles, setSelectedFiles] = useState([]);
   const [dragActive, setDragActive] = useState(false);
   const [currencyPairs, setCurrencyPairs] = useState([]);
-  const [noteSourceType, setNoteSourceType] = useState('presession');
-  const [noteSourceId, setNoteSourceId] = useState(null);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [isDragActive, setIsDragActive] = useState(false);
+  const [notes, setNotes] = useState([]); // Додаємо стан для нотаток
+  const [showNoteModal, setShowNoteModal] = useState(false); // Додаємо стан для модального вікна нотаток
+  const [noteSourceType, setNoteSourceType] = useState('presession'); // Додаємо стан для типу джерела нотатки
+  const [noteSourceId, setNoteSourceId] = useState(null); // Додаємо стан для ID джерела нотатки
+  const [selectedNote, setSelectedNote] = useState(null); // Додаємо стан для вибраної нотатки
   
   // Безпечний парсинг JSON
   const safeParse = (jsonString, defaultValue) => {
@@ -1128,10 +1377,6 @@ function PreSessionFull() {
 
   // Стан для адаптацій планів
   const [adaptations, setAdaptations] = useState([]);
-
-  // Стан для зберігання нотаток
-  const [notes, setNotes] = useState([]);
-  const [tempNotes, setTempNotes] = useState([]);
 
   // Завантаження даних при ініціалізації
   useEffect(() => {
@@ -1436,25 +1681,32 @@ function PreSessionFull() {
   const handleImageUploadSubmit = (e) => {
     e.preventDefault();
     
-    if (selectedFiles.length === 0 || !currentUploadSection) return;
+    if (selectedFiles.length === 0) {
+      alert('Please select a file first');
+      return;
+    }
     
-    if (currentUploadSection.section === 'process' && currentUploadSection.processId) {
-      const processes = safeParse(sessionData.chart_processes, []);
-      const updatedProcesses = processes.map(process => 
-        process.id === currentUploadSection.processId ? { ...process, image: selectedFiles[0] } : process
-      );
-      
-      setSessionData(prev => ({
-        ...prev,
-        chart_processes: updatedProcesses
-      }));
-    } else if (currentUploadSection.section === 'timeframe' && currentUploadSection.timeframe) {
-      const updatedTimeframes = { ...analysisData.timeframes };
-      updatedTimeframes[currentUploadSection.timeframe].charts.push(selectedFiles[0]);
-      
+    if (currentUploadSection.section === 'timeframe') {
+      const { timeframe } = currentUploadSection;
       setAnalysisData(prev => ({
         ...prev,
-        timeframes: updatedTimeframes
+        timeframes: {
+          ...prev.timeframes,
+          [timeframe]: {
+            ...prev.timeframes[timeframe],
+            charts: [...prev.timeframes[timeframe].charts, selectedFiles[0]]
+          }
+        }
+      }));
+    } else if (currentUploadSection.section === 'process') {
+      const { processId } = currentUploadSection;
+      setSessionData(prev => ({
+        ...prev,
+        chart_processes: prev.chart_processes.map(process => 
+          process.id === processId 
+            ? { ...process, image: selectedFiles[0] } 
+            : process
+        )
       }));
     } else if (currentUploadSection.section === 'news') {
       setSessionData(prev => ({
@@ -1476,33 +1728,56 @@ function PreSessionFull() {
     document.body.style.top = `-${scrollOffset}px`;
     document.body.style.width = '100%';
     setNoteSourceId(sessionData.id);
+    setSelectedNote(null);
     setShowNoteModal(true);
   };
 
   const handleSaveNote = async (note) => {
+    console.log('Збереження нотатки у PreSessionFull:', note);
+    
     // Підготовка нотатки для збереження
     const noteData = {
       title: note.title,
       content: note.content,
       tagId: note.tagId,
       sourceType: 'presession',
-      sourceId: sessionData.id
+      sourceId: sessionData.id,
+      images: note.images || [] // Додаємо зображення
     };
     
-    // Додаємо нотатку до тимчасового масиву, щоб зберегти пізніше
-    setTempNotes(prev => [...prev, noteData]);
-    
-    // Додаємо нотатку до відображення
-    setNotes(prev => [...prev, { 
-      id: Date.now(), // Тимчасовий ID для відображення
-      title: note.title,
-      content: note.content,
-      tag_id: note.tagId,
-      tag_name: note.tagName,
-      source_type: 'presession',
-      source_id: sessionData.id,
-      created_at: new Date().toISOString()
-    }]);
+    try {
+      // Зберігаємо нотатку безпосередньо в базу даних
+      let savedNote;
+      
+      if (note.id) {
+        // Оновлюємо існуючу нотатку
+        console.log('Оновлюємо існуючу нотатку:', noteData);
+        await window.electronAPI.updateNote({
+          ...noteData,
+          id: note.id
+        });
+        savedNote = { ...note };
+      } else {
+        // Створюємо нову нотатку
+        console.log('Створюємо нову нотатку:', noteData);
+        const newNoteId = await window.electronAPI.saveNote(noteData);
+        savedNote = { 
+          ...noteData,
+          id: newNoteId,
+          tag_name: note.tagName,
+          source_type: 'presession',
+          source_id: sessionData.id,
+          created_at: new Date().toISOString()
+        };
+        
+        // Додаємо нотатку до відображення
+        setNotes(prev => [...prev, savedNote]);
+      }
+      
+      console.log('Нотатка успішно збережена:', savedNote);
+    } catch (error) {
+      console.error('Помилка збереження нотатки:', error);
+    }
     
     setShowNoteModal(false);
     document.body.style.position = '';
@@ -1535,12 +1810,10 @@ function PreSessionFull() {
 
   // Функція для відкриття відео у новому вікні
   const handleViewVideo = () => {
-    if (sessionData.video_url) {
-      window.open(sessionData.video_url, '_blank');
-    }
+    setShowVideoModal(true);
   };
 
-  // Функція для повернення назад
+  // Функція для повернення на сторінку журналу
   const handleBack = () => {
     navigate('/daily-routine/pre-session');
   };
@@ -1585,27 +1858,33 @@ function PreSessionFull() {
       if (!result.success) {
         throw new Error(result.error || 'Failed to save presession');
       }
-      
-      // Зберігаємо нотатки з затримкою
-      if (tempNotes.length > 0) {
-        console.log('Saving notes with delay:', tempNotes);
-        setTimeout(async () => {
-          for (const note of tempNotes) {
-            try {
-              await window.electronAPI.saveNote(note);
-              console.log('Note saved successfully');
-            } catch (noteError) {
-              console.error('Error saving note:', noteError);
-            }
+
+      // Зберігаємо нотатки відразу після збереження пресесії
+      console.log('Saving notes:', notes);
+      for (const note of notes) {
+        try {
+          if (!note.id || typeof note.id === 'number') { // Якщо це нова нотатка або тимчасовий ID
+            console.log('Saving new note:', note);
+            const savedNoteId = await window.electronAPI.saveNote({
+              title: note.title,
+              content: note.content,
+              tagId: note.tag_id,
+              sourceType: 'presession',
+              sourceId: presessionData.id
+            });
+            note.id = savedNoteId; // Оновлюємо ID нотатки
           }
-          setTempNotes([]);
-        }, 2000);
+        } catch (noteError) {
+          console.error('Error saving note:', noteError);
+          // Продовжуємо зберігати інші нотатки навіть якщо одна не збереглася
+        }
       }
       
+      console.log('All notes saved successfully');
       navigate('/daily-routine/pre-session');
     } catch (error) {
-      console.error('Error saving presession:', error);
-      alert('Failed to save presession: ' + error.message);
+      console.error('Error saving presession or notes:', error);
+      alert('Failed to save presession or notes');
     } finally {
       setIsLoading(false);
     }

@@ -136,19 +136,22 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => 
   const [selectedNote, setSelectedNote] = useState(null);
 
   useEffect(() => {
+    console.log('Notes prop updated:', notes);
     if (notes && notes.length > 0) {
-      // Якщо передані зовнішні нотатки, використовуємо їх
+      console.log('Setting local notes from props');
       setLocalNotes(notes);
     } else {
-      // Інакше завантажуємо з бази даних
+      console.log('Loading notes from database');
       loadNotes();
     }
   }, [sourceType, sourceId, notes]);
 
   const loadNotes = async () => {
     try {
-      const notesData = await window.electronAPI.getNotesBySource(sourceType, sourceId);
-      setLocalNotes(notesData);
+      console.log('Loading notes for source:', sourceType, sourceId);
+      const loadedNotes = await window.electronAPI.getNotesBySource(sourceType, sourceId);
+      console.log('Loaded notes:', loadedNotes);
+      setLocalNotes(loadedNotes || []);
     } catch (error) {
       console.error('Error loading notes:', error);
     }
@@ -156,28 +159,74 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => 
 
   const handleAddNote = (e) => {
     e.preventDefault();
+    console.log('Add note button clicked');
     if (onAddNote) {
+      console.log('Using external onAddNote handler');
       onAddNote();
     } else {
+      console.log('Opening modal for new note');
       setSelectedNote(null);
       setIsModalOpen(true);
     }
   };
 
   const handleNoteClick = (note) => {
+    console.log('Note clicked:', note);
     setSelectedNote(note);
     setIsModalOpen(true);
   };
 
-  const handleSave = async () => {
-    await loadNotes();
+  const handleSave = async (noteData) => {
+    console.log('Handling note save:', noteData);
+    try {
+      // Зберігаємо нотатку в базу даних, якщо це нова нотатка
+      if (!noteData.id) {
+        console.log('Saving new note to database');
+        const savedNoteId = await window.electronAPI.saveNote({
+          title: noteData.title,
+          content: noteData.content,
+          tagId: noteData.tagId,
+          sourceType: sourceType,
+          sourceId: sourceId
+        });
+        noteData.id = savedNoteId;
+      }
+
+      // Оновлюємо локальний стан
+      setLocalNotes(prev => {
+        const index = prev.findIndex(n => n.id === noteData.id);
+        if (index >= 0) {
+          // Оновлюємо існуючу нотатку
+          console.log('Updating existing note in local state');
+          const updated = [...prev];
+          updated[index] = {
+            ...noteData,
+            tag_name: noteData.tagName || noteData.tag_name
+          };
+          return updated;
+        }
+        // Додаємо нову нотатку
+        console.log('Adding new note to local state');
+        return [...prev, {
+          ...noteData,
+          tag_name: noteData.tagName || noteData.tag_name
+        }];
+      });
+
+      setIsModalOpen(false);
+    } catch (error) {
+      console.error('Error handling note save:', error);
+    }
   };
 
   const handleDelete = async (noteId, e) => {
     e.stopPropagation();
+    console.log('Delete note button clicked for ID:', noteId);
     if (window.confirm('Ви впевнені, що хочете видалити цю нотатку?')) {
       try {
+        console.log('Deleting note with ID:', noteId);
         await window.electronAPI.deleteNote(noteId);
+        console.log('Note deleted successfully');
         loadNotes();
       } catch (error) {
         console.error('Error deleting note:', error);
