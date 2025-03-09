@@ -495,18 +495,27 @@ ipcMain.handle('get-trades', async () => {
 
 ipcMain.handle('delete-trade', async (event, tradeId) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    db.run('DELETE FROM trades WHERE id = ?', [tradeId], (err) => {
-      if (err) {
-        console.error('Error deleting trade:', err);
-        reject(err);
-        return;
-      }
-      db.run('DELETE FROM notes WHERE tradeId = ?', [tradeId], (noteErr) => {
-        if (noteErr) reject(noteErr);
-        else resolve(true);
+  return new Promise(async (resolve, reject) => {
+    try {
+      // Спочатку видаляємо пов'язані нотатки
+      await notesDB.deleteNotesBySource('trade', tradeId);
+      
+      // Потім видаляємо сам трейд
+      await new Promise((resolveDelete, rejectDelete) => {
+        db.run('DELETE FROM trades WHERE id = ?', [tradeId], (err) => {
+          if (err) {
+            rejectDelete(err);
+          } else {
+            resolveDelete();
+          }
+        });
       });
-    });
+      
+      resolve(true);
+    } catch (error) {
+      console.error('Error deleting trade:', error);
+      reject(error);
+    }
   });
 });
 

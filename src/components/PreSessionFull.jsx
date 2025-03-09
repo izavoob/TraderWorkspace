@@ -339,6 +339,8 @@ const Select = styled.select`
         return '#1a472a';
       case 'Loss':
         return '#5c1919';
+      case 'Missed':
+        return '#8000FF';
       case 'BE':
         return '#714a14';
       default:

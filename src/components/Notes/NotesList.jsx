@@ -1,6 +1,53 @@
 import React, { useState, useEffect } from 'react';
-import styled from 'styled-components';
+import styled, { css, keyframes } from 'styled-components';
 import NoteModal from './NoteModal.jsx';
+
+// Додаємо анімацію fadeIn
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
+const NotificationMessage = styled.div`
+  position: fixed;
+  top: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  z-index: 9999;
+  animation: ${fadeIn} 0.3s ease;
+  background: ${props => props.type === 'success' ? '#4caf50' : '#f44336'};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 300px;
+  pointer-events: none;
+
+  &::before {
+    content: ${props => props.type === 'success' ? '"✓"' : '"!"'};
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  ${props => props.type === 'warning' && css`
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.02); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    animation: pulse 2s infinite;
+  `}
+`;
 
 const NotesSection = styled.div`
   
@@ -33,6 +80,9 @@ const NoteItem = styled.div`
   margin-bottom: 10px;
   cursor: pointer;
   transition: all 0.3s ease;
+  margin-top: 10px;
+  
+
 
   &:hover {
     transform: translateY(-2px);
@@ -102,7 +152,6 @@ const AddNoteButton = styled.button`
   justify-content: center;
   width: 100%;
   transition: all 0.3s ease;
-  margin-bottom: 20px;
 
   &:hover {
     background: rgba(94, 44, 165, 0.2);
@@ -128,23 +177,19 @@ const AddText = styled.span`
   font-size: 1.2em;
 `;
 
-const NotesListComponent = ({ sourceType, sourceId }) => {
-  const [localNotes, setLocalNotes] = useState([]);
+const NotesListComponent = ({ sourceType, sourceId, onAddNote, isEditing = true }) => {
+  const [notes, setNotes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
 
   useEffect(() => {
-    if (sourceType && sourceId) {
-      loadNotes();
-    }
+    loadNotes();
   }, [sourceType, sourceId]);
 
   const loadNotes = async () => {
     try {
-      console.log('Loading notes for source:', sourceType, sourceId);
-      const loadedNotes = await window.electronAPI.getNotesBySource(sourceType, sourceId);
-      console.log('Loaded notes:', loadedNotes);
-      setLocalNotes(loadedNotes || []);
+      const notes = await window.electronAPI.getNotesBySource(sourceType, sourceId);
+      setNotes(notes || []);
     } catch (error) {
       console.error('Error loading notes:', error);
     }
@@ -229,21 +274,56 @@ const NotesListComponent = ({ sourceType, sourceId }) => {
     }
   };
 
+  const getSourceText = (note) => {
+    console.log('Отримання тексту джерела для нотатки:', note);
+    
+    const sourceType = note.source_type || note.sourceType;
+    const tradeNo = note.trade_no;
+    const tradeDate = note.trade_date;
+    
+    if (!sourceType) {
+      return 'Unknown Source';
+    }
+    
+    switch (sourceType) {
+      case 'presession':
+        return `Pre-Session Analysis (${tradeDate ? new Date(tradeDate).toLocaleDateString() : 'N/A'})`;
+      case 'trade':
+        if (!tradeNo && !tradeDate) {
+          return 'Trade not saved yet';
+        }
+        if (tradeNo && tradeDate) {
+          return `Trade #${tradeNo} (${new Date(tradeDate).toLocaleDateString()})`;
+        }
+        return 'Trade was deleted';
+      default:
+        return `Source: ${sourceType}`;
+    }
+  };
+
   return (
     <NotesSection>
-      <AddNoteButton onClick={handleAddNote} type="button">
-        <AddIcon>+</AddIcon>
-        <AddText>Add Note or Mistake</AddText>
-      </AddNoteButton>
+      {isEditing && (
+        <AddNoteButton onClick={handleAddNote} type="button">
+          <AddIcon>+</AddIcon>
+          <AddText>Add Note or Mistake</AddText>
+        </AddNoteButton>
+      )}
 
       <NotesList>
-        {localNotes.map(note => (
-          <NoteItem key={note.id} onClick={() => handleNoteClick(note)}>
-            <DeleteButton 
-              className="delete-button"
-              onClick={(e) => handleDelete(note.id, e)}
-              type="button"
-            />
+        {notes.map((note, index) => (
+          <NoteItem 
+            key={note.id || index} 
+            onClick={() => isEditing ? handleNoteClick(note) : null}
+            style={{ cursor: isEditing ? 'pointer' : 'default' }}
+          >
+            {isEditing && (
+              <DeleteButton 
+                className="delete-button"
+                onClick={(e) => handleDelete(note.id, e)}
+                type="button"
+              />
+            )}
             <NoteTitle>
               {note.title}
               {note.tag_name && (
@@ -257,14 +337,16 @@ const NotesListComponent = ({ sourceType, sourceId }) => {
         ))}
       </NotesList>
 
-      <NoteModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSave={handleSave}
-        note={selectedNote}
-        sourceType={sourceType}
-        sourceId={sourceId}
-      />
+      {isEditing && (
+        <NoteModal
+          isOpen={isModalOpen}
+          onClose={() => setIsModalOpen(false)}
+          onSave={handleSave}
+          note={selectedNote}
+          sourceType={sourceType}
+          sourceId={sourceId}
+        />
+      )}
     </NotesSection>
   );
 };

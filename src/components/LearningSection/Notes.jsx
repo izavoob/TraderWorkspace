@@ -134,6 +134,7 @@ const NotesList = styled.div`
   gap: 15px;
   margin-top: 10px;
   width: 100%;
+  padding-bottom: 100px;
 `;
 
 const NoteCard = styled.div`
@@ -407,8 +408,9 @@ function Notes() {
   const getSourceText = (note) => {
     console.log('Отримання тексту джерела для нотатки:', note);
     
-    // Перевірка на наявність source_type
     const sourceType = note.source_type || note.sourceType;
+    const tradeNo = note.trade_no;
+    const tradeDate = note.trade_date;
     
     if (!sourceType) {
       return 'Unknown Source';
@@ -416,12 +418,15 @@ function Notes() {
     
     switch (sourceType) {
       case 'presession':
-        const tradeDate = note.tradeDate || note.trade_date;
         return `Pre-Session Analysis (${tradeDate ? new Date(tradeDate).toLocaleDateString() : 'N/A'})`;
       case 'trade':
-        const tradeNo = note.tradeNo || note.trade_no;
-        const tradeDateTrade = note.tradeDate || note.trade_date;
-        return `Trade #${tradeNo || 'N/A'} (${tradeDateTrade ? new Date(tradeDateTrade).toLocaleDateString() : 'N/A'})`;
+        if (!tradeNo && !tradeDate) {
+          return 'Trade not saved yet';
+        }
+        if (tradeNo && tradeDate) {
+          return `Trade #${tradeNo} (${new Date(tradeDate).toLocaleDateString()})`;
+        }
+        return 'Trade was deleted';
       default:
         return `Source: ${sourceType}`;
     }
@@ -433,7 +438,6 @@ function Notes() {
     try {
       switch (sourceType) {
         case 'presession':
-          // Перевіряємо існування пресесії перед поверненням посилання
           const presession = await window.electronAPI.getPresession(sourceId);
           if (!presession) {
             console.error('Presession not found:', sourceId);
@@ -441,7 +445,6 @@ function Notes() {
           }
           return `/daily-routine/pre-session/full/${sourceId}`;
         case 'trade':
-          // Перевіряємо існування трейду перед поверненням посилання
           const trade = await window.electronAPI.getTrade(sourceId);
           if (!trade) {
             console.error('Trade not found:', sourceId);
@@ -463,7 +466,7 @@ function Notes() {
     if (link) {
       navigate(link);
     } else {
-      alert('Source not found or has been deleted');
+      alert('Source was deleted or not found');
     }
   };
 

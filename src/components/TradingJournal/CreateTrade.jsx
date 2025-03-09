@@ -523,7 +523,8 @@ const NoteContainer = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  padding-top: 65px;
 `;
 
 const NoteItem = styled.div`
@@ -869,7 +870,7 @@ function CreateTrade() {
   const navigate = useNavigate();
   const [tradeCount, setTradeCount] = useState(0);
   const [accounts, setAccounts] = useState([]);
-  const [tradeId] = useState(crypto.randomUUID());
+  const [tradeId] = useState(() => crypto.randomUUID());
   const [executionItems, setExecutionItems] = useState({
     pointA: [],
     trigger: [],
@@ -1157,14 +1158,30 @@ function CreateTrade() {
     setEditNoteIndex(null);
   };
 
-  const handleNoteSave = (note) => {
-    setTrade(prev => ({
-      ...prev,
-      notes: editNoteIndex !== null
-        ? prev.notes.map((n, i) => i === editNoteIndex ? { ...note, id: n.id } : n)
-        : [...prev.notes, note]
-    }));
-    closeNotePopup();
+  const handleNoteSave = async (note) => {
+    try {
+      // Зберігаємо нотатку з тимчасовими даними
+      const savedNote = await window.electronAPI.saveNote({
+        ...note,
+        sourceType: 'trade',
+        sourceId: tradeId,
+        tradeNo: null, // Буде оновлено після збереження трейду
+        tradeDate: null // Буде оновлено після збереження трейду
+      });
+      
+      // Оновлюємо стан trade з новою нотаткою
+      setTrade(prev => ({
+        ...prev,
+        notes: [...prev.notes, savedNote]
+      }));
+
+      setShowNotePopup(false);
+      setNoteTitle('');
+      setNoteText('');
+      setEditNoteIndex(null);
+    } catch (error) {
+      console.error('Error saving note:', error);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -1187,24 +1204,25 @@ function CreateTrade() {
       await window.electronAPI.saveTrade(tradeData);
       console.log('Трейд успішно збережено');
 
-      // Зберігаємо нотатки
+      // Оновлюємо нотатки з правильним номером трейду та датою
       if (trade.notes && trade.notes.length > 0) {
-        console.log('Починаємо зберігати нотатки. Кількість:', trade.notes.length);
+        console.log('Оновлюємо нотатки з даними трейду:', trade.notes.length);
         
         try {
-          for (const note of trade.notes) {
-            console.log('Зберігаємо нотатку:', note);
-            await window.electronAPI.addNote({
+          const updatePromises = trade.notes.map(note => 
+            window.electronAPI.updateNote({
               ...note,
               sourceType: 'trade',
               sourceId: tradeData.id,
               tradeNo: tradeNo,
               tradeDate: tradeData.date
-            });
-          }
-          console.log('Всі нотатки успішно збережено');
+            })
+          );
+          
+          await Promise.all(updatePromises);
+          console.log('Всі нотатки успішно оновлено');
         } catch (error) {
-          console.error('Помилка при збереженні нотаток:', error);
+          console.error('Помилка при оновленні нотаток:', error);
           throw error;
         }
       }
@@ -1628,7 +1646,6 @@ function CreateTrade() {
           </div>
           <div style={{ flex: 1 }}>
             <NoteContainer>
-              <SectionTitle>Notes</SectionTitle>
               <NotesList 
                 sourceType="trade" 
                 sourceId={trade.id} 

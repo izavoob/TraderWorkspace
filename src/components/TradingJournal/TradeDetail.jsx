@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import styled, { createGlobalStyle, keyframes } from 'styled-components';
+import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
 import DeleteIcon from '../../assets/icons/delete-icon.svg';
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
@@ -512,7 +512,8 @@ const NoteContainer = styled.div`
   width: 100%;
   display: flex;
   flex-direction: column;
-  align-items: center;
+  align-items: stretch;
+  padding-top: 65px;
 `;
 
 const NoteItem = styled.div`
@@ -833,6 +834,41 @@ const Modal = styled.div`
   z-index: 1000;
 `;
 
+const NotificationMessage = styled.div`
+  position: fixed;
+  top: 140px;
+  left: 50%;
+  transform: translateX(-50%);
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  z-index: 9999;
+  animation: ${fadeIn} 0.3s ease;
+  background: ${props => props.type === 'success' ? '#4caf50' : '#f44336'};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 300px;
+  pointer-events: none;
+
+  &::before {
+    content: ${props => props.type === 'success' ? '"✓"' : '"!"'};
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  ${props => props.type === 'warning' && css`
+    @keyframes pulse {
+      0% { transform: translateX(-50%) scale(1); }
+      50% { transform: translateX(-50%) scale(1.02); }
+      100% { transform: translateX(-50%) scale(1); }
+    }
+    animation: pulse 2s infinite;
+  `}
+`;
+
 function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
@@ -897,6 +933,8 @@ function TradeDetail() {
     sessions: [],
     positionType: []
   });
+  const [notification, setNotification] = useState(null);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
 
   useEffect(() => {
     const loadData = async () => {
@@ -1004,6 +1042,11 @@ function TradeDetail() {
       
       return newTrade;
     });
+    setHasUnsavedChanges(true);
+    setNotification({
+      type: 'warning',
+      message: 'You have unsaved changes!'
+    });
   };
 
   const handleEdit = () => {
@@ -1023,12 +1066,41 @@ function TradeDetail() {
       console.log('volumeConfirmation після підготовки:', updatedTrade.volumeConfirmation);
       console.log('Дані трейду перед збереженням:', updatedTrade);
 
+      // Зберігаємо трейд
       await window.electronAPI.updateTrade(trade.id, updatedTrade);
       console.log('Трейд успішно оновлено');
+
+      // Оновлюємо нотатки з актуальними даними трейду
+      if (trade.notes && trade.notes.length > 0) {
+        for (const note of trade.notes) {
+          await window.electronAPI.updateNote({
+            ...note,
+            sourceType: 'trade',
+            sourceId: trade.id,
+            tradeNo: trade.no,
+            tradeDate: trade.date
+          });
+        }
+      }
       
       setIsEditing(false);
+      setHasUnsavedChanges(false);
+      setNotification({
+        type: 'success',
+        message: 'Changes saved successfully!'
+      });
+      
+      // Очищаємо повідомлення через 3 секунди
+      setTimeout(() => {
+        setNotification(null);
+      }, 3000);
+      
     } catch (error) {
       console.error('Помилка при збереженні трейду:', error);
+      setNotification({
+        type: 'error',
+        message: 'Error saving changes!'
+      });
     }
   };
 
@@ -1701,7 +1773,14 @@ function TradeDetail() {
                 </ScreenshotField>
               </div>
               <div style={{ flex: 1 }}>
-                <NotesList sourceType="trade" sourceId={trade.id} />
+                <NoteContainer>
+                  <NotesList 
+                    sourceType="trade" 
+                    sourceId={trade.id} 
+                    onAddNote={(e) => openNotePopup(null, e)}
+                    isEditing={isEditing}
+                  />
+                </NoteContainer>
               </div>
             </Row>
 
@@ -1759,6 +1838,12 @@ function TradeDetail() {
                 </>
               )}
             </ButtonGroup>
+
+            {notification && (
+              <NotificationMessage type={notification.type}>
+                {notification.message}
+              </NotificationMessage>
+            )}
           </>
         )}
       </TradeContent>

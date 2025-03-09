@@ -191,6 +191,23 @@ class NotesDB {
     });
   }
 
+  async deleteNotesBySource(sourceType, sourceId) {
+    return new Promise((resolve, reject) => {
+      this.db.run(
+        'DELETE FROM notes WHERE source_type = ? AND source_id = ?',
+        [sourceType, sourceId],
+        (err) => {
+          if (err) {
+            console.error('Error deleting notes by source:', err);
+            reject(err);
+          } else {
+            resolve(true);
+          }
+        }
+      );
+    });
+  }
+
   // Методи для роботи з зображеннями
   async addNoteImage(noteId, imagePath) {
     return new Promise((resolve, reject) => {

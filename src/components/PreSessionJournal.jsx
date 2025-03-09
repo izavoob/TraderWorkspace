@@ -736,7 +736,11 @@ function PreSessionJournal() {
     return filteredEntries.sort((a, b) => {
       const dateA = new Date(a.date);
       const dateB = new Date(b.date);
-      return dateB - dateA;  // Завжди сортуємо нові записи зверху
+      
+      if (sortConfig.field === 'date') {
+        return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
+      }
+      return 0;
     });
   }, [filteredEntries, sortConfig]);
 
