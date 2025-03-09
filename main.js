@@ -959,3 +959,16 @@ ipcMain.handle('deletePresession', async (event, id) => {
 ipcMain.handle('app-ready', () => {
   return true;
 });
+
+ipcMain.handle('updatePresession', async (event, presessionData) => {
+  await ensureDatabaseInitialized();
+  try {
+    console.log('Updating pre-session data:', presessionData);
+    const result = await routinesDB.updatePreSession(presessionData);
+    console.log('Pre-session updated successfully');
+    return result;
+  } catch (error) {
+    console.error('Error updating presession:', error);
+    throw error;
+  }
+});

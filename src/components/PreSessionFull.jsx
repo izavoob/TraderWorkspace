@@ -1036,7 +1036,6 @@ const PlansContainer = styled.div`
 const NotesBlock = ({ sessionId }) => {
   return (
     <SectionBlock>
-      <SectionTitle>Notes</SectionTitle>
       <NotesList 
         sourceType="presession" 
         sourceId={sessionId}
@@ -1155,39 +1154,26 @@ function PreSessionFull() {
 
           // Ініціалізуємо дані з безпечними значеннями за замовчуванням
           const timeframesData = {
-            m15: { charts: [], notes: '' },
-            h1: { charts: [], notes: '' },
+            weekly: { charts: [], notes: '' },
+            daily: { charts: [], notes: '' },
             h4: { charts: [], notes: '' },
-            d1: { charts: [], notes: '' }
+            h1: { charts: [], notes: '' }
           };
 
-          const plansData = {
-            planA: {
-              bias: '',
-              background: '',
-              what: '',
-              entry: '',
-              target: '',
-              invalidation: ''
-            },
-            planB: {
-              bias: '',
-              background: '',
-              what: '',
-              entry: '',
-              target: '',
-              invalidation: ''
-            }
-          };
-
-          const adaptationsData = [];
+          setAnalysisData({ timeframes: timeframesData });
 
           setSessionData({
             id: presession.id,
             date: presession.date || '',
             pair: presession.pair || '',
             video_url: presession.video_url || '',
-            mindset_preparation: safeParse(presession.mindset_preparation, {}),
+            mindset_preparation: safeParse(presession.mindset_preparation, {
+              anythingCanHappen: false,
+              futureKnowledge: false,
+              randomDistribution: false,
+              edgeDefinition: false,
+              uniqueMoments: false
+            }),
             the_zone: safeParse(presession.the_zone, [
               { id: 1, text: "I objectively identify my edges", accepted: false },
               { id: 2, text: "I act on my edges without reservation or hesitation", accepted: false },
@@ -1204,13 +1190,18 @@ function PreSessionFull() {
               execution: { text: '' },
               outcome: { text: '' }
             }),
-            chart_processes: safeParse(presession.chart_processes, [])
+            chart_processes: safeParse(presession.chart_processes, []),
+            narrative: presession.narrative || '',
+            execution: presession.execution || '',
+            outcome: presession.outcome || '',
+            plan_outcome: presession.plan_outcome === 1
           });
-          
-          setPlans(plansData);
-          setAdaptations(adaptationsData);
-          setAnalysisData({ timeframes: timeframesData });
         }
+
+        // Завантажуємо валютні пари з execution.db
+        const pairs = await window.electronAPI.getAllExecutionItems('pairs');
+        console.log('Loaded currency pairs:', pairs);
+        setCurrencyPairs(pairs);
       } catch (error) {
         console.error('Error loading data:', error);
       } finally {
@@ -1464,7 +1455,7 @@ function PreSessionFull() {
     } else if (currentUploadSection.section === 'news') {
       setSessionData(prev => ({
         ...prev,
-        forex_factory_news: selectedFiles[0]
+        forex_factory_news: [selectedFiles[0]]
       }));
     }
     

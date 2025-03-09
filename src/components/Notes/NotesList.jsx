@@ -3,12 +3,10 @@ import styled from 'styled-components';
 import NoteModal from './NoteModal.jsx';
 
 const NotesSection = styled.div`
-  margin-top: 60px;
-  padding: 20px;
+  
   background: #2e2e2e;
-  border: 2px solid #5e2ca5;
   border-radius: 15px;
-  width: 95%;
+  
 `;
 
 const SectionTitle = styled.h3`
