@@ -130,21 +130,16 @@ const AddText = styled.span`
   font-size: 1.2em;
 `;
 
-const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => {
+const NotesListComponent = ({ sourceType, sourceId }) => {
   const [localNotes, setLocalNotes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
 
   useEffect(() => {
-    console.log('Notes prop updated:', notes);
-    if (notes && notes.length > 0) {
-      console.log('Setting local notes from props');
-      setLocalNotes(notes);
-    } else {
-      console.log('Loading notes from database');
+    if (sourceType && sourceId) {
       loadNotes();
     }
-  }, [sourceType, sourceId, notes]);
+  }, [sourceType, sourceId]);
 
   const loadNotes = async () => {
     try {
@@ -157,17 +152,10 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => 
     }
   };
 
-  const handleAddNote = (e) => {
-    e.preventDefault();
+  const handleAddNote = () => {
     console.log('Add note button clicked');
-    if (onAddNote) {
-      console.log('Using external onAddNote handler');
-      onAddNote();
-    } else {
-      console.log('Opening modal for new note');
-      setSelectedNote(null);
-      setIsModalOpen(true);
-    }
+    setSelectedNote(null);
+    setIsModalOpen(true);
   };
 
   const handleNoteClick = (note) => {
@@ -177,57 +165,66 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => 
   };
 
   const handleSave = async (noteData) => {
-    console.log('Handling note save:', noteData);
     try {
-      // Зберігаємо нотатку в базу даних, якщо це нова нотатка
-      if (!noteData.id) {
-        console.log('Saving new note to database');
-        const savedNoteId = await window.electronAPI.saveNote({
+      console.log('Saving note:', noteData);
+      
+      if (noteData.id) {
+        // Оновлюємо існуючу нотатку
+        console.log('Updating existing note:', noteData);
+        await window.electronAPI.updateNote({
+          id: noteData.id,
+          title: noteData.title,
+          content: noteData.content,
+          tagId: noteData.tagId
+        });
+        
+        // Зберігаємо нові зображення
+        if (noteData.images) {
+          for (const image of noteData.images) {
+            if (!image.id) {
+              await window.electronAPI.addNoteImage(noteData.id, image.image_path);
+            }
+          }
+        }
+      } else {
+        // Створюємо нову нотатку
+        console.log('Creating new note:', noteData);
+        const newNoteId = await window.electronAPI.saveNote({
           title: noteData.title,
           content: noteData.content,
           tagId: noteData.tagId,
           sourceType: sourceType,
           sourceId: sourceId
         });
-        noteData.id = savedNoteId;
-      }
-
-      // Оновлюємо локальний стан
-      setLocalNotes(prev => {
-        const index = prev.findIndex(n => n.id === noteData.id);
-        if (index >= 0) {
-          // Оновлюємо існуючу нотатку
-          console.log('Updating existing note in local state');
-          const updated = [...prev];
-          updated[index] = {
-            ...noteData,
-            tag_name: noteData.tagName || noteData.tag_name
-          };
-          return updated;
+        
+        // Зберігаємо зображення для нової нотатки
+        if (noteData.images) {
+          for (const image of noteData.images) {
+            if (!image.id) {
+              await window.electronAPI.addNoteImage(newNoteId, image.image_path);
+            }
+          }
         }
-        // Додаємо нову нотатку
-        console.log('Adding new note to local state');
-        return [...prev, {
-          ...noteData,
-          tag_name: noteData.tagName || noteData.tag_name
-        }];
-      });
-
-      setIsModalOpen(false);
+      }
+      
+      // Оновлюємо список нотаток
+      await loadNotes();
     } catch (error) {
-      console.error('Error handling note save:', error);
+      console.error('Error saving note:', error);
     }
   };
 
   const handleDelete = async (noteId, e) => {
     e.stopPropagation();
     console.log('Delete note button clicked for ID:', noteId);
+    
     if (window.confirm('Ви впевнені, що хочете видалити цю нотатку?')) {
       try {
         console.log('Deleting note with ID:', noteId);
         await window.electronAPI.deleteNote(noteId);
         console.log('Note deleted successfully');
-        loadNotes();
+        // Оновлюємо список нотаток
+        await loadNotes();
       } catch (error) {
         console.error('Error deleting note:', error);
       }
@@ -236,24 +233,31 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, notes = [] }) => 
 
   return (
     <NotesSection>
+      <AddNoteButton onClick={handleAddNote} type="button">
+        <AddIcon>+</AddIcon>
+        <AddText>Add Note or Mistake</AddText>
+      </AddNoteButton>
+
       <NotesList>
         {localNotes.map(note => (
           <NoteItem key={note.id} onClick={() => handleNoteClick(note)}>
             <DeleteButton 
               className="delete-button"
               onClick={(e) => handleDelete(note.id, e)}
+              type="button"
             />
             <NoteTitle>
               {note.title}
-              <TagBadge type={note.tag_name}>{note.tag_name}</TagBadge>
+              {note.tag_name && (
+                <TagBadge type={note.tag_name}>{note.tag_name}</TagBadge>
+              )}
             </NoteTitle>
+            <div style={{ color: '#fff', whiteSpace: 'pre-wrap' }}>
+              {note.content}
+            </div>
           </NoteItem>
         ))}
       </NotesList>
-      <AddNoteButton onClick={(e) => handleAddNote(e)}>
-        <AddIcon>+</AddIcon>
-        <AddText>Add Note or Mistake</AddText>
-      </AddNoteButton>
 
       <NoteModal
         isOpen={isModalOpen}

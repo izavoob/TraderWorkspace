@@ -427,16 +427,43 @@ function Notes() {
     }
   };
 
-  const getSourceLink = (sourceType, sourceId) => {
+  const getSourceLink = async (sourceType, sourceId) => {
     if (!sourceType || !sourceId) return null;
     
-    switch (sourceType) {
-      case 'presession':
-        return `/daily-routine/pre-session/full/${sourceId}`;
-      case 'trade':
-        return `/trade/${sourceId}`;
-      default:
-        return null;
+    try {
+      switch (sourceType) {
+        case 'presession':
+          // Перевіряємо існування пресесії перед поверненням посилання
+          const presession = await window.electronAPI.getPresession(sourceId);
+          if (!presession) {
+            console.error('Presession not found:', sourceId);
+            return null;
+          }
+          return `/daily-routine/pre-session/full/${sourceId}`;
+        case 'trade':
+          // Перевіряємо існування трейду перед поверненням посилання
+          const trade = await window.electronAPI.getTrade(sourceId);
+          if (!trade) {
+            console.error('Trade not found:', sourceId);
+            return null;
+          }
+          return `/trade/${sourceId}`;
+        default:
+          return null;
+      }
+    } catch (error) {
+      console.error('Error checking source existence:', error);
+      return null;
+    }
+  };
+
+  const handleSourceClick = async (e, sourceType, sourceId) => {
+    e.stopPropagation();
+    const link = await getSourceLink(sourceType, sourceId);
+    if (link) {
+      navigate(link);
+    } else {
+      alert('Source not found or has been deleted');
     }
   };
 
@@ -600,11 +627,7 @@ function Notes() {
                         {note.tag_name && (
                           <TagBadge type={note.tag_name}>{note.tag_name}</TagBadge>
                         )}
-                        <TradeLink onClick={(e) => {
-                          e.stopPropagation();
-                          const link = getSourceLink(note.source_type || note.sourceType, note.source_id || note.sourceId);
-                          if (link) navigate(link);
-                        }}>
+                        <TradeLink onClick={(e) => handleSourceClick(e, note.source_type || note.sourceType, note.source_id || note.sourceId)}>
                           {getSourceText(note)}
                         </TradeLink>
                       </div>

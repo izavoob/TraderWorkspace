@@ -48,10 +48,11 @@ const Title = styled.h2`
   font-size: 1.5em;
 `;
 
-const Form = styled.form`
+const FormContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 20px;
+  margin-top: 20px;
 `;
 
 const Input = styled.input`
@@ -109,13 +110,15 @@ const Button = styled.button`
   &.save {
     background: linear-gradient(135deg, #7425C9 0%, #B886EE 100%);
     color: white;
+    opacity: ${props => props.disabled ? 0.5 : 1};
+    cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
   }
 
-  &:hover {
+  &:hover:not(:disabled) {
     transform: translateY(-2px);
   }
 
-  &:active {
+  &:active:not(:disabled) {
     transform: translateY(0);
   }
 `;
@@ -357,8 +360,10 @@ const NoteModal = ({
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
-    e.stopPropagation();
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
     console.log('Submitting note with data:', {
       title,
@@ -384,37 +389,10 @@ const NoteModal = ({
 
       console.log('Prepared note data for saving:', noteData);
       
-      // Збереження нотатки через переданий callback
       if (typeof onSave === 'function') {
         await onSave(noteData);
-        console.log('Note saved successfully through callback');
-      } else {
-        // Пряме збереження, якщо callback не переданий
-        if (note && note.id) {
-          console.log('Directly updating existing note:', noteData);
-          await window.electronAPI.updateNote(noteData);
-          
-          // Зберігаємо нові зображення
-          for (const image of images) {
-            if (!image.id) {
-              await window.electronAPI.addNoteImage(note.id, image.image_path);
-            }
-          }
-        } else {
-          console.log('Directly saving new note:', noteData);
-          const newNoteId = await window.electronAPI.saveNote(noteData);
-          
-          // Зберігаємо зображення для нової нотатки
-          for (const image of images) {
-            if (!image.id) {
-              await window.electronAPI.addNoteImage(newNoteId, image.image_path);
-            }
-          }
-        }
-        console.log('Note saved successfully directly');
       }
       
-      // Закриття модального вікна
       onClose();
     } catch (error) {
       console.error('Error saving note:', error);
@@ -438,13 +416,12 @@ const NoteModal = ({
     <ModalOverlay onClick={onClose} scrollOffset={scrollOffset}>
       <Modal onClick={e => e.stopPropagation()} onPaste={handlePaste}>
         <Title>{note ? 'Edit Note' : 'Add New Note'}</Title>
-        <Form onSubmit={handleSubmit}>
+        <FormContainer>
           <Input
             type="text"
             placeholder="Title"
             value={title}
             onChange={e => setTitle(e.target.value)}
-            required
           />
           
           <CreatableSelect
@@ -462,7 +439,6 @@ const NoteModal = ({
             value={content}
             onChange={e => setContent(e.target.value)}
             onPaste={handlePaste}
-            required
           />
 
           <ImageContainer>
@@ -492,11 +468,16 @@ const NoteModal = ({
             <Button type="button" className="cancel" onClick={onClose}>
               Cancel
             </Button>
-            <Button type="submit" className="save">
+            <Button 
+              type="button" 
+              className="save" 
+              onClick={handleSubmit}
+              disabled={!title || !content}
+            >
               {note ? 'Save Changes' : 'Add Note'}
             </Button>
           </ButtonGroup>
-        </Form>
+        </FormContainer>
       </Modal>
     </ModalOverlay>
   );
