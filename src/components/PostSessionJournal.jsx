@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
@@ -31,6 +32,12 @@ const GlobalStyle = createGlobalStyle`
     background: #5e2ca5;
   }
 `;
+
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+  `;
 
 const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
@@ -81,7 +88,9 @@ const DailyRoutineContainer = styled.div`
 `;
 
 const Header = styled.header`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
   border-radius: 10px 10px 0 0;
   color: #fff;
@@ -90,12 +99,14 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
 `;
 
@@ -145,9 +156,16 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
+const Subtitle = styled.h2`
+  margin: 5px auto 0;
+  font-size: 1.2em;
+  color: #ff8c00;
+  text-align: center;
+  z-index: 1;
+  font-weight: normal;
+`;
 
-const JournalContent = styled.div`
-  margin-top: 30px;
+const RoutineContent = styled.div`
   padding-top: 20px;
   position: relative;
   min-height: calc(100vh - 168px);

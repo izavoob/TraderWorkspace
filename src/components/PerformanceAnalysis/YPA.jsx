@@ -36,9 +36,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -90,7 +90,14 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
-
+const Subtitle = styled.h2`
+  margin: 5px auto 0;
+  font-size: 1.2em;
+  color: #ff8c00;
+  text-align: center;
+  z-index: 1;
+  font-weight: normal;
+`;
 const Content = styled.div`
   margin-top: 128px;
   padding: 20px;
@@ -106,6 +113,7 @@ function YPA() {
       <Header>
         <BackButton to="/performance-analysis" title="Back" aria-label="Back" />
         <Title>Yearly Performance Analysis</Title>
+        <Subtitle>Let's analyze your yearly performance!</Subtitle>
       </Header>
       <Content>
         {/* Тут буде ваш код для аналізу річної продуктивності */}

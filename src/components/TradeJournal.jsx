@@ -88,7 +88,7 @@ const TradeJournalContainer = styled.div`
   padding: 20px;
   position: relative;
   min-height: 100vh;
-  overflow-y: auto;
+  overflow-y: hidden;
   overflow-x: hidden;
 `;
 
@@ -104,7 +104,7 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: 80px;
   min-height: 6.67vh;
   max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
@@ -170,19 +170,16 @@ const Subtitle = styled.p`
 `;
 
 const JournalContent = styled.div`
-  margin-top: 30px;
-  padding-top: 20px;
-  position: relative;
-  min-height: calc(100vh - 168px);
   width: 100%;
-  overflow-y: visible;
+  height: calc(100vh - 148px);
+  display: flex;
+  flex-direction: column;
 `;
 
 const JournalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
   z-index: 999;
   min-height: 50px;
   flex-direction: row;
@@ -385,21 +382,68 @@ const StyledDatePicker = styled(DatePicker)`
   }
 `;
 
+const TableContainer = styled.div`
+  flex: 1;
+  overflow: auto;
+  margin-top: 20px;
+  position: relative;
+  
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #2e2e2e;
+  }
+
+  tbody {
+    overflow-y: auto;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5e2ca5;
+  }
+`;
+
 const TradeTable = styled.table`
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
   background-color: #2e2e2e;
   border: 2px solid #5e2ca5;
+
 `;
 
 const TableHeader = styled.th`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   border: 1px solid #5e2ca5;
   padding: 12px;
-  text-align: left;
+  text-align: center;
   color: #fff;
   font-weight: bold;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  position: sticky;
+  top: 0;
+  z-index: 2;
+
+  &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: #5e2ca5;
+  }
 `;
 
 const TableCell = styled.td`
@@ -450,55 +494,30 @@ const TableRow = styled.tr`
 
 const ButtonsContainer = styled.div`
   display: flex;
-  gap: 5px;
-  justify-content: center;
+  gap: 8px;
+  justify-content: flex-start;
   align-items: center;
-  width: 100%;
-  opacity: 1;
+  padding: 0 10px;
+  white-space: nowrap;
+  width: auto;
 `;
 
 const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: none;
   border: none;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  padding: 4px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  position: relative;
 
   &:hover {
-    transform: scale(1.1);
+    opacity: 0.8;
   }
-
-  &:active {
-    transform: scale(0.98);
-  }
-
-  transition: transform 0.3s ease;
 
   img {
-    width: 16px;
-    height: 16px;
-  }
-
-  &:hover::after {
-    content: attr(data-tooltip);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #2e2e2e;
-    color: #fff;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    z-index: 20;
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+    width: 20px;
+    height: 20px;
   }
 `;
 
@@ -607,7 +626,7 @@ const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-top: 16px;
   color: #fff;
   height: 40px;
 
@@ -636,6 +655,7 @@ const ConfirmationPopup = styled(Popup)`
     font-weight: bold;
   }
 `;
+
 function TradeJournal() {
   const [trades, setTrades] = useState([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -879,35 +899,27 @@ function TradeJournal() {
   const columns = React.useMemo(
     () => [
       { 
-        Header: '', // Змінюємо 'Action' на пустий заголовок
-        id: 'actions', // Додаємо id замість accessor
-        Cell: ({ row }) => ( // Використовуємо Cell для рендеру кнопок
+        Header: 'Actions',
+        accessor: 'actions',
+        width: 80,
+        Cell: ({ row }) => (
           <ButtonsContainer>
-            <CheckboxContainer 
-              className="checkbox-container" 
-              selected={selectedTrades.includes(row.original.id)}
+            <Checkbox
+              type="checkbox"
+              checked={selectedTrades.includes(row.original.id)}
+              onChange={() => handleSelectTrade(row.original.id)}
+            />
+            <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
+              <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+            </ActionButton>
+            <ActionButton 
+              onClick={() => handleDelete(row.original.id)} 
+              style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
             >
-              <Checkbox
-                checked={selectedTrades.includes(row.original.id)}
-                onChange={() => handleSelectTrade(row.original.id)}
-                onClick={(e) => e.stopPropagation()}
-              />
-            </CheckboxContainer>
-            <IconButton 
-              data-tooltip="Change your trade" 
-              onClick={() => handleEdit(row.original.id)}
-            >
-              <img src={EditIcon} alt="Edit" />
-            </IconButton>
-            <IconButton 
-              data-tooltip="Move your trade to trash" 
-              onClick={() => setDeletePopup(row.original.id)}
-            >
-              <img src={DeleteIcon} alt="Delete" />
-            </IconButton>
+              <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+            </ActionButton>
           </ButtonsContainer>
-        ),
-        width: 120
+        )
       },
       { Header: 'No.', accessor: 'no', width: 60 },
       { Header: 'Date', accessor: 'date', width: 120 },
@@ -1183,53 +1195,55 @@ function TradeJournal() {
             </div>
           </SelectAllContainer>
 
-          <TradeTable {...getTableProps()}>
-            <thead>
-              {headerGroups.map((headerGroup) => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map((column) => (
-                    <TableHeader {...column.getHeaderProps()} style={{ width: `${column.width}px` }}>
-                      {column.render('Header')}
-                    </TableHeader>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody {...getTableBodyProps()}>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} style={{ textAlign: 'center' }}>
-                    No trades yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map(row => {
-                  prepareRow(row);
-                  const isSelected = selectedTrades.includes(row.original.id);
-                  const isSubtrade = row.original.parentTradeId;
-                  
-                  return (
-                    <TableRow 
-                      key={row.original.id}
-                      {...row.getRowProps()} 
-                      selected={isSelected}
-                      isSubtrade={isSubtrade}
-                    >
-                      {row.cells.map(cell => (
-                        <TableCell 
-                          key={cell.column.id}
-                          {...cell.getCellProps()} 
-                          style={{ width: cell.column.width }}
-                        >
-                          {cell.render('Cell')}
-                        </TableCell>
-                      ))}
-                    </TableRow>
-                  );
-                })
-              )}
-            </tbody>
-          </TradeTable>
+          <TableContainer>
+            <TradeTable {...getTableProps()}>
+              <thead>
+                {headerGroups.map((headerGroup) => (
+                  <tr {...headerGroup.getHeaderGroupProps()}>
+                    {headerGroup.headers.map((column) => (
+                      <TableHeader {...column.getHeaderProps()} style={{ width: `${column.width}px` }}>
+                        {column.render('Header')}
+                      </TableHeader>
+                    ))}
+                  </tr>
+                ))}
+              </thead>
+              <tbody {...getTableBodyProps()}>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <TableCell colSpan={columns.length} style={{ textAlign: 'center' }}>
+                      No trades yet
+                    </TableCell>
+                  </TableRow>
+                ) : (
+                  rows.map(row => {
+                    prepareRow(row);
+                    const isSelected = selectedTrades.includes(row.original.id);
+                    const isSubtrade = row.original.parentTradeId;
+                    
+                    return (
+                      <TableRow 
+                        key={row.original.id}
+                        {...row.getRowProps()} 
+                        selected={isSelected}
+                        isSubtrade={isSubtrade}
+                      >
+                        {row.cells.map(cell => (
+                          <TableCell 
+                            key={cell.column.id}
+                            {...cell.getCellProps()} 
+                            style={{ width: cell.column.width }}
+                          >
+                            {cell.render('Cell')}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    );
+                  })
+                )}
+              </tbody>
+            </TradeTable>
+          </TableContainer>
 
           {deletePopup && (
             <Popup>

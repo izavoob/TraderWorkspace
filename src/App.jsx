@@ -11,7 +11,8 @@ import PreSessionFull from './components/PreSessionFull.jsx';
 import PostSessionJournal from './components/PostSessionJournal.jsx';
 import Placeholder from './components/Placeholder.jsx';
 import PerformanceAnalysis from './components/PerformanceAnalysis.jsx';
-import WPA from './components/PerformanceAnalysis/WPA.jsx';
+import WPA from './components/PerformanceAnalysis/WPA/WPA.jsx';
+import CreateWPA from './components/PerformanceAnalysis/WPA/CreateWPA.jsx';
 import MPA from './components/PerformanceAnalysis/MPA.jsx';
 import QPA from './components/PerformanceAnalysis/QPA.jsx';
 import YPA from './components/PerformanceAnalysis/YPA.jsx';
@@ -55,6 +56,20 @@ const GlobalStyle = createGlobalStyle`
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
+  }
+
+  .notifications-layer {
+    position: fixed;
+    top: 148px;
+    right: 20px;
+    bottom: 0;
+    width: auto;
+    pointer-events: none;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
   }
 `;
 
@@ -257,7 +272,8 @@ function App() {
             <Route path="/create-trade" element={<CreateTrade />} />
             <Route path="/daily-routine" element={<DailyRoutine />} />
             <Route path="/daily-routine/pre-session" element={<PreSessionJournal />} />
-            <Route path="/daily-routine/pre-session/:id" element={<PreSessionFull />} />
+            <Route path="/daily-routine/pre-session/full" element={<PreSessionFull />} />
+            <Route path="/daily-routine/pre-session/full/:id" element={<PreSessionFull />} />
             <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
             <Route path="/learning-section" element={<LearningSection />} />
             <Route path="/learning-section/strategy" element={<Strategy />} />
@@ -265,6 +281,7 @@ function App() {
             <Route path="/learning-section/notes" element={<Notes />} />
             <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
             <Route path="/performance-analysis/wpa" element={<WPA />} />
+            <Route path="/performance-analysis/wpa/create" element={<CreateWPA />} />
             <Route path="/performance-analysis/mpa" element={<MPA />} />
             <Route path="/performance-analysis/qpa" element={<QPA />} />
             <Route path="/performance-analysis/ypa" element={<YPA />} />
