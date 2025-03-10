@@ -1172,7 +1172,7 @@ function CreateTrade() {
       // Оновлюємо стан trade з новою нотаткою
       setTrade(prev => ({
         ...prev,
-        notes: [...prev.notes, savedNote]
+        notes: [...(prev.notes || []), savedNote]
       }));
 
       setShowNotePopup(false);
@@ -1200,31 +1200,31 @@ function CreateTrade() {
         volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
       };
       
+      console.log('Зберігаємо трейд з даними:', tradeData);
+      
       // Зберігаємо трейд
       await window.electronAPI.saveTrade(tradeData);
       console.log('Трейд успішно збережено');
 
+      // Отримуємо всі нотатки для цього трейду з бази даних
+      const notes = await window.electronAPI.getNotesBySource('trade', tradeData.id);
+      console.log('Отримані нотатки з бази даних:', notes);
+
       // Оновлюємо нотатки з правильним номером трейду та датою
-      if (trade.notes && trade.notes.length > 0) {
-        console.log('Оновлюємо нотатки з даними трейду:', trade.notes.length);
+      if (notes && notes.length > 0) {
+        console.log('Оновлюємо нотатки з даними трейду:', notes.length);
+        console.log('ID трейду для оновлення нотаток:', tradeData.id);
         
         try {
-          const updatePromises = trade.notes.map(note => 
-            window.electronAPI.updateNote({
-              ...note,
-              sourceType: 'trade',
-              sourceId: tradeData.id,
-              tradeNo: tradeNo,
-              tradeDate: tradeData.date
-            })
-          );
-          
-          await Promise.all(updatePromises);
-          console.log('Всі нотатки успішно оновлено');
+          // Використовуємо спеціальну функцію для оновлення нотаток з даними трейду
+          await window.electronAPI.updateNotesWithTradeData(tradeData.id);
+          console.log('Всі нотатки успішно оновлено через updateNotesWithTradeData');
         } catch (error) {
           console.error('Помилка при оновленні нотаток:', error);
           throw error;
         }
+      } else {
+        console.log('Немає нотаток для оновлення');
       }
 
       // Оновлюємо баланс акаунту

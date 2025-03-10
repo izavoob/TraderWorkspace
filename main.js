@@ -636,10 +636,12 @@ ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
   await ensureDatabaseInitialized();
   try {
     console.log('Starting to update notes with trade data for tradeId:', tradeId);
+    console.log('Database instance:', db);
     await notesDB.updateNotesWithTradeData(db, tradeId);
     console.log('Notes updated with trade data successfully');
   } catch (error) {
     console.error('Error updating notes with trade data:', error);
+    throw error;
   }
 });
 
@@ -978,6 +980,18 @@ ipcMain.handle('updatePresession', async (event, presessionData) => {
     return result;
   } catch (error) {
     console.error('Error updating presession:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updateNotesWithPresessionData', async (event, presessionId) => {
+  await ensureDatabaseInitialized();
+  try {
+    console.log('Starting to update notes with presession data for presessionId:', presessionId);
+    await notesDB.updateNotesWithPresessionData(routinesDB.db, presessionId);
+    console.log('Notes updated with presession data successfully');
+  } catch (error) {
+    console.error('Error updating notes with presession data:', error);
     throw error;
   }
 });

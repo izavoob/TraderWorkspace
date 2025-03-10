@@ -774,6 +774,23 @@ const StyledDatePicker = styled(DatePicker)`
   }
 `;
 
+const NotificationMessage = styled.div`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  left: auto;
+  transform: none;
+  padding: 15px 25px;
+  border-radius: 8px;
+  color: white;
+  font-weight: 500;
+  z-index: 9999;
+  animation: ${fadeIn} 0.3s ease;
+  background: ${props => props.type === 'success' ? '#4caf50' : props.type === 'warning' ? '#ff9800' : '#f44336'};
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  display: flex;
+`;
+
 const ActionButton = styled.button`
   background-color: #5e2ca5;
   color: #fff;
@@ -832,41 +849,6 @@ const Modal = styled.div`
   justify-content: center;
   align-items: center;
   z-index: 1000;
-`;
-
-const NotificationMessage = styled.div`
-  position: fixed;
-  top: 140px;
-  left: 50%;
-  transform: translateX(-50%);
-  padding: 15px 25px;
-  border-radius: 8px;
-  color: white;
-  font-weight: 500;
-  z-index: 9999;
-  animation: ${fadeIn} 0.3s ease;
-  background: ${props => props.type === 'success' ? '#4caf50' : '#f44336'};
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  max-width: 300px;
-  pointer-events: none;
-
-  &::before {
-    content: ${props => props.type === 'success' ? '"✓"' : '"!"'};
-    font-size: 18px;
-    font-weight: bold;
-  }
-
-  ${props => props.type === 'warning' && css`
-    @keyframes pulse {
-      0% { transform: translateX(-50%) scale(1); }
-      50% { transform: translateX(-50%) scale(1.02); }
-      100% { transform: translateX(-50%) scale(1); }
-    }
-    animation: pulse 2s infinite;
-  `}
 `;
 
 function TradeDetail() {

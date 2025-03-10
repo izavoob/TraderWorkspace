@@ -733,9 +733,9 @@ function PreSessionJournal() {
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = useMemo(() => {
-    return filteredEntries.sort((a, b) => {
-      const dateA = new Date(a.date);
-      const dateB = new Date(b.date);
+    return [...filteredEntries].sort((a, b) => {
+      const dateA = new Date(a.date).getTime();
+      const dateB = new Date(b.date).getTime();
       
       if (sortConfig.field === 'date') {
         return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;

@@ -1503,11 +1503,22 @@ function PreSessionFull() {
       console.log('Saving presession data:', sessionData);
       
       // Зберігаємо або оновлюємо пресесію
+      let savedId;
       if (id) {
         await window.electronAPI.updatePresession(sessionData);
+        savedId = id;
       } else {
-        const newId = await window.electronAPI.savePresession(sessionData);
-        console.log('New presession saved with ID:', newId);
+        const result = await window.electronAPI.savePresession(sessionData);
+        savedId = result.id || result;
+        console.log('New presession saved with ID:', savedId);
+      }
+
+      // Оновлюємо нотатки з датою пресесії
+      try {
+        await window.electronAPI.updateNotesWithPresessionData(savedId);
+        console.log('Notes updated with presession data successfully');
+      } catch (error) {
+        console.error('Error updating notes with presession data:', error);
       }
       
       // Повертаємося на сторінку журналу

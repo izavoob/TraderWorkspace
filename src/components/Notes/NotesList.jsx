@@ -17,15 +17,16 @@ const fadeIn = keyframes`
 const NotificationMessage = styled.div`
   position: fixed;
   top: 140px;
-  left: 50%;
-  transform: translateX(-50%);
+  right: 20px;
+  left: auto;
+  transform: none;
   padding: 15px 25px;
   border-radius: 8px;
   color: white;
   font-weight: 500;
   z-index: 9999;
   animation: ${fadeIn} 0.3s ease;
-  background: ${props => props.type === 'success' ? '#4caf50' : '#f44336'};
+  background: ${props => props.type === 'success' ? '#4caf50' : props.type === 'warning' ? '#ff9800' : '#f44336'};
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;

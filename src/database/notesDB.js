@@ -109,9 +109,19 @@ class NotesDB {
     return new Promise((resolve, reject) => {
       this.db.run(
         `UPDATE notes 
-         SET title = ?, content = ?, tag_id = ?, updated_at = CURRENT_TIMESTAMP 
+         SET title = ?, content = ?, tag_id = ?, updated_at = CURRENT_TIMESTAMP,
+         source_type = ?, source_id = ?, trade_no = ?, trade_date = ?
          WHERE id = ?`,
-        [note.title, note.content, note.tagId, note.id],
+        [
+          note.title, 
+          note.content, 
+          note.tagId, 
+          note.sourceType, 
+          note.sourceId, 
+          note.tradeNo, 
+          note.tradeDate, 
+          note.id
+        ],
         (err) => {
           if (err) reject(err);
           else resolve(true);
@@ -246,6 +256,8 @@ class NotesDB {
 
   async updateNotesWithTradeData(tradesDb, tradeId) {
     return new Promise((resolve, reject) => {
+      console.log('Starting updateNotesWithTradeData for tradeId:', tradeId);
+      
       // Отримуємо дані трейду
       tradesDb.get(
         'SELECT no, date FROM trades WHERE id = ?',
@@ -385,6 +397,80 @@ class NotesDB {
             console.error('Error updating notes with trade data:', error);
             reject(error);
           }
+        }
+      );
+    });
+  }
+
+  async updateNotesWithPresessionData(routinesDb, presessionId) {
+    return new Promise((resolve, reject) => {
+      console.log('Starting updateNotesWithPresessionData for presessionId:', presessionId);
+      
+      // Отримуємо дані пресесії
+      routinesDb.get(
+        'SELECT date FROM presessions WHERE id = ?',
+        [presessionId],
+        async (err, presession) => {
+          if (err) {
+            console.error('Error getting presession data:', err);
+            reject(err);
+            return;
+          }
+
+          if (!presession) {
+            console.log('No presession found for presessionId:', presessionId);
+            resolve();
+            return;
+          }
+
+          console.log('Retrieved presession data:', presession);
+
+          // Отримуємо всі нотатки, пов'язані з цією пресесією
+          this.db.all(
+            `SELECT id FROM notes WHERE source_type = 'presession' AND source_id = ?`,
+            [presessionId],
+            async (err, notes) => {
+              if (err) {
+                console.error('Error getting notes:', err);
+                reject(err);
+                return;
+              }
+
+              try {
+                console.log('Number of notes to update:', notes.length);
+                for (const note of notes) {
+                  console.log('Updating note with presession data:', {
+                    noteId: note.id,
+                    presessionDate: presession.date
+                  });
+                  
+                  // Оновлюємо нотатку з даними пресесії
+                  await new Promise((resolveUpdate, rejectUpdate) => {
+                    this.db.run(
+                      `UPDATE notes 
+                       SET trade_date = ? 
+                       WHERE id = ?`,
+                      [presession.date, note.id],
+                      (err) => {
+                        if (err) {
+                          console.error('Error updating note:', err);
+                          rejectUpdate(err);
+                        } else {
+                          console.log('Note updated successfully');
+                          resolveUpdate();
+                        }
+                      }
+                    );
+                  });
+                }
+                console.log('All notes updated successfully');
+                resolve();
+              } catch (error) {
+                console.error('Error updating notes with presession data:', error);
+                reject(error);
+              }
+            }
+          );
         }
       );
     });
