@@ -1,8 +1,7 @@
-
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle } from 'styled-components';
+import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import DatePicker from 'react-datepicker';
@@ -165,7 +164,7 @@ const Subtitle = styled.h2`
   font-weight: normal;
 `;
 
-const RoutineContent = styled.div`
+const JournalContent = styled.div`
   padding-top: 20px;
   position: relative;
   min-height: calc(100vh - 168px);
