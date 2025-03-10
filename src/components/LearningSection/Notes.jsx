@@ -35,7 +35,7 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 168px;
+  margin-top: 120;
   width: 100%;
 `;
 
@@ -51,12 +51,13 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 `;
@@ -104,7 +105,14 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
-
+const Subtitle = styled.h2`
+  margin: 5px auto 0;
+  font-size: 1.2em;
+  color: #ff8c00;
+  text-align: center;
+  z-index: 1;
+  font-weight: normal;
+`;
 const HeaderActions = styled.div`
   display: flex;
   align-items: center;
@@ -568,6 +576,7 @@ function Notes() {
       <Header>
         <BackButton to="/learning-section" title="Back" aria-label="Back" />
         <Title>Trade Notes</Title>
+        <Subtitle>Let's review your notes!</Subtitle>
       </Header>
 
       <MainContent>

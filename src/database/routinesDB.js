@@ -34,6 +34,7 @@ class RoutinesDB {
             chart_processes TEXT,
             mindset_preparation TEXT,
             the_zone TEXT,
+            parentSessionId TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )

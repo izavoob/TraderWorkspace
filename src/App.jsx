@@ -57,6 +57,20 @@ const GlobalStyle = createGlobalStyle`
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
   }
+
+  .notifications-layer {
+    position: fixed;
+    top: 148px;
+    right: 20px;
+    bottom: 0;
+    width: auto;
+    pointer-events: none;
+    z-index: 9999;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 10px;
+  }
 `;
 
 const fadeInAnimation = keyframes`

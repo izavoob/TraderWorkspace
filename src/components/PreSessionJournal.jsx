@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle, keyframes } from 'styled-components';
+import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import DatePicker from 'react-datepicker';
@@ -111,6 +111,7 @@ const DailyRoutineContainer = styled.div`
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+  bottom: 25px;
 `;
 
 const Header = styled.header`
@@ -125,9 +126,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -193,19 +194,17 @@ const Subtitle = styled.h2`
 `;
 
 const JournalContent = styled.div`
-  margin-top: 30px;
-  padding-top: 20px;
-  position: relative;
-  min-height: calc(100vh - 168px);
+  padding: 20px;
   width: 100%;
-  overflow-y: visible;
+  height: calc(100vh - 148px);
+  display: flex;
+  flex-direction: column;
 `;
 
 const JournalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
   z-index: 999;
   min-height: 50px;
   flex-direction: row;
@@ -265,31 +264,109 @@ const ActionButton = styled.button`
   }
 `;
 
+const TableContainer = styled.div`
+  flex: 1;
+  overflow: auto;
+  margin-top: 20px;
+  position: relative;
+  
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #2e2e2e;
+  }
+
+  tbody {
+    overflow-y: auto;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5e2ca5;
+  }
+`;
+
 const Table = styled.table`
   width: 100%;
-  border-collapse: collapse;
-  margin-top: 20px;
-  background: #2e2e2e;
-  color: #fff;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: #2e2e2e;
+  border: 2px solid #5e2ca5;
 `;
 
 const Th = styled.th`
   padding: 12px;
-  text-align: left;
+  text-align: center;
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   font-weight: bold;
   border: 1px solid #5e2ca5;
   white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: #5e2ca5;
+  }
 `;
 
 const Td = styled.td`
-  padding: 12px;
+  padding: 10px;
   border: 1px solid #5e2ca5;
   background: #2e2e2e;
+  position: relative;
+  text-align: center;
+  color: #fff;
 `;
 
-const Tr = styled.tr`
+const TableRow = styled.tr`
+  position: relative;
+  &:nth-child(even) {
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
+  }
+  &:nth-child(odd) {
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
+  }
+
+  ${props => props.selected && css`
+    && {
+      background-color: rgba(116, 37, 201, 0.3) !important;
+    }
+  `}
+
+  ${props => props.isSubsession && css`
+    & > td {
+      background-color: rgba(92, 157, 245, 0.05) !important;
+      border-left: 2px solid #5C9DF5;
+      padding-left: 20px !important;
+    }
+
+    & > td:first-child::before {
+      content: '↳';
+      position: absolute;
+      left: 5px;
+      color: #5C9DF5;
+    }
+  `}
+
   &:hover {
     background: rgba(116, 37, 201, 0.3);
   }
@@ -298,7 +375,11 @@ const Tr = styled.tr`
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 8px;
-  justify-content: center;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0 10px;
+  white-space: nowrap;
+  width: auto;
 `;
 
 const IconButton = styled.button`
@@ -427,7 +508,7 @@ const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-bottom: 16px;
+  margin-top: 16px;
   color: #fff;
   height: 40px;
 `;
@@ -501,6 +582,12 @@ const ActionButtonsContainer = styled.div`
   width: 100%;
 `;
 
+const AddSubsessionButton = styled(ActionButton)`
+  background: #5C9DF5;
+  opacity: ${props => props.disabled ? 0.5 : 1};
+  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+`;
+
 function PreSessionJournal() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -525,6 +612,7 @@ function PreSessionJournal() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [pairOptions, setPairOptions] = useState([]);
+  const [parentSessions, setParentSessions] = useState({});
 
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -563,6 +651,7 @@ function PreSessionJournal() {
     try {
       setIsLoading(true);
       const presessions = await window.electronAPI.getAllPresessions();
+      console.log('Raw presessions:', presessions);
       
       const processedData = presessions.map(presession => ({
         id: presession.id,
@@ -572,10 +661,11 @@ function PreSessionJournal() {
         narrative: presession.narrative || '',
         execution: presession.execution || '',
         outcome: presession.outcome || '',
-        planOutcome: presession.plan_outcome === 1
+        planOutcome: presession.plan_outcome === 1,
+        parentSessionId: presession.parentSessionId || null
       }));
 
-      console.log('Processed presessions:', processedData);
+      console.log('Processed presessions with parentSessionId:', processedData);
       setData(processedData);
     } catch (error) {
       console.error('Error loading presessions:', error);
@@ -733,37 +823,68 @@ function PreSessionJournal() {
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = useMemo(() => {
-    return [...filteredEntries].sort((a, b) => {
-      const dateA = new Date(a.date).getTime();
-      const dateB = new Date(b.date).getTime();
-      
-      if (sortConfig.field === 'date') {
-        return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
+    // Спочатку групуємо записи за parentSessionId
+    const sessionGroups = filteredEntries.reduce((groups, entry) => {
+      if (!entry.parentSessionId) {
+        // Якщо це основна сесія, створюємо нову групу
+        if (!groups[entry.id]) {
+          groups[entry.id] = {
+            main: entry,
+            subsessions: []
+          };
+        } else {
+          groups[entry.id].main = entry;
+        }
+      } else {
+        // Якщо це підсесія, додаємо її до групи батьківської сесії
+        if (!groups[entry.parentSessionId]) {
+          groups[entry.parentSessionId] = {
+            main: null,
+            subsessions: [entry]
+          };
+        } else {
+          groups[entry.parentSessionId].subsessions.push(entry);
+        }
       }
-      return 0;
-    });
+      return groups;
+    }, {});
+
+    // Сортуємо основні сесії
+    const mainSessions = Object.values(sessionGroups)
+      .filter(group => group.main)
+      .map(group => group.main)
+      .sort((a, b) => {
+        if (sortConfig.field === 'date') {
+          const dateA = new Date(a.date || 0).getTime();
+          const dateB = new Date(b.date || 0).getTime();
+          return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
+        }
+        return 0;
+      });
+
+    // Формуємо фінальний масив, додаючи підсесії після їх батьківських сесій
+    return mainSessions.reduce((result, mainSession) => {
+      result.push(mainSession);
+      if (sessionGroups[mainSession.id].subsessions.length > 0) {
+        result.push(...sessionGroups[mainSession.id].subsessions);
+      }
+      return result;
+    }, []);
   }, [filteredEntries, sortConfig]);
 
   const columns = useMemo(
     () => [
-      { 
-        Header: 'Select', 
-        accessor: 'select',
-        width: 50,
-        Cell: ({ row }) => (
-          <Checkbox
-            type="checkbox"
-            checked={selectedEntries.includes(row.original.id)}
-            onChange={() => handleSelectEntry(row.original.id)}
-          />
-        )
-      },
       {
         Header: 'Actions',
         accessor: 'actions',
-        width: 100,
+        width: 80,
         Cell: ({ row }) => (
           <ButtonsContainer>
+            <Checkbox
+              type="checkbox"
+              checked={selectedEntries.includes(row.original.id)}
+              onChange={() => handleSelectEntry(row.original.id)}
+            />
             <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
               <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
             </ActionButton>
@@ -973,6 +1094,58 @@ function PreSessionJournal() {
     data: sortedAndFilteredEntries 
   });
 
+  const handleCreateSubsession = async () => {
+    if (selectedEntries.length !== 1) return;
+
+    const selectedEntry = data.find(entry => entry.id === selectedEntries[0]);
+    if (!selectedEntry) return;
+
+    try {
+      const fullSession = await window.electronAPI.getPresession(selectedEntry.id);
+      
+      const newSession = {
+        id: Date.now().toString(),
+        date: fullSession.date,
+        mindset_preparation: fullSession.mindset_preparation,
+        the_zone: fullSession.the_zone,
+        video_url: fullSession.video_url,
+        parentSessionId: selectedEntry.id,
+        pair: '',
+        narrative: '',
+        execution: '',
+        outcome: '',
+        plan_outcome: false,
+        forex_factory_news: JSON.stringify([]),
+        topDownAnalysis: JSON.stringify([]),
+        plans: JSON.stringify({
+          narrative: { text: '' },
+          execution: { text: '' },
+          outcome: { text: '' }
+        }),
+        chart_processes: JSON.stringify([])
+      };
+
+      await window.electronAPI.savePresession(newSession);
+      
+      const updatedSessions = await window.electronAPI.getAllPresessions();
+      setData(updatedSessions.map(presession => ({
+        id: presession.id,
+        date: presession.date,
+        weekDay: new Date(presession.date).toLocaleDateString('en-US', { weekday: 'long' }),
+        pair: presession.pair || '',
+        narrative: presession.narrative || '',
+        execution: presession.execution || '',
+        outcome: presession.outcome || '',
+        planOutcome: presession.plan_outcome === 1,
+        parentSessionId: presession.parentSessionId || null
+      })));
+      
+      setSelectedEntries([]);
+    } catch (error) {
+      console.error('Error creating subsession:', error);
+    }
+  };
+
   return (
     <>
       <GlobalStyle />
@@ -1132,6 +1305,13 @@ function PreSessionJournal() {
               onChange={handleSelectAll}
             />
             <span>Select All Entries</span>
+            {selectedEntries.length === 1 && (
+              <AddSubsessionButton
+                onClick={handleCreateSubsession}
+              >
+                Additional Pair
+              </AddSubsessionButton>
+            )}
             {selectedEntries.length > 0 && (
               <DeleteSelectedButton
                 onClick={() => setShowDeleteConfirmation(true)}
@@ -1141,42 +1321,57 @@ function PreSessionJournal() {
             )}
           </SelectAllContainer>
 
-          <Table {...getTableProps()}>
-            <thead>
-              {headerGroups.map(headerGroup => (
-                <Tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map(column => (
-                    <Th {...column.getHeaderProps()} style={{ width: column.width }}>
-                      {column.render('Header')}
-                    </Th>
-                  ))}
-                </Tr>
-              ))}
-            </thead>
-            <tbody {...getTableBodyProps()}>
-              {rows.length === 0 ? (
-                <Tr>
-                  <Td colSpan={columns.length} style={{ textAlign: 'center' }}>
-                    No entries yet
-                  </Td>
-                </Tr>
-              ) : (
-                rows.map(row => {
-                  prepareRow(row);
-                  const isSelected = selectedEntries.includes(row.original.id);
-                  return (
-                    <Tr key={row.original.id} {...row.getRowProps()} selected={isSelected}>
-                      {row.cells.map(cell => (
-                        <Td {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                          {cell.render('Cell')}
-                        </Td>
-                      ))}
-                    </Tr>
-                  );
-                })
-              )}
-            </tbody>
-          </Table>
+          <TableContainer>
+            <Table {...getTableProps()}>
+              <thead>
+                {headerGroups.map(headerGroup => (
+                  <TableRow {...headerGroup.getHeaderGroupProps()}>
+                    {headerGroup.headers.map(column => (
+                      <Th {...column.getHeaderProps()} style={{ width: column.width }}>
+                        {column.render('Header')}
+                      </Th>
+                    ))}
+                  </TableRow>
+                ))}
+              </thead>
+              <tbody {...getTableBodyProps()}>
+                {rows.length === 0 ? (
+                  <TableRow>
+                    <Td colSpan={columns.length} style={{ textAlign: 'center' }}>
+                      No entries yet
+                    </Td>
+                  </TableRow>
+                ) : (
+                  rows.map(row => {
+                    prepareRow(row);
+                    const isSelected = selectedEntries.includes(row.original.id);
+                    const isSubsession = Boolean(row.original.parentSessionId);
+                    
+                    return (
+                      <TableRow 
+                        key={row.original.id} 
+                        {...row.getRowProps()} 
+                        selected={isSelected}
+                        isSubsession={isSubsession}
+                      >
+                        {row.cells.map(cell => (
+                          <Td 
+                            key={cell.column.id}
+                            {...cell.getCellProps()}
+                            style={{
+                              width: cell.column.width
+                            }}
+                          >
+                            {cell.render('Cell')}
+                          </Td>
+                        ))}
+                      </TableRow>
+                    );
+                  })
+                )}
+              </tbody>
+            </Table>
+          </TableContainer>
 
           {deletePopup && (
             <Popup>

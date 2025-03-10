@@ -10,7 +10,6 @@ const gradientAnimation = keyframes`
 
 const ReportingSystemContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -30,9 +29,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -87,7 +86,14 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
-
+const Subtitle = styled.h2`
+  margin: 5px auto 0;
+  font-size: 1.2em;
+  color: #ff8c00;
+  text-align: center;
+  z-index: 1;
+  font-weight: normal;
+`;
 const Content = styled.div`
   margin-top: 148px;
   padding-top: 20px;
@@ -133,6 +139,7 @@ function ReportingSystem() {
       <Header>
         <BackButton onClick={handleBack} />
         <Title>Reporting System</Title>
+        <Subtitle>Let's create your reports!</Subtitle>
       </Header>
       <Content>
         <SectionTitle>Reporting Tools</SectionTitle>

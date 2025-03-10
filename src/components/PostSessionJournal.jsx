@@ -1,6 +1,12 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
 
 const DailyRoutineContainer = styled.div`
   max-width: 1820px;
@@ -12,7 +18,9 @@ const DailyRoutineContainer = styled.div`
 `;
 
 const Header = styled.header`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
   border-radius: 10px 10px 0 0;
   color: #fff;
@@ -21,12 +29,14 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 128px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
+  flex-direction: column;
+  justify-content: center;
   align-items: center;
 `;
 
@@ -72,9 +82,16 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
+const Subtitle = styled.h2`
+  margin: 5px auto 0;
+  font-size: 1.2em;
+  color: #ff8c00;
+  text-align: center;
+  z-index: 1;
+  font-weight: normal;
+`;
 
 const RoutineContent = styled.div`
-  margin-top: 50px;
   padding-top: 20px;
   overflow-x: hidden; /* Прибираємо горизонтальний скролінг */
 `;
@@ -91,6 +108,7 @@ function PostSessionJournal() {
       <Header>
         <BackButton onClick={handleBack} />
         <Title>Post-Session Journal</Title>
+        <Subtitle>Summary of the session</Subtitle>
       </Header>
       <RoutineContent>
         <p>This section will contain post-session review content.</p>
