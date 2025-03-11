@@ -230,13 +230,38 @@ const customSelectStyles = {
   })
 };
 
+const NotificationBanner = styled.div`
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  background: rgba(94, 44, 165, 0.9);
+  color: white;
+  padding: 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 2001;
+  max-width: 300px;
+  animation: ${fadeIn} 0.3s ease;
+`;
+
+const SourceLink = styled.span`
+  color: #B886EE;
+  text-decoration: underline;
+  cursor: pointer;
+  
+  &:hover {
+    color: #fff;
+  }
+`;
+
 const NoteModal = ({ 
   isOpen, 
   onClose, 
   onSave, 
   note = null, 
   sourceType, 
-  sourceId 
+  sourceId,
+  isReviewMode = false
 }) => {
   const [title, setTitle] = useState('');
   const [content, setContent] = useState('');
@@ -382,8 +407,8 @@ const NoteModal = ({
         content,
         tagId: selectedTag ? selectedTag.value : null,
         tagName: selectedTag ? selectedTag.label : null,
-        sourceType: sourceType || (note ? note.sourceType : null),
-        sourceId: sourceId || (note ? note.sourceId : null),
+        sourceType: sourceType || (note ? note.source_type : null),
+        sourceId: sourceId || (note ? note.source_id : null),
         images: images
       };
 
@@ -410,76 +435,134 @@ const NoteModal = ({
     setImages(prev => prev.filter((_, i) => i !== index));
   };
 
+  const getSourceText = (note) => {
+    if (!note) return '';
+    
+    const sourceType = note.source_type || note.sourceType;
+    const tradeNo = note.trade_no;
+    const tradeDate = note.trade_date;
+    
+    switch (sourceType) {
+      case 'presession':
+        return `Pre-Session Analysis (${tradeDate ? new Date(tradeDate).toLocaleDateString() : 'N/A'})`;
+      case 'trade':
+        if (tradeNo && tradeDate) {
+          return `Trade #${tradeNo} (${new Date(tradeDate).toLocaleDateString()})`;
+        }
+        return 'Trade';
+      default:
+        return sourceType;
+    }
+  };
+
+  const getSourceLink = (note) => {
+    if (!note) return '#';
+    
+    const sourceType = note.source_type || note.sourceType;
+    const sourceId = note.source_id;
+    
+    switch (sourceType) {
+      case 'presession':
+        return `/daily-routine/pre-session/full/${sourceId}`;
+      case 'trade':
+        return `/trade/${sourceId}`;
+      default:
+        return '#';
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
-    <ModalOverlay onClick={onClose} scrollOffset={scrollOffset}>
-      <Modal onClick={e => e.stopPropagation()} onPaste={handlePaste}>
-        <Title>{note ? 'Edit Note' : 'Add New Note'}</Title>
-        <FormContainer>
-          <Input
-            type="text"
-            placeholder="Title"
-            value={title}
-            onChange={e => setTitle(e.target.value)}
-          />
-          
-          <CreatableSelect
-            isClearable
-            options={tags}
-            value={selectedTag}
-            onChange={setSelectedTag}
-            onCreateOption={handleCreateTag}
-            placeholder="Select or create a tag"
-            styles={customSelectStyles}
-          />
+    <>
+      <ModalOverlay onClick={onClose} scrollOffset={scrollOffset}>
+        <Modal onClick={e => e.stopPropagation()} onPaste={handlePaste}>
+          <Title>{isReviewMode ? 'Note Review' : (note ? 'Edit Note' : 'Add New Note')}</Title>
+          <FormContainer>
+            <Input
+              type="text"
+              placeholder="Title"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              readOnly={isReviewMode}
+            />
+            
+            {!isReviewMode && (
+              <CreatableSelect
+                isClearable
+                options={tags}
+                value={selectedTag}
+                onChange={setSelectedTag}
+                onCreateOption={handleCreateTag}
+                placeholder="Select or create a tag"
+                styles={customSelectStyles}
+              />
+            )}
 
-          <TextArea
-            placeholder="Content"
-            value={content}
-            onChange={e => setContent(e.target.value)}
-            onPaste={handlePaste}
-          />
+            <TextArea
+              placeholder="Content"
+              value={content}
+              onChange={e => setContent(e.target.value)}
+              onPaste={handlePaste}
+              readOnly={isReviewMode}
+            />
 
-          <ImageContainer>
-            {images.map((image, index) => (
-              <ImagePreview key={index}>
-                <img src={image.image_path} alt={`Note image ${index + 1}`} />
-                <DeleteImageButton 
-                  onClick={() => handleDeleteImage(index, image.id)}
-                  type="button"
+            <ImageContainer>
+              {images.map((image, index) => (
+                <ImagePreview key={index}>
+                  <img src={image.image_path} alt={`Note image ${index + 1}`} />
+                  {!isReviewMode && (
+                    <DeleteImageButton 
+                      onClick={() => handleDeleteImage(index, image.id)}
+                      type="button"
+                    >
+                      ×
+                    </DeleteImageButton>
+                  )}
+                </ImagePreview>
+              ))}
+            </ImageContainer>
+
+            {!isReviewMode && (
+              <AddImageButton 
+                type="button"
+                onPaste={handlePaste}
+                tabIndex="0"
+              >
+                <AddIcon>+</AddIcon>
+                Add Image (натисніть Ctrl+V для вставки з буфера обміну)
+              </AddImageButton>
+            )}
+
+            <ButtonGroup>
+              <Button type="button" className="cancel" onClick={onClose}>
+                Close
+              </Button>
+              {!isReviewMode && (
+                <Button 
+                  type="button" 
+                  className="save" 
+                  onClick={handleSubmit}
+                  disabled={!title || !content}
                 >
-                  ×
-                </DeleteImageButton>
-              </ImagePreview>
-            ))}
-          </ImageContainer>
+                  {note ? 'Save Changes' : 'Add Note'}
+                </Button>
+              )}
+            </ButtonGroup>
+          </FormContainer>
+        </Modal>
+      </ModalOverlay>
 
-          <AddImageButton 
-            type="button"
-            onPaste={handlePaste}
-            tabIndex="0"
-          >
-            <AddIcon>+</AddIcon>
-            Add Image (натисніть Ctrl+V для вставки з буфера обміну)
-          </AddImageButton>
-
-          <ButtonGroup>
-            <Button type="button" className="cancel" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button 
-              type="button" 
-              className="save" 
-              onClick={handleSubmit}
-              disabled={!title || !content}
-            >
-              {note ? 'Save Changes' : 'Add Note'}
-            </Button>
-          </ButtonGroup>
-        </FormContainer>
-      </Modal>
-    </ModalOverlay>
+      {isReviewMode && note && (
+        <NotificationBanner>
+          To edit this note, please go to the{' '}
+          <SourceLink onClick={() => window.location.href = getSourceLink(note)}>
+            {getSourceText(note)}
+          </SourceLink>
+          {' '}page.
+        </NotificationBanner>
+      )}
+    </>
   );
 };
 

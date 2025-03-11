@@ -113,7 +113,7 @@ const Content = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
+  color: rgb(230, 243, 255);
   margin: 0 0 30px;
   font-size: 2em;
   text-align: center;

@@ -7,6 +7,7 @@ const AccountsDB = require('./src/database/accountsDB');
 const ExecutionDB = require('./src/database/executionDB');
 const NotesDB = require('./src/database/notesDB');
 const RoutinesDB = require('./src/database/routinesDB');
+const PerformanceDB = require('./src/database/performanceDB');
 
 let db = null;
 let accountsDB = null;
@@ -126,13 +127,7 @@ async function initializeDatabase() {
     executionDB = new ExecutionDB(executionDbPath);
 
     // Initialize performance database
-    performanceDB = new sqlite3.Database(performanceDbPath, (err) => {
-      if (err) {
-        console.error('performance.db connection failed:', err);
-        throw new Error(`Performance database connection failed: ${err.message}`);
-      }
-      console.log('performance.db initialized successfully');
-    });
+    performanceDB = new PerformanceDB(performanceDbPath);
 
     // Initialize notes database
     notesDB = new NotesDB(notesDbPath);
@@ -777,130 +772,107 @@ ipcMain.handle('deleteExecutionItem', async (event, section, id) => {
 // Performance analysis handlers
 ipcMain.handle('savePerformanceAnalysis', async (event, analysis) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    const {
-      id, type, startDate, endDate, weekNumber, monthNumber,
-      quarterNumber, year, totalTrades, missedTrades,
-      executionCoefficient, winrate, followingPlan,
-      narrativeAccuracy, gainedRR, potentialRR, averageRR,
-      profit, realisedPL, averagePL, averageLoss
-    } = analysis;
-
-    performanceDB.run(`
-      INSERT OR REPLACE INTO performance_analysis (
-        id, type, startDate, endDate, weekNumber, monthNumber,
-        quarterNumber, year, totalTrades, missedTrades,
-        executionCoefficient, winrate, followingPlan,
-        narrativeAccuracy, gainedRR, potentialRR, averageRR,
-        profit, realisedPL, averagePL, averageLoss
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      id, type, startDate, endDate, weekNumber, monthNumber,
-      quarterNumber, year, totalTrades, missedTrades,
-      executionCoefficient, winrate, followingPlan,
-      narrativeAccuracy, gainedRR, potentialRR, averageRR,
-      profit, realisedPL, averagePL, averageLoss
-    ], function(err) {
-      if (err) {
-        console.error('Error saving performance analysis:', err);
-        reject(err);
-      } else {
-        resolve(this.lastID);
+  try {
+    console.log('Saving performance analysis:', analysis);
+    const result = await performanceDB.savePerformanceAnalysis(analysis);
+    
+    // Якщо є трейди, додаємо їх до аналізу
+    if (analysis.trades && analysis.trades.length > 0) {
+      for (const tradeId of analysis.trades) {
+        await performanceDB.addTradeToPerformance(analysis.id, tradeId);
       }
-    });
-  });
+    }
+    
+    // Якщо є пресесії, додаємо їх до аналізу
+    if (analysis.routines && analysis.routines.length > 0) {
+      for (const routine of analysis.routines) {
+        await performanceDB.addRoutineToPerformance(analysis.id, routine.id, routine.type);
+      }
+    }
+    
+    return result;
+  } catch (error) {
+    console.error('Error saving performance analysis:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('getPerformanceAnalyses', async (event, type) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    performanceDB.all(
-      'SELECT * FROM performance_analysis WHERE type = ? ORDER BY startDate DESC',
-      [type],
-      (err, rows) => {
-        if (err) {
-          console.error('Error getting performance analyses:', err);
-          reject(err);
-        } else {
-          resolve(rows);
-        }
-      }
-    );
-  });
+  try {
+    console.log('Getting performance analyses of type:', type);
+    const analyses = await performanceDB.getPerformanceAnalyses(type);
+    return analyses;
+  } catch (error) {
+    console.error('Error getting performance analyses:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('getPerformanceAnalysis', async (event, id) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    performanceDB.get(
-      'SELECT * FROM performance_analysis WHERE id = ?',
-      [id],
-      (err, row) => {
-        if (err) {
-          console.error('Error getting performance analysis:', err);
-          reject(err);
-        } else {
-          resolve(row);
+  try {
+    console.log('Getting performance analysis by ID:', id);
+    const analysis = await performanceDB.getPerformanceAnalysis(id);
+    
+    // Отримуємо пов'язані трейди
+    const tradeIds = await performanceDB.getTradesForPerformance(id);
+    analysis.trades = [];
+    
+    if (tradeIds && tradeIds.length > 0) {
+      for (const tradeId of tradeIds) {
+        const trade = await new Promise((resolve, reject) => {
+          db.get('SELECT * FROM trades WHERE id = ?', [tradeId], (err, row) => {
+            if (err) reject(err);
+            else resolve(row);
+          });
+        });
+        if (trade) analysis.trades.push(trade);
+      }
+    }
+    
+    // Отримуємо пов'язані пресесії
+    const routines = await performanceDB.getRoutinesForPerformance(id);
+    analysis.routines = [];
+    
+    if (routines && routines.length > 0) {
+      for (const routine of routines) {
+        if (routine.routine_type === 'presession') {
+          const presession = await routinesDB.getPreSessionById(routine.routine_id);
+          if (presession) analysis.routines.push({...presession, type: 'presession'});
         }
       }
-    );
-  });
+    }
+    
+    return analysis;
+  } catch (error) {
+    console.error('Error getting performance analysis:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('updatePerformanceAnalysis', async (event, id, analysis) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    const {
-      type, startDate, endDate, weekNumber, monthNumber,
-      quarterNumber, year, totalTrades, missedTrades,
-      executionCoefficient, winrate, followingPlan,
-      narrativeAccuracy, gainedRR, potentialRR, averageRR,
-      profit, realisedPL, averagePL, averageLoss
-    } = analysis;
-
-    performanceDB.run(`
-      UPDATE performance_analysis SET
-        type = ?, startDate = ?, endDate = ?, weekNumber = ?,
-        monthNumber = ?, quarterNumber = ?, year = ?,
-        totalTrades = ?, missedTrades = ?, executionCoefficient = ?,
-        winrate = ?, followingPlan = ?, narrativeAccuracy = ?,
-        gainedRR = ?, potentialRR = ?, averageRR = ?,
-        profit = ?, realisedPL = ?, averagePL = ?,
-        averageLoss = ?, updated_at = CURRENT_TIMESTAMP
-      WHERE id = ?
-    `, [
-      type, startDate, endDate, weekNumber, monthNumber,
-      quarterNumber, year, totalTrades, missedTrades,
-      executionCoefficient, winrate, followingPlan,
-      narrativeAccuracy, gainedRR, potentialRR, averageRR,
-      profit, realisedPL, averagePL, averageLoss, id
-    ], function(err) {
-      if (err) {
-        console.error('Error updating performance analysis:', err);
-        reject(err);
-      } else {
-        resolve(true);
-      }
-    });
-  });
+  try {
+    console.log('Updating performance analysis:', id, analysis);
+    const result = await performanceDB.updatePerformanceAnalysis(id, analysis);
+    return result;
+  } catch (error) {
+    console.error('Error updating performance analysis:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('deletePerformanceAnalysis', async (event, id) => {
   await ensureDatabaseInitialized();
-  return new Promise((resolve, reject) => {
-    performanceDB.run(
-      'DELETE FROM performance_analysis WHERE id = ?',
-      [id],
-      (err) => {
-        if (err) {
-          console.error('Error deleting performance analysis:', err);
-          reject(err);
-        } else {
-          resolve(true);
-        }
-      }
-    );
-  });
+  try {
+    console.log('Deleting performance analysis:', id);
+    const result = await performanceDB.deletePerformanceAnalysis(id);
+    return result;
+  } catch (error) {
+    console.error('Error deleting performance analysis:', error);
+    throw error;
+  }
 });
 
 // Pre-session handlers

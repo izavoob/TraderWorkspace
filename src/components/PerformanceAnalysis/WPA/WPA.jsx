@@ -1,11 +1,20 @@
 import React, { useState, useEffect } from 'react';
-import styled, { keyframes } from 'styled-components';
-import { Link } from 'react-router-dom';
+import styled, { keyframes, createGlobalStyle } from 'styled-components';
+import { Link, useNavigate } from 'react-router-dom';
+import deleteIcon from '../../../assets/icons/delete-icon.svg';
+import DatePicker from 'react-datepicker';
+import "react-datepicker/dist/react-datepicker.css";
+import { v4 as uuidv4 } from 'uuid';
 
 const gradientAnimation = keyframes`
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
+`;
+
+const shineEffect = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
 `;
 
 const Container = styled.div`
@@ -114,7 +123,7 @@ const SectionContainer = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
+  color: rgb(230, 243, 255);
   margin: 0 0 20px;
   font-size: 1.8em;
   text-align: left;
@@ -136,10 +145,28 @@ const AnalysisCard = styled.div`
   border: 2px solid #5e2ca5;
   transition: all 0.3s ease;
   cursor: pointer;
+  position: relative;
+  overflow: hidden;
+
+  &:before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(45deg, rgba(116, 37, 201, 0.1), rgba(184, 134, 238, 0.1));
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 
   &:hover {
     transform: translateY(-5px);
     box-shadow: 0 5px 15px rgba(94, 44, 165, 0.4);
+    
+    &:before {
+      opacity: 1;
+    }
   }
 `;
 
@@ -181,14 +208,20 @@ const AddText = styled.span`
 `;
 
 const WeekInfo = styled.div`
-  font-size: 1.2em;
-  color: #b886ee;
+  font-size: 1.5em;
+  color: rgb(230, 243, 255);
   margin-bottom: 15px;
+  font-weight: bold;
 `;
 
 const DateRange = styled.div`
-  color: #888;
-  margin-bottom: 10px;
+  color: #b886ee;
+  margin-bottom: 20px;
+  font-size: 1.2em;
+  padding: 8px;
+  background: rgba(94, 44, 165, 0.2);
+  border-radius: 8px;
+  text-align: center;
 `;
 
 const MetricsContainer = styled.div`
@@ -200,7 +233,7 @@ const MetricsContainer = styled.div`
 
 const MetricRow = styled.div`
   display: flex;
-  justify-content: space-between;
+  justify-content: space-evenly;
   padding: 5px 0;
 `;
 
@@ -217,8 +250,251 @@ const MetricValue = styled.span`
   font-weight: ${props => props.bold ? 'bold' : 'normal'};
 `;
 
+const VideoButton = styled.button`
+  padding: 8px 15px;
+  background: linear-gradient(45deg, #7425C9, #B886EE);
+  border: none;
+  border-radius: 8px;
+  color: white;
+  font-weight: bold;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 10px;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(116, 37, 201, 0.4);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const DeleteButton = styled.button`
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  background: rgba(244, 67, 54, 0.5);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.3s ease;
+
+  ${AnalysisCard}:hover & {
+    opacity: 1;
+  }
+
+  &:hover {
+    background: rgba(244, 67, 54, 0.75);
+    transform: scale(1.1);
+  }
+
+  &::before {
+    content: '';
+    width: 15px;
+    height: 15px;
+    background: url(${deleteIcon}) no-repeat center;
+    background-size: contain;
+  }
+`;
+
+const Modal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+`;
+
+const ModalContent = styled.div`
+  background-color: #2e2e2e;
+  padding: 30px;
+  border-radius: 15px;
+  border: 2px solid #5e2ca5;
+  width: 400px;
+  max-width: 90%;
+`;
+
+const ModalTitle = styled.h2`
+  color: rgb(230, 243, 255);
+  margin: 0 0 20px;
+  font-size: 1.8em;
+  text-align: center;
+  padding-bottom: 10px;
+  border-bottom: 2px solid rgba(94, 44, 165, 0.4);
+`;
+
+const ButtonGroup = styled.div`
+  display: flex;
+  gap: 20px;
+  justify-content: flex-end;
+  margin-top: 20px;
+`;
+
+const DatePickerStyles = createGlobalStyle`
+  .react-datepicker {
+    background-color: #2e2e2e;
+    border: 1px solid #5e2ca5;
+    font-family: inherit;
+  }
+
+  .react-datepicker__header {
+    background: #1a1a1a;
+    border-bottom: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__current-month,
+  .react-datepicker__day-name,
+  .react-datepicker__day {
+    color: #fff;
+  }
+
+  .react-datepicker__day:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__day--selected,
+  .react-datepicker__day--in-selecting-range,
+  .react-datepicker__day--in-range {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+    color: #fff;
+  }
+
+  .react-datepicker__day--keyboard-selected {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+    color: #fff;
+  }
+
+  .react-datepicker__navigation {
+    top: 8px;
+  }
+
+  .react-datepicker__navigation-icon::before {
+    border-color: #B886EE;
+  }
+
+  .react-datepicker__day--in-selecting-range:not(.react-datepicker__day--in-range) {
+    background-color: rgba(116, 37, 201, 0.5);
+  }
+`;
+
+const StyledDatePicker = styled(DatePicker)`
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  color: #fff;
+  padding: 11px;
+  border-radius: 8px;
+  width: 100%;
+  cursor: pointer;
+  font-size: 11px;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+  }
+`;
+
+const DatePickerContainer = styled.div`
+  margin: 20px 0;
+  background-color: #1a1a1a;
+  border: 2px solid #5e2ca5;
+  border-radius: 8px;
+  padding: 15px;
+`;
+
+const WeekNumberDisplay = styled.div`
+  color: #b886ee;
+  margin: 10px 0;
+  font-size: 1.2em;
+  text-align: center;
+  padding: 10px;
+  background: rgba(94, 44, 165, 0.2);
+  border-radius: 8px;
+`;
+
+const Button = styled.button`
+  padding: 12px 24px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 500;
+  color: white;
+  background-color: #5e2ca5;
+  transition: all 0.3s ease;
+  position: relative;
+  isolation: isolate;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    background-size: 200% 100%;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
+
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.05);
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+
+  &.cancel {
+    background-color: #4a4a4a;
+    &:hover {
+      background-color: #5a5a5a;
+    }
+  }
+
+  &.create {
+    background-color: #5e2ca5;
+    &:hover {
+      background-color: #4a1a8d;
+    }
+    &:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none;
+    }
+  }
+`;
+
 function WPA() {
   const [analyses, setAnalyses] = useState([]);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [selectedAnalysis, setSelectedAnalysis] = useState(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [startDate, setStartDate] = useState(null);
+  const [endDate, setEndDate] = useState(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadAnalyses();
@@ -233,62 +509,209 @@ function WPA() {
     }
   };
 
+  const handleViewVideo = (url, e) => {
+    e.stopPropagation(); // Зупиняємо поширення події, щоб не спрацював клік по картці
+    if (url) {
+      window.open(url, '_blank');
+    }
+  };
+
+  const handleCardClick = (analysisId) => {
+    navigate(`/performance-analysis/wpa/create/${analysisId}`);
+  };
+
+  const handleDelete = async (id, e) => {
+    e.stopPropagation(); // Щоб не спрацював клік по картці
+    setSelectedAnalysis(id);
+    setShowDeleteConfirmation(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await window.electronAPI.deletePerformanceAnalysis(selectedAnalysis);
+      setAnalyses(analyses.filter(analysis => analysis.id !== selectedAnalysis));
+      setShowDeleteConfirmation(false);
+      setSelectedAnalysis(null);
+    } catch (error) {
+      console.error('Error deleting analysis:', error);
+    }
+  };
+
+  const getWeekNumber = (date) => {
+    if (!date) return null;
+    const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    return Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+  };
+
+  const handleCreateAnalysis = async () => {
+    if (!startDate || !endDate) return;
+
+    try {
+      // Встановлюємо кінець дня для кінцевої дати
+      const endDateTime = new Date(endDate);
+      endDateTime.setHours(23, 59, 59, 999);
+
+      const analysisData = {
+        id: uuidv4(),
+        type: 'weekly',
+        startDate: startDate.toISOString().split('T')[0],
+        endDate: endDateTime.toISOString().split('T')[0],
+        weekNumber: getWeekNumber(startDate)
+      };
+
+      const result = await window.electronAPI.savePerformanceAnalysis(analysisData);
+      setShowCreateModal(false);
+      navigate(`/performance-analysis/wpa/create/${result.id || result}`);
+    } catch (error) {
+      console.error('Error creating analysis:', error);
+    }
+  };
+
+  const getSourceText = (note) => {
+    console.log('Getting source text for note:', note);
+    
+    const sourceType = note.source_type || note.sourceType;
+    const tradeNo = note.trade_no;
+    const tradeDate = note.trade_date;
+    
+    if (!sourceType) {
+      return 'Unknown Source';
+    }
+    
+    switch (sourceType) {
+      case 'presession':
+        return `Pre-Session Analysis (${tradeDate ? new Date(tradeDate).toLocaleDateString() : 'N/A'})`;
+      case 'trade':
+        if (!tradeNo && !tradeDate) {
+          return 'Trade not saved yet';
+        }
+        if (tradeNo && tradeDate) {
+          return `Trade #${tradeNo} (${new Date(tradeDate).toLocaleDateString()})`;
+        }
+        return 'Trade was deleted';
+      default:
+        return `Source: ${sourceType}`;
+    }
+  };
+
   return (
-    <Container>
-      <Header>
-        <BackButton to="/performance-analysis" />
-        <Title>Weekly Performance Analysis</Title>
-        <Subtitle>Let's analyze your weekly performance!</Subtitle>
-      </Header>
+    <>
+      <DatePickerStyles />
+      <Container>
+        <Header>
+          <BackButton to="/performance-analysis" />
+          <Title>Weekly Performance Analysis</Title>
+          <Subtitle>Let's analyze your weekly performance!</Subtitle>
+        </Header>
 
-      <Content>
-        <SectionContainer>
-          <SectionTitle>Weekly Analysis</SectionTitle>
-          <AnalysisGrid>
-            <AddAnalysisCard to="/performance-analysis/wpa/create">
-              <AddIcon>+</AddIcon>
-              <AddText>Add Analysis</AddText>
-            </AddAnalysisCard>
+        <Content>
+          <SectionContainer>
+            <SectionTitle>Weekly Analysis</SectionTitle>
+            <AnalysisGrid>
+              <AddAnalysisCard onClick={() => setShowCreateModal(true)}>
+                <AddIcon>+</AddIcon>
+                <AddText>Add Analysis</AddText>
+              </AddAnalysisCard>
 
-            {analyses.map(analysis => (
-              <AnalysisCard key={analysis.id}>
-                <WeekInfo>Week {analysis.weekNumber}</WeekInfo>
-                <DateRange>
-                  {new Date(analysis.startDate).toLocaleDateString()} - {new Date(analysis.endDate).toLocaleDateString()}
-                </DateRange>
-                <MetricsContainer>
-                  <MetricRow>
-                    <MetricLabel>Total Trades</MetricLabel>
-                    <MetricValue>{analysis.totalTrades}</MetricValue>
-                  </MetricRow>
-                  <MetricRow>
-                    <MetricLabel>Missed</MetricLabel>
-                    <MetricValue type="missed">{analysis.missedTrades}</MetricValue>
-                  </MetricRow>
-                  <MetricRow>
-                    <MetricLabel>Winrate</MetricLabel>
-                    <MetricValue color="#4caf50">{analysis.winrate}%</MetricValue>
-                  </MetricRow>
-                  <MetricRow>
-                    <MetricLabel>Gained RR</MetricLabel>
-                    <MetricValue bold>{analysis.gainedRR}</MetricValue>
-                  </MetricRow>
-                  <MetricRow>
-                    <MetricLabel>P&L</MetricLabel>
-                    <MetricValue 
-                      color={analysis.realisedPL >= 0 ? "#4caf50" : "#ff4444"}
-                      bold
-                    >
-                      ${analysis.realisedPL.toFixed(2)}
-                    </MetricValue>
-                  </MetricRow>
-                </MetricsContainer>
-              </AnalysisCard>
-            ))}
-          </AnalysisGrid>
-        </SectionContainer>
-      </Content>
-    </Container>
+              {analyses.map(analysis => (
+                <AnalysisCard 
+                  key={analysis.id} 
+                  onClick={() => handleCardClick(analysis.id)}
+                >
+                  <DeleteButton onClick={(e) => handleDelete(analysis.id, e)} />
+                  <WeekInfo>Week {analysis.weekNumber}</WeekInfo>
+                  <DateRange>
+                    {new Date(analysis.startDate).toLocaleDateString()} - {new Date(analysis.endDate).toLocaleDateString()}
+                  </DateRange>
+                  <MetricsContainer>
+                    <MetricRow>
+                      <MetricLabel>Total Trades</MetricLabel>
+                      <MetricValue>{analysis.totalTrades || 0}</MetricValue>
+                    </MetricRow>
+                    <MetricRow>
+                      <MetricLabel>Winrate</MetricLabel>
+                      <MetricValue color="#4caf50">{analysis.winRate ? analysis.winRate.toFixed(2) : '0.00'}%</MetricValue>
+                    </MetricRow>
+                    <MetricRow>
+                      <MetricLabel>Gained RR</MetricLabel>
+                      <MetricValue bold>{analysis.gainedRR ? analysis.gainedRR.toFixed(2) : '0.00'}</MetricValue>
+                    </MetricRow>
+                    <MetricRow>
+                      <MetricLabel>P&L</MetricLabel>
+                      <MetricValue 
+                        color={analysis.realisedPL >= 0 ? "#4caf50" : "#ff4444"}
+                        bold
+                      >
+                        ${analysis.realisedPL ? analysis.realisedPL.toFixed(2) : '0.00'}
+                      </MetricValue>
+                    </MetricRow>
+                  </MetricsContainer>
+                  {analysis.videoUrl && (
+                    <VideoButton onClick={(e) => handleViewVideo(analysis.videoUrl, e)}>
+                      View Video Analysis
+                    </VideoButton>
+                  )}
+                </AnalysisCard>
+              ))}
+            </AnalysisGrid>
+          </SectionContainer>
+        </Content>
+
+        {showDeleteConfirmation && (
+          <Modal onClick={() => setShowDeleteConfirmation(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <ModalTitle>Delete Analysis</ModalTitle>
+              <p style={{ color: '#fff', marginBottom: '20px' }}>Are you sure you want to delete this analysis?</p>
+              <ButtonGroup>
+                <Button className="cancel" onClick={() => setShowDeleteConfirmation(false)}>Cancel</Button>
+                <Button onClick={confirmDelete}>Delete</Button>
+              </ButtonGroup>
+            </ModalContent>
+          </Modal>
+        )}
+
+        {showCreateModal && (
+          <Modal onClick={() => setShowCreateModal(false)}>
+            <ModalContent onClick={e => e.stopPropagation()}>
+              <ModalTitle>Create Weekly Analysis</ModalTitle>
+              <WeekNumberDisplay>
+                Week {getWeekNumber(startDate) || '...'}
+              </WeekNumberDisplay>
+              <DatePickerContainer>
+                <DatePicker
+                  selectsRange={true}
+                  startDate={startDate}
+                  endDate={endDate}
+                  onChange={(update) => {
+                    const [start, end] = update;
+                    setStartDate(start);
+                    setEndDate(end);
+                  }}
+                  dateFormat="dd/MM/yyyy"
+                  monthsShown={1}
+                  inline
+                  calendarStartDay={1}
+                />
+              </DatePickerContainer>
+              <ButtonGroup>
+                <Button className="cancel" onClick={() => setShowCreateModal(false)}>
+                  Cancel
+                </Button>
+                <Button 
+                  className="create"
+                  onClick={handleCreateAnalysis}
+                  disabled={!startDate || !endDate}
+                >
+                  Create Analysis
+                </Button>
+              </ButtonGroup>
+            </ModalContent>
+          </Modal>
+        )}
+      </Container>
+    </>
   );
 }
 
