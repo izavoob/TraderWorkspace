@@ -178,7 +178,7 @@ const AddText = styled.span`
   font-size: 1.2em;
 `;
 
-const NotesListComponent = ({ sourceType, sourceId, onAddNote, isEditing = true }) => {
+const NotesListComponent = ({ sourceType, sourceId, onAddNote, onNoteUpdate, isEditing = true }) => {
   const [notes, setNotes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
@@ -212,15 +212,17 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, isEditing = true 
     try {
       console.log('Saving note:', noteData);
       
+      const noteToSave = {
+        ...noteData,
+        source_type: sourceType || noteData.source_type,
+        source_id: sourceId || noteData.source_id,
+        content: noteData.content || noteData.text // Підтримка обох форматів
+      };
+      
       if (noteData.id) {
         // Оновлюємо існуючу нотатку
-        console.log('Updating existing note:', noteData);
-        await window.electronAPI.updateNote({
-          id: noteData.id,
-          title: noteData.title,
-          content: noteData.content,
-          tagId: noteData.tagId
-        });
+        console.log('Updating existing note:', noteToSave);
+        await window.electronAPI.updateNote(noteToSave);
         
         // Зберігаємо нові зображення
         if (noteData.images) {
@@ -232,14 +234,8 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, isEditing = true 
         }
       } else {
         // Створюємо нову нотатку
-        console.log('Creating new note:', noteData);
-        const newNoteId = await window.electronAPI.saveNote({
-          title: noteData.title,
-          content: noteData.content,
-          tagId: noteData.tagId,
-          sourceType: sourceType,
-          sourceId: sourceId
-        });
+        console.log('Creating new note:', noteToSave);
+        const newNoteId = await window.electronAPI.addNote(noteToSave);
         
         // Зберігаємо зображення для нової нотатки
         if (noteData.images) {
@@ -253,6 +249,15 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, isEditing = true 
       
       // Оновлюємо список нотаток
       await loadNotes();
+      
+      // Повідомляємо батьківський компонент про оновлення
+      if (onNoteUpdate) {
+        await onNoteUpdate();
+      }
+      
+      // Закриваємо модальне вікно
+      setIsModalOpen(false);
+      setSelectedNote(null);
     } catch (error) {
       console.error('Error saving note:', error);
     }

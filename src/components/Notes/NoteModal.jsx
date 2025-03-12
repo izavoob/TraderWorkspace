@@ -254,6 +254,50 @@ const SourceLink = styled.span`
   }
 `;
 
+const TagBadge = styled.span`
+  background: ${props => props.type === 'Mistake' ? '#f44336' : '#4caf50'};
+  color: white;
+  padding: 8px 12px;
+  border-radius: 4px;
+  font-size: 0.9em;
+  display: inline-block;
+  margin: 10px 0;
+`;
+
+const NotificationMessage = styled.div`
+  background: rgba(94, 44, 165, 0.95);
+  color: white;
+  padding: 15px 40px 15px 20px;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  margin: 20px 0;
+  animation: ${fadeIn} 0.3s ease;
+  line-height: 1.5;
+  position: relative;
+`;
+
+const CloseNotificationButton = styled.button`
+  position: absolute;
+  top: 50%;
+  right: 10px;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: white;
+  font-size: 20px;
+  cursor: pointer;
+  padding: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+
+  &:hover {
+    opacity: 1;
+  }
+`;
+
 const NoteModal = ({ 
   isOpen, 
   onClose, 
@@ -269,6 +313,7 @@ const NoteModal = ({
   const [tags, setTags] = useState([]);
   const [images, setImages] = useState([]);
   const [scrollOffset, setScrollOffset] = useState(0);
+  const [showNotification, setShowNotification] = useState(false);
 
   useEffect(() => {
     if (isOpen) {
@@ -284,13 +329,33 @@ const NoteModal = ({
       
       if (note) {
         console.log('Setting form with existing note data:', note);
-        setTitle(note.title);
-        setContent(note.content);
-        setSelectedTag({ value: note.tag_id, label: note.tag_name });
-        loadImages();
+        setTitle(note.title || '');
+        setContent(note.content || note.text || '');
+        
+        // Встановлюємо тег, якщо він є
+        if (note.tag_id && note.tag_name) {
+          setSelectedTag({
+            value: note.tag_id,
+            label: note.tag_name
+          });
+        } else {
+          setSelectedTag(null);
+        }
+        
+        // Встановлюємо зображення
+        if (note.images && Array.isArray(note.images)) {
+          console.log('Setting images from note:', note.images);
+          setImages(note.images);
+        } else {
+          setImages([]);
+        }
       } else {
         console.log('Creating new note, resetting form');
         resetForm();
+      }
+
+      if (isReviewMode) {
+        setTimeout(() => setShowNotification(true), 100);
       }
     }
     
@@ -317,16 +382,14 @@ const NoteModal = ({
     }
   };
 
-  const loadImages = async () => {
-    if (note?.id) {
-      try {
-        console.log('Loading images for note ID:', note.id);
-        const imagesData = await window.electronAPI.getNoteImages(note.id);
-        console.log('Loaded images:', imagesData);
-        setImages(imagesData || []);
-      } catch (error) {
-        console.error('Error loading images:', error);
-      }
+  const loadImages = async (noteId) => {
+    try {
+      console.log('Loading images for note ID:', noteId);
+      const imagesData = await window.electronAPI.getNoteImages(noteId);
+      console.log('Loaded images:', imagesData);
+      setImages(imagesData || []);
+    } catch (error) {
+      console.error('Error loading images:', error);
     }
   };
 
@@ -471,6 +534,14 @@ const NoteModal = ({
     }
   };
 
+  const handleSourceClick = (e, note) => {
+    e.preventDefault();
+    const link = getSourceLink(note);
+    if (link !== '#') {
+      window.location.hash = link;
+    }
+  };
+
   if (!isOpen) return null;
 
   return (
@@ -487,7 +558,11 @@ const NoteModal = ({
               readOnly={isReviewMode}
             />
             
-            {!isReviewMode && (
+            {isReviewMode ? (
+              selectedTag && (
+                <TagBadge type={selectedTag.label}>{selectedTag.label}</TagBadge>
+              )
+            ) : (
               <CreatableSelect
                 isClearable
                 options={tags}
@@ -534,6 +609,19 @@ const NoteModal = ({
               </AddImageButton>
             )}
 
+            {showNotification && isReviewMode && note && (
+              <NotificationMessage>
+                To edit this note, please go to the{' '}
+                <SourceLink onClick={(e) => handleSourceClick(e, note)}>
+                  {getSourceText(note)}
+                </SourceLink>
+                {' '}page
+                <CloseNotificationButton onClick={() => setShowNotification(false)}>
+                  ×
+                </CloseNotificationButton>
+              </NotificationMessage>
+            )}
+
             <ButtonGroup>
               <Button type="button" className="cancel" onClick={onClose}>
                 Close
@@ -552,16 +640,6 @@ const NoteModal = ({
           </FormContainer>
         </Modal>
       </ModalOverlay>
-
-      {isReviewMode && note && (
-        <NotificationBanner>
-          To edit this note, please go to the{' '}
-          <SourceLink onClick={() => window.location.href = getSourceLink(note)}>
-            {getSourceText(note)}
-          </SourceLink>
-          {' '}page.
-        </NotificationBanner>
-      )}
     </>
   );
 };

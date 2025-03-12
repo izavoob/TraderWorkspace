@@ -924,6 +924,7 @@ function TradeDetail() {
   });
   const [notification, setNotification] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
 
   useEffect(() => {
     const loadData = async () => {
@@ -1045,14 +1046,17 @@ function TradeDetail() {
   const handleSave = async () => {
     try {
       console.log('Початок збереження трейду');
-      console.log('volumeConfirmation перед збереженням:', trade.volumeConfirmation);
+      
+      // Спочатку отримуємо актуальні нотатки з бази даних
+      const currentNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
+      console.log('Отримані актуальні нотатки:', currentNotes);
       
       const updatedTrade = {
         ...trade,
+        notes: currentNotes || [],
         volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
       };
       
-      console.log('volumeConfirmation після підготовки:', updatedTrade.volumeConfirmation);
       console.log('Дані трейду перед збереженням:', updatedTrade);
 
       // Зберігаємо трейд
@@ -1060,17 +1064,24 @@ function TradeDetail() {
       console.log('Трейд успішно оновлено');
 
       // Оновлюємо нотатки з актуальними даними трейду
-      if (trade.notes && trade.notes.length > 0) {
-        for (const note of trade.notes) {
-          await window.electronAPI.updateNote({
+      if (currentNotes && currentNotes.length > 0) {
+        for (const note of currentNotes) {
+          const noteToUpdate = {
             ...note,
-            sourceType: 'trade',
-            sourceId: trade.id,
-            tradeNo: trade.no,
-            tradeDate: trade.date
-          });
+            source_type: note.source_type || 'trade',
+            source_id: note.source_id || trade.id,
+            trade_no: trade.no,
+            trade_date: trade.date,
+            title: note.title,
+            content: note.content || note.text, // Підтримка обох форматів
+            tag_id: note.tag_id // Ensure tag_id is included
+          };
+          await window.electronAPI.updateNote(noteToUpdate);
         }
       }
+      
+      // Оновлюємо локальний стан трейду з актуальними нотатками
+      setTrade(updatedTrade);
       
       setIsEditing(false);
       setHasUnsavedChanges(false);
@@ -1214,50 +1225,93 @@ function TradeDetail() {
     document.body.style.overflow = 'auto';
   };
 
-  const openNotePopup = (index = null) => {
-    if (index !== null) {
-      setNoteTitle(trade.notes[index].title);
-      setNoteText(trade.notes[index].text);
-      setEditNoteIndex(index);
+  const openNotePopup = async (note = null) => {
+    if (note) {
+      const noteImages = await window.electronAPI.getNoteImages(note.id);
+      setSelectedNote({
+        ...note,
+        images: noteImages
+      });
     } else {
-      setNoteTitle('');
-      setNoteText('');
-      setEditNoteIndex(null);
+      setSelectedNote(null);
     }
     setShowNotePopup(true);
-    document.body.style.overflow = 'hidden';
   };
 
   const saveNote = async () => {
     if (noteTitle && noteText) {
-      const note = { 
-        title: noteTitle, 
-        text: noteText,
-        tradeId: id
-      };
-
       try {
-        await window.electronAPI.saveNoteWithTrade(note);
+        let noteData;
         
-        setTrade((prev) => {
-          if (editNoteIndex !== null) {
-            const updatedNotes = [...prev.notes];
-            updatedNotes[editNoteIndex] = note;
-            return { ...prev, notes: updatedNotes };
-          } else {
-            return { ...prev, notes: [...prev.notes, note] };
-          }
-        });
+        if (editNoteIndex !== null) {
+          // Зберігаємо всі існуючі дані нотатки
+          const existingNote = trade.notes[editNoteIndex];
+          noteData = {
+            id: existingNote.id,
+            title: noteTitle,
+            content: noteText,
+            source_type: existingNote.source_type || 'trade',
+            source_id: existingNote.source_id || id,
+            trade_no: trade.no,
+            trade_date: trade.date,
+            tag_id: existingNote.tag_id || null,
+            tag_name: existingNote.tag_name || null,
+            images: existingNote.images || []
+          };
+        } else {
+          // Створюємо нову нотатку
+          noteData = {
+            title: noteTitle,
+            content: noteText,
+            source_type: 'trade',
+            source_id: id,
+            trade_no: trade.no,
+            trade_date: trade.date,
+            tag_id: null,
+            tag_name: null,
+            images: []
+          };
+        }
 
-        setShowNotePopup(false);
+        if (editNoteIndex !== null) {
+          await window.electronAPI.updateNote(noteData);
+          const updatedNotes = [...trade.notes];
+          updatedNotes[editNoteIndex] = {
+            ...updatedNotes[editNoteIndex],
+            title: noteTitle,
+            content: noteText,
+            source_type: noteData.source_type,
+            source_id: noteData.source_id,
+            tag_id: noteData.tag_id,
+            tag_name: noteData.tag_name,
+            images: noteData.images
+          };
+          setTrade(prev => ({ ...prev, notes: updatedNotes }));
+        } else {
+          const noteId = await window.electronAPI.addNote(noteData);
+          setTrade(prev => ({ 
+            ...prev, 
+            notes: [...prev.notes, { 
+              id: noteId,
+              title: noteTitle,
+              content: noteText,
+              source_type: 'trade',
+              source_id: id,
+              trade_no: trade.no,
+              trade_date: trade.date,
+              tag_id: null,
+              tag_name: null,
+              images: []
+            }] 
+          }));
+        }
+
         setNoteTitle('');
         setNoteText('');
         setEditNoteIndex(null);
-        document.body.style.overflow = 'auto';
-        
+        setShowNotePopup(false);
       } catch (error) {
         console.error('Error saving note:', error);
-        alert('Failed to save note');
       }
     }
   };
@@ -1277,6 +1331,16 @@ function TradeDetail() {
     setNoteText('');
     setEditNoteIndex(null);
     document.body.style.overflow = 'auto';
+  };
+
+  const handleNoteUpdate = async () => {
+    // Отримуємо актуальні нотатки з бази даних
+    const currentNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
+    // Оновлюємо стан трейду
+    setTrade(prev => ({
+      ...prev,
+      notes: currentNotes || []
+    }));
   };
 
   return (
@@ -1768,8 +1832,8 @@ function TradeDetail() {
                     <NotesList 
                       sourceType="trade" 
                       sourceId={trade.id} 
-                      onAddNote={(e) => openNotePopup(null, e)}
                       isEditing={isEditing}
+                      onNoteUpdate={handleNoteUpdate}
                     />
                   </NoteContainer>
                 </div>

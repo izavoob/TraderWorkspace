@@ -36,13 +36,15 @@ class NotesDB {
           title TEXT NOT NULL,
           content TEXT,
           tag_id INTEGER,
+          image_id INTEGER,
           source_type TEXT NOT NULL DEFAULT '',
           source_id TEXT NOT NULL DEFAULT '',
           trade_no INTEGER,
           trade_date TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (tag_id) REFERENCES note_tags(id)
+          FOREIGN KEY (tag_id) REFERENCES note_tags(id),
+          FOREIGN KEY (image_id) REFERENCES note_images(id)
         )
       `);
 
@@ -50,7 +52,7 @@ class NotesDB {
       this.db.run(`
         CREATE TABLE IF NOT EXISTS note_images (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
-          note_id INTEGER,
+          note_id INTEGER NOT NULL,
           image_path TEXT NOT NULL,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
@@ -166,26 +168,47 @@ class NotesDB {
   async getAllNotes() {
     return new Promise((resolve, reject) => {
       this.db.all(
-        `SELECT n.*, nt.name as tag_name,
-         CASE 
-           WHEN n.source_type = 'trade' THEN n.trade_no 
-           ELSE NULL 
-         END as tradeNo,
-         CASE 
-           WHEN n.source_type = 'trade' THEN n.trade_date 
-           WHEN n.source_type = 'presession' THEN n.created_at
-           ELSE NULL 
-         END as tradeDate
-         FROM notes n 
-         LEFT JOIN note_tags nt ON n.tag_id = nt.id 
-         ORDER BY n.created_at DESC`,
+        `SELECT 
+          n.*,
+          nt.name as tag_name,
+          GROUP_CONCAT(ni.id || '::' || ni.image_path) as images,
+          CASE 
+            WHEN n.source_type = 'trade' THEN n.trade_no 
+            ELSE NULL 
+          END as tradeNo,
+          CASE 
+            WHEN n.source_type = 'trade' THEN n.trade_date 
+            WHEN n.source_type = 'presession' THEN n.created_at
+            ELSE NULL 
+          END as tradeDate
+        FROM notes n 
+        LEFT JOIN note_tags nt ON n.tag_id = nt.id 
+        LEFT JOIN note_images ni ON n.id = ni.note_id
+        GROUP BY n.id
+        ORDER BY n.created_at DESC`,
         [],
         (err, rows) => {
           if (err) {
             console.error('Error getting all notes:', err);
             reject(err);
           } else {
-            resolve(rows);
+            const notes = rows.map(row => {
+              // Перетворюємо рядок з зображеннями в масив об'єктів
+              const images = row.images ? row.images.split(',').map(img => {
+                const [id, path] = img.split('::');
+                return {
+                  id: parseInt(id),
+                  image_path: path
+                };
+              }) : [];
+              
+              return {
+                ...row,
+                images
+              };
+            });
+            
+            resolve(notes);
           }
         }
       );
@@ -473,6 +496,91 @@ class NotesDB {
           );
         }
       );
+    });
+  }
+
+  async getNote(id) {
+    return new Promise((resolve, reject) => {
+      this.db.get(`
+        SELECT 
+          n.*,
+          nt.name as tag_name,
+          nt.id as tag_id,
+          GROUP_CONCAT(ni.id || '::' || ni.image_path) as images
+        FROM notes n
+        LEFT JOIN note_tags nt ON n.tag_id = nt.id
+        LEFT JOIN note_images ni ON n.id = ni.note_id
+        WHERE n.id = ?
+        GROUP BY n.id, n.title, n.content, n.tag_id, n.source_type, n.source_id, n.trade_no, n.trade_date, n.created_at, n.updated_at, nt.name, nt.id
+      `, [id], (err, row) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        if (row) {
+          // Перетворюємо рядок з зображеннями в масив об'єктів
+          const images = row.images ? row.images.split(',').map(img => {
+            const [id, path] = img.split('::');
+            return {
+              id: parseInt(id),
+              image_path: path
+            };
+          }) : [];
+          
+          resolve({
+            ...row,
+            images,
+            tag_id: row.tag_id || null,
+            tag_name: row.tag_name || null
+          });
+        } else {
+          resolve(null);
+        }
+      });
+    });
+  }
+
+  async getNotes(sourceType, sourceId) {
+    return new Promise((resolve, reject) => {
+      this.db.all(`
+        SELECT 
+          n.*,
+          nt.name as tag_name,
+          nt.id as tag_id,
+          GROUP_CONCAT(ni.id || '::' || ni.image_path) as images
+        FROM notes n
+        LEFT JOIN note_tags nt ON n.tag_id = nt.id
+        LEFT JOIN note_images ni ON n.id = ni.note_id
+        WHERE n.source_type = ? AND n.source_id = ?
+        GROUP BY n.id, n.title, n.content, n.tag_id, n.source_type, n.source_id, n.trade_no, n.trade_date, n.created_at, n.updated_at, nt.name, nt.id
+        ORDER BY n.created_at DESC
+      `, [sourceType, sourceId], (err, rows) => {
+        if (err) {
+          reject(err);
+          return;
+        }
+        
+        const notes = rows.map(row => {
+          // Перетворюємо рядок з зображеннями в масив об'єктів
+          const images = row.images ? row.images.split(',').map(img => {
+            const [id, path] = img.split('::');
+            return {
+              id: parseInt(id),
+              image_path: path
+            };
+          }) : [];
+          
+          return {
+            ...row,
+            images,
+            tag_id: row.tag_id || null,
+            tag_name: row.tag_name || null
+          };
+        });
+        
+        resolve(notes);
+      });
     });
   }
 }
