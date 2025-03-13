@@ -1,11 +1,22 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
-import styled, { createGlobalStyle, keyframes } from 'styled-components';
+import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+
+const gradientAnimation = keyframes`
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+`;
+
+const shineEffect = keyframes`
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+`;
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -32,12 +43,6 @@ const GlobalStyle = createGlobalStyle`
   }
 `;
 
-const gradientAnimation = keyframes`
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-  `;
-
 const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
     background-color: #2e2e2e;
@@ -61,8 +66,8 @@ const DatePickerStyles = createGlobalStyle`
   }
 
   .react-datepicker__day--selected,
-  .react-datepicker__day--in-range {
-    background: linear-gradient(45deg, #7425C9, #B886EE);
+  .react-datepicker__day--keyboard-selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE);
     color: #fff;
   }
 
@@ -72,6 +77,28 @@ const DatePickerStyles = createGlobalStyle`
 
   .react-datepicker__navigation-icon::before {
     border-color: #B886EE;
+  }
+
+  .react-datepicker__time-container {
+    background-color: #2e2e2e;
+    border-left: 1px solid #5e2ca5;
+  }
+
+  .react-datepicker__time-box {
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item {
+    color: #fff;
+    background-color: #2e2e2e;
+  }
+
+  .react-datepicker__time-list-item:hover {
+    background: linear-gradient(45deg, #7425C9, #B886EE);
+  }
+
+  .react-datepicker__time-list-item--selected {
+    background: conic-gradient(from 45deg, #7425C9, #B886EE) !important;
   }
 `;
 
@@ -84,6 +111,7 @@ const DailyRoutineContainer = styled.div`
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+  bottom: 25px;
 `;
 
 const Header = styled.header`
@@ -155,6 +183,7 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
+
 const Subtitle = styled.h2`
   margin: 5px auto 0;
   font-size: 1.2em;
@@ -165,18 +194,17 @@ const Subtitle = styled.h2`
 `;
 
 const JournalContent = styled.div`
-  padding-top: 20px;
-  position: relative;
-  min-height: calc(100vh - 168px);
+  padding: 20px;
   width: 100%;
-  overflow-y: visible;
+  height: calc(100vh - 148px);
+  display: flex;
+  flex-direction: column;
 `;
 
 const JournalHeader = styled.div`
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 20px;
   z-index: 999;
   min-height: 50px;
   flex-direction: row;
@@ -187,30 +215,48 @@ const ButtonGroup = styled.div`
   display: flex;
   gap: 10px;
   align-items: center;
-  position: relative;
-`;
-
-const DropdownContainer = styled.div`
-  position: relative;
-  display: inline-block;
 `;
 
 const ActionButton = styled.button`
-  background: ${props => props.primary ? 'conic-gradient(from 45deg, #7425C9, #B886EE)' : '#5C9DF5'};
+  background-color: #5e2ca5;
   color: #fff;
   border: none;
-  padding: 10px 20px;
-  border-radius: 15px;
+  padding: 12px 20px;
+  border-radius: 8px;
   cursor: pointer;
-  font-size: 16px;
-  height: 40px;
-  width: ${props => props.primary ? '240px' : 'auto'};
-  transition: transform 0.2s ease, opacity 0.2s ease;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  text-decoration: none;
+  font-size: 1.1em;
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  transition: all 0.3s ease;
+  position: relative;
+  isolation: isolate;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    background-size: 200% 100%;
+    border-radius: 8px;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+  }
 
   &:hover {
+    background-color: #4a1a8d;
     transform: scale(1.05);
-    opacity: 0.9;
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
   }
 
   &:active {
@@ -218,50 +264,203 @@ const ActionButton = styled.button`
   }
 `;
 
+const TableContainer = styled.div`
+  flex: 1;
+  overflow: auto;
+  margin-top: 20px;
+  position: relative;
+  
+  thead {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #2e2e2e;
+  }
+
+  tbody {
+    overflow-y: auto;
+  }
+  
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 3px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #5e2ca5;
+  }
+`;
+
+const Table = styled.table`
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  background-color: #2e2e2e;
+  border: 2px solid #5e2ca5;
+`;
+
+const Th = styled.th`
+  padding: 12px;
+  text-align: center;
+  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  color: #fff;
+  font-weight: bold;
+  border: 1px solid #5e2ca5;
+  white-space: nowrap;
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+
+  &:after {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background: #5e2ca5;
+  }
+`;
+
+const Td = styled.td`
+  padding: 10px;
+  border: 1px solid #5e2ca5;
+  background: #2e2e2e;
+  position: relative;
+  text-align: center;
+  color: #fff;
+`;
+
+const TableRow = styled.tr`
+  position: relative;
+  &:nth-child(even) {
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
+  }
+  &:nth-child(odd) {
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
+  }
+
+  ${props => props.selected && css`
+    && {
+      background-color: rgba(116, 37, 201, 0.3) !important;
+    }
+  `}
+
+  ${props => props.isSubsession && css`
+    & > td {
+      background-color: rgba(92, 157, 245, 0.05) !important;
+      border-left: 2px solid #5C9DF5;
+      padding-left: 20px !important;
+    }
+
+    & > td:first-child::before {
+      content: '\u21b3';
+      position: absolute;
+      left: 5px;
+      color: #5C9DF5;
+    }
+  `}
+
+  &:hover {
+    background: rgba(116, 37, 201, 0.3);
+  }
+`;
+
+const ButtonsContainer = styled.div`
+  display: flex;
+  gap: 8px;
+  justify-content: flex-start;
+  align-items: center;
+  padding: 0 10px;
+  white-space: nowrap;
+  width: auto;
+`;
+
+const IconButton = styled.button`
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+  &:hover {
+    opacity: 0.8;
+  }
+
+  img {
+    width: 20px;
+    height: 20px;
+  }
+`;
+
 const EditableSelect = styled.select`
   width: 100%;
-  padding: 6px;
-  margin: 0;
-  background: ${props => {
-    switch (props.value) {
-      case 'Bullish':
-        return '#1a472a';
-      case 'Bearish':
-        return '#5c1919';
-      case 'Good':
-        return '#1a472a';
-      case 'Bad':
-        return '#5c1919';
-      case 'Acceptable':
-        return '#714a14';
-      default:
-        return '#3e3e3e';
-    }
-  }};
-  color: ${props => {
-    switch (props.value) {
-      case 'Bullish':
-        return '#4ade80';
-      case 'Bearish':
-        return '#f87171';
-      case 'Good':
-        return '#4ade80';
-      case 'Bad':
-        return '#f87171';
-      case 'Acceptable':
-        return '#fbbf24';
-      default:
-        return '#fff';
-    }
-  }};
+  padding: 8px;
   border: 1px solid #5e2ca5;
+  background: #3e3e3e;
+  color: #fff;
   border-radius: 4px;
-  cursor: pointer;
 
   &:focus {
     outline: none;
     border-color: #B886EE;
   }
+`;
+
+const FilterDropdown = styled.div`
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 200px;
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  border-radius: 10px;
+  padding: 15px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+`;
+
+const SortDropdown = styled(FilterDropdown)`
+  width: 200px;
+`;
+
+const RangeDropdown = styled(FilterDropdown)`
+  width: 300px;
+`;
+
+const FilterGroup = styled.div`
+  margin-bottom: 15px;
+`;
+
+const SortGroup = styled(FilterGroup)`
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+`;
+
+const FilterLabel = styled.label`
+  display: block;
+  margin-bottom: 5px;
+  color: #fff;
+  font-size: 14px;
+`;
+
+const FilterSelect = styled.select`
+  width: 100%;
+  padding: 8px;
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 14px;
 
   option {
     background: #3e3e3e;
@@ -270,64 +469,48 @@ const EditableSelect = styled.select`
   }
 `;
 
-const Table = styled.table`
-  width: 100%;
-  border-collapse: collapse;
-  background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
-`;
-
-const TableHeader = styled.th`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  border: 1px solid #5e2ca5;
-  padding: 12px;
-  text-align: left;
-  color: #fff;
-  font-weight: bold;
-`;
-
-const TableCell = styled.td`
-  border: 1px solid #5e2ca5;
-  padding: 10px;
-  text-align: left;
-  color: #fff;
-  background-color: #2e2e2e;
-  position: relative;
-`;
-
-const TableRow = styled.tr`
-  &:nth-child(even) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
-  }
-  &:nth-child(odd) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
-  }
-`;
-
-const ButtonsContainer = styled.div`
+const FilterButtonGroup = styled.div`
   display: flex;
-  gap: 5px;
-  justify-content: center;
-  align-items: center;
-  width: 100%;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 15px;
 `;
 
-const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+const FilterButton = styled.button`
+  background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
+  color: #fff;
   border: none;
+  padding: 6px 12px;
+  border-radius: 8px;
   cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
+  font-size: 14px;
+`;
+
+const StyledDatePicker = styled(DatePicker)`
+  padding: 12px;
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  color: #fff;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+  cursor: pointer;
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
+  }
+`;
+
+const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
-  justify-content: center;
-
-  img {
-    width: 14px;
-    height: 14px;
-    filter: brightness(0) invert(1);
-  }
+  gap: 12px;
+  margin-top: 16px;
+  color: #fff;
+  height: 40px;
 `;
 
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
@@ -361,15 +544,6 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   }
 `;
 
-const SelectAllContainer = styled.div`
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-bottom: 16px;
-  color: #fff;
-  height: 40px;
-`;
-
 const DeleteSelectedButton = styled(ActionButton)`
   background: #ff4757;
   opacity: ${props => props.disabled ? 0.5 : 1};
@@ -400,120 +574,24 @@ const PopupButton = styled.button`
   margin: 0 10px;
 `;
 
-const StyledDatePicker = styled(DatePicker)`
-  width: 100%;
-  padding: 6px;
-  background: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 4px;
-  cursor: pointer;
-
-  &:focus {
-    outline: none;
-    border-color: #B886EE;
-  }
-`;
-
-const RangeDropdown = styled.div`
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  background: #2e2e2e;
-  border: 1px solid #5e2ca5;
-  border-radius: 8px;
-  padding: 15px;
-  z-index: 1000;
-  width: 300px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-`;
-
-const FilterButtonGroup = styled.div`
+const ActionButtonsContainer = styled.div`
   display: flex;
-  justify-content: space-between;
+  gap: 5px;
+  justify-content: center;
   align-items: center;
-  margin-top: 10px;
-`;
-
-const FilterButton = styled.button`
-  background: ${props => props.clear ? '#ff4757' : '#5C9DF5'};
-  color: #fff;
-  border: none;
-  padding: 8px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-`;
-
-const FilterDropdown = styled.div`
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  background: #2e2e2e;
-  border: 1px solid #5e2ca5;
-  border-radius: 8px;
-  padding: 15px;
-  z-index: 1000;
-  width: 250px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-`;
-
-const FilterGroup = styled.div`
-  margin-bottom: 10px;
-`;
-
-const FilterLabel = styled.label`
-  display: block;
-  margin-bottom: 5px;
-  color: #fff;
-`;
-
-const SortDropdown = styled.div`
-  position: absolute;
-  top: calc(100% + 5px);
-  right: 0;
-  background: #2e2e2e;
-  border: 1px solid #5e2ca5;
-  border-radius: 8px;
-  padding: 15px;
-  z-index: 1000;
-  width: 200px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
-`;
-
-const SortGroup = styled.div`
-  margin-bottom: 10px;
-`;
-
-const FilterSelect = styled.select`
   width: 100%;
-  padding: 6px;
-  margin: 0;
-  background: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 4px;
-  cursor: pointer;
+`;
 
-  &:focus {
-    outline: none;
-    border-color: #B886EE;
-  }
-
-  option {
-    background: #3e3e3e;
-    color: #fff;
-    padding: 8px;
-  }
+const AddSubsessionButton = styled(ActionButton)`
+  background: #5C9DF5;
+  opacity: ${props => props.disabled ? 0.5 : 1};
+  pointer-events: ${props => props.disabled ? 'none' : 'auto'};
 `;
 
 function PostSessionJournal() {
   const navigate = useNavigate();
   const location = useLocation();
   const [data, setData] = useState([]);
-  const [selectedEntries, setSelectedEntries] = useState([]);
-  const [deletePopup, setDeletePopup] = useState(null);
-  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
@@ -525,243 +603,264 @@ function PostSessionJournal() {
     realization: '',
     routineExecution: ''
   });
+  const [deletePopup, setDeletePopup] = useState(null);
   const [sortConfig, setSortConfig] = useState({
     field: 'date',
     order: 'desc'
   });
-
+  const [selectedEntries, setSelectedEntries] = useState([]);
+  const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
+  const [pairOptions, setPairOptions] = useState([]);
+  
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
   const rangeButtonRef = useRef(null);
   const sortButtonRef = useRef(null);
 
   useEffect(() => {
-    loadData();
+      loadData();
+      loadPairOptions(); // Добавляем загрузку пар
   }, [location]);
 
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (filterButtonRef.current && 
-          !filterButtonRef.current.contains(event.target) && 
-          !event.target.closest('.filter-dropdown')) {
-        setShowFilterDropdown(false);
-      }
-      if (rangeButtonRef.current && 
-          !rangeButtonRef.current.contains(event.target) && 
-          !event.target.closest('.range-dropdown')) {
-        setShowRangeDropdown(false);
-      }
-      if (sortButtonRef.current && 
-          !sortButtonRef.current.contains(event.target) && 
-          !event.target.closest('.sort-dropdown')) {
-        setShowSortDropdown(false);
-      }
-    };
+  const loadPairOptions = async () => {
+    try {
+      const pairs = await window.electronAPI.getAllExecutionItems('pairs');
+      setPairOptions(pairs);
+    } catch (error) {
+      console.error('Error loading pair options:', error);
+    }
+  };
 
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
+  useEffect(() => {
+      const handleClickOutside = (event) => {
+          if (filterButtonRef.current && 
+              !filterButtonRef.current.contains(event.target) && 
+              !event.target.closest('.filter-dropdown')) {
+              setShowFilterDropdown(false);
+          }
+          if (rangeButtonRef.current && 
+              !rangeButtonRef.current.contains(event.target) && 
+              !event.target.closest('.range-dropdown')) {
+              setShowRangeDropdown(false);
+          }
+          if (sortButtonRef.current && 
+              !sortButtonRef.current.contains(event.target) && 
+              !event.target.closest('.sort-dropdown')) {
+              setShowSortDropdown(false);
+          }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const loadData = async () => {
-    setIsLoading(true);
-    try {
-      const currentDate = new Date().toISOString().split('T')[0];
-      const routine = await window.electronAPI.getDailyRoutine(currentDate);
-      
-      if (routine && routine.postSession) {
-        const processedData = Array.isArray(routine.postSession) 
-          ? routine.postSession.map(entry => ({
-              ...entry,
-              id: String(entry.id || Date.now())
-            }))
-          : [];
-        
-        setData(processedData);
-      } else {
-        setData([]);
+      setIsLoading(true);
+      try {
+          const currentDate = new Date().toISOString().split('T')[0];
+          const routine = await window.electronAPI.getDailyRoutine(currentDate);
+          
+          if (routine && routine.postSession) {
+              const processedData = Array.isArray(routine.postSession) 
+              ? routine.postSession.map(entry => ({
+                  ...entry,
+                  id: String(entry.id || Date.now())
+              }))
+              : [];
+              
+              setData(processedData);
+          } else {
+              setData([]);
+          }
+      } catch (error) {
+          console.error('Error in loadData:', error);
+          setData([]);
+      } finally {
+          setIsLoading(false);
       }
-    } catch (error) {
-      console.error('Error in loadData:', error);
-      setData([]);
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleAdd = () => {
-    const newRecord = {
-      id: String(Date.now()),
-      date: new Date().toISOString().split('T')[0],
-      weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
-      pair: '',
-      dayNarrative: '',
-      realization: '',
-      routineExecution: '',
-      planOutcome: false
-    };
+      const newRecord = {
+          id: String(Date.now()),
+          date: new Date().toISOString().split('T')[0],
+          weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+          pair: '',
+          dayNarrative: '',
+          realization: '',
+          routineExecution: '',
+          planOutcome: false
+      };
 
-    setData(prevData => [newRecord, ...prevData]);
-    
-    window.electronAPI.saveDailyRoutine({
-      date: new Date().toISOString().split('T')[0],
-      postSession: [...data, newRecord]
-    });
-  };
-
-  const handleDelete = async (id) => {
-    try {
-      const updatedData = data.filter(entry => entry.id !== id);
-      setData(updatedData);
+      setData(prevData => [newRecord, ...prevData]);
       
-      await window.electronAPI.saveDailyRoutine({
-        date: new Date().toISOString().split('T')[0],
-        postSession: updatedData
+      window.electronAPI.saveDailyRoutine({
+          date: new Date().toISOString().split('T')[0],
+          postSession: [...data, newRecord]
       });
-
-      setDeletePopup(null);
-    } catch (error) {
-      console.error('Error deleting entry:', error);
-    }
   };
+
+  const handleDelete = (id) => {
+    setDeletePopup(id);
+};
+
+const confirmDelete = async (id) => {
+    try {
+        const updatedData = data.filter(entry => entry.id !== id);
+        setData(updatedData);
+        
+        await window.electronAPI.saveDailyRoutine({
+            date: new Date().toISOString().split('T')[0],
+            postSession: updatedData
+        });
+
+        setDeletePopup(null);
+    } catch (error) {
+        console.error('Error deleting entry:', error);
+    }
+};
 
   const handleSelectEntry = (entryId) => {
-    setSelectedEntries(prev => {
-      if (prev.includes(entryId)) {
-        return prev.filter(id => id !== entryId);
-      } else {
-        return [...prev, entryId];
-      }
-    });
+      setSelectedEntries(prev => {
+          if (prev.includes(entryId)) {
+              return prev.filter(id => id !== entryId);
+          } else {
+              return [...prev, entryId];
+          }
+      });
   };
 
   const handleSelectAll = (e) => {
-    if (e.target.checked) {
-      setSelectedEntries(data.map(entry => entry.id));
-    } else {
-      setSelectedEntries([]);
-    }
+      if (e.target.checked) {
+          setSelectedEntries(data.map(entry => entry.id));
+      } else {
+          setSelectedEntries([]);
+      }
   };
 
   const handleDeleteSelected = async () => {
-    try {
-      const updatedData = data.filter(entry => !selectedEntries.includes(entry.id));
-      await window.electronAPI.saveDailyRoutine({
-        date: new Date().toISOString().split('T')[0],
-        postSession: updatedData
-      });
+      try {
+          const updatedData = data.filter(entry => !selectedEntries.includes(entry.id));
+          await window.electronAPI.saveDailyRoutine({
+              date: new Date().toISOString().split('T')[0],
+              postSession: updatedData
+          });
 
-      setData(updatedData);
-      setSelectedEntries([]);
-      setShowDeleteConfirmation(false);
-    } catch (error) {
-      console.error('Error deleting entries:', error);
-    }
+          setData(updatedData);
+          setSelectedEntries([]);
+          setShowDeleteConfirmation(false);
+      } catch (error) {
+          console.error('Error deleting entries:', error);
+      }
   };
 
   const handleBack = () => {
-    navigate('/daily-routine');
+      navigate('/daily-routine');
   };
 
   const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilterCriteria(prev => ({
-      ...prev,
-      [name]: value
-    }));
+      const { name, value } = e.target;
+      setFilterCriteria(prev => ({
+          ...prev,
+          [name]: value
+      }));
   };
 
   const handleFilterClear = () => {
-    setFilterCriteria({
-      pair: '',
-      dayNarrative: '',
-      realization: '',
-      routineExecution: ''
-    });
-    setDateRange([null, null]);
+      setFilterCriteria({
+          pair: '',
+          dayNarrative: '',
+          realization: '',
+          routineExecution: ''
+      });
+      setDateRange([null, null]);
   };
 
   const handleFilterApply = () => {
-    setShowFilterDropdown(false);
+      setShowFilterDropdown(false);
   };
 
   const handleRangeApply = () => {
-    setShowRangeDropdown(false);
+      setShowRangeDropdown(false);
   };
 
   const handleSortChange = (e) => {
-    const [field, order] = e.target.value.split('-');
-    setSortConfig({ field, order });
-    setShowSortDropdown(false);
+      const [field, order] = e.target.value.split('-');
+      setSortConfig({ field, order });
+      setShowSortDropdown(false);
   };
 
   const handleEdit = (id) => {
-    const entryToEdit = data.find(entry => String(entry.id) === String(id));
-    if (entryToEdit) {
-      navigate(`/daily-routine/post-session/${id}`, { 
-        state: { 
-          sessionData: entryToEdit,
-          timestamp: Date.now()
-        } 
-      });
-    }
+      const entryToEdit = data.find(entry => String(entry.id) === String(id));
+      if (entryToEdit) {
+          navigate(`/daily-routine/post-session/${id}`, { 
+              state: { 
+                  sessionData: entryToEdit,
+                  timestamp: Date.now()
+              } 
+          });
+      }
   };
 
   const filteredEntries = React.useMemo(() => {
-    return data.filter((entry) => {
-      if (!entry) return false;
-      
-      const entryDate = entry.date ? new Date(entry.date) : null;
-      
-      const inDateRange = startDate && endDate && entryDate ? 
-        (entryDate >= startDate && entryDate <= endDate) : true;
+      return data.filter((entry) => {
+          if (!entry) return false;
+          
+          const entryDate = entry.date ? new Date(entry.date) : null;
+          
+          const inDateRange = startDate && endDate && entryDate ? 
+              (entryDate >= startDate && entryDate <= endDate) : true;
 
-      const matchesPair = !filterCriteria.pair || entry.pair === filterCriteria.pair;
-      const matchesDayNarrative = !filterCriteria.dayNarrative || entry.dayNarrative === filterCriteria.dayNarrative;
-      const matchesRealization = !filterCriteria.realization || entry.realization === filterCriteria.realization;
+          const matchesPair = !filterCriteria.pair || entry.pair === filterCriteria.pair;
+          const matchesDayNarrative = !filterCriteria.dayNarrative || entry.dayNarrative === filterCriteria.dayNarrative;
+          const matchesRealization = !filterCriteria.realization || entry.realization === filterCriteria.realization;
 
-      return inDateRange && matchesPair && matchesDayNarrative && matchesRealization;
-    });
+          return inDateRange && matchesPair && matchesDayNarrative && matchesRealization;
+      });
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = React.useMemo(() => {
-    const sorted = [...filteredEntries].sort((a, b) => {
-      if (sortConfig.field === 'date') {
-        const dateA = new Date(a.date);
-        const dateB = new Date(b.date);
-        return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
-      }
-      return 0;
-    });
-    return sorted;
+      const sorted = [...filteredEntries].sort((a, b) => {
+          if (sortConfig.field === 'date') {
+              const dateA = new Date(a.date);
+              const dateB = new Date(b.date);
+              return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
+          }
+          return 0;
+      });
+      return sorted;
   }, [filteredEntries, sortConfig]);
 
   const columns = React.useMemo(
-    () => [
+      () => [
       { 
-        Header: 'Action', 
-        accessor: 'action',
-        width: 20,
-        Cell: ({ row }) => (
+          Header: 'Action', 
+          accessor: 'action',
+          width: 20,
+          Cell: ({ row }) => (
           <ButtonsContainer>
-            <Checkbox
+              <Checkbox
               checked={selectedEntries.includes(row.original.id)}
               onChange={() => handleSelectEntry(row.original.id)}
               onClick={(e) => e.stopPropagation()}
-            />
-            <IconButton 
-              onClick={() => handleEdit(row.original.id)}
+              />
+              <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
+                <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+            </ActionButton>
+            <ActionButton 
+                onClick={() => handleDelete(row.original.id)} 
+                style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
             >
-              <img src={EditIcon} alt="Edit" />
-            </IconButton>
-            <IconButton 
-              onClick={() => setDeletePopup(row.original.id)}
-            >
-              <img src={DeleteIcon} alt="Delete" />
-            </IconButton>
+                <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+            </ActionButton>
           </ButtonsContainer>
-        )
+          )
       },
-      { Header: 'Pair', accessor: 'pair', width: 120,
+      { 
+        Header: 'Pair', 
+        accessor: 'pair',
+        width: 120,
         Cell: ({ row, value }) => (
           <EditableSelect
             value={value || ''}
@@ -780,176 +879,176 @@ function PostSessionJournal() {
             }}
           >
             <option value="">Select</option>
-            <option value="EUR/USD">EUR/USD</option>
-            <option value="GBP/USD">GBP/USD</option>
-            <option value="USD/JPY">USD/JPY</option>
+            {pairOptions.map(pair => (
+              <option key={pair.id} value={pair.name}>{pair.name}</option>
+            ))}
           </EditableSelect>
         ),
       },
       { Header: 'Date', accessor: 'date', width: 120 },
       { Header: 'WeekDay', accessor: 'weekDay', width: 120 },
       {
-        Header: 'Day Narrative',
-        accessor: 'dayNarrative',
-        width: 120,
-        Cell: ({ row, value }) => (
+          Header: 'Day Narrative',
+          accessor: 'dayNarrative',
+          width: 120,
+          Cell: ({ row, value }) => (
           <EditableSelect
-            value={value || ''}
-            onChange={(e) => {
+              value={value || ''}
+              onChange={(e) => {
               const updatedData = data.map(item => {
-                if (item.id === row.original.id) {
+                  if (item.id === row.original.id) {
                   return { ...item, dayNarrative: e.target.value };
-                }
-                return item;
+                  }
+                  return item;
               });
               setData(updatedData);
               window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                postSession: updatedData,
+                  date: new Date().toISOString().split('T')[0],
+                  postSession: updatedData,
               });
-            }}
+              }}
           >
-            <option value="">Select</option>
-            <option value="Bullish">Bullish</option>
-            <option value="Bearish">Bearish</option>
-            <option value="Neutral">Neutral</option>
-            <option value="Day off">Day off</option>
+              <option value="">Select</option>
+              <option value="Bullish">Bullish</option>
+              <option value="Bearish">Bearish</option>
+              <option value="Neutral">Neutral</option>
+              <option value="Day off">Day off</option>
           </EditableSelect>
-        ),
+          ),
       },
       {
-        Header: 'Realization',
-        accessor: 'realization',
-        width: 120,
-        Cell: ({ row, value }) => (
+          Header: 'Realization',
+          accessor: 'realization',
+          width: 120,
+          Cell: ({ row, value }) => (
           <EditableSelect
-            value={value || ''}
-            onChange={(e) => {
+              value={value || ''}
+              onChange={(e) => {
               const updatedData = data.map(item => {
-                if (item.id === row.original.id) {
+                  if (item.id === row.original.id) {
                   return { ...item, realization: e.target.value };
-                }
-                return item;
+                  }
+                  return item;
               });
               setData(updatedData);
               window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                postSession: updatedData,
+                  date: new Date().toISOString().split('T')[0],
+                  postSession: updatedData,
               });
-            }}
+              }}
           >
-            <option value="">Not Provided</option>
-            <option value="Good">Good</option>
-            <option value="Bad">Bad</option>
-            <option value="Acceptable">Acceptable</option>
+              <option value="">Not Provided</option>
+              <option value="Good">Good</option>
+              <option value="Bad">Bad</option>
+              <option value="Acceptable">Acceptable</option>
           </EditableSelect>
-        ),
+          ),
       },
       {
-        Header: 'Routine Execution',
-        accessor: 'routineExecution',
-        width: 120,
-        Cell: ({ row }) => (
+          Header: 'Routine Execution',
+          accessor: 'routineExecution',
+          width: 120,
+          Cell: ({ row }) => (
           <Checkbox
-            type="checkbox"
-            checked={row.original.routineExecution || false}
-            disabled={false}
-            onChange={(e) => {
+              type="checkbox"
+              checked={row.original.routineExecution || false}
+              disabled={false}
+              onChange={(e) => {
               const updatedData = data.map(item => {
-                if (item.id === row.original.id) {
+                  if (item.id === row.original.id) {
                   return { 
-                    ...item, 
-                    routineExecution: e.target.checked
+                      ...item, 
+                      routineExecution: e.target.checked
                   };
-                }
-                return item;
+                  }
+                  return item;
               });
               
               setData(updatedData);
               window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                postSession: updatedData,
+                  date: new Date().toISOString().split('T')[0],
+                  postSession: updatedData,
               });
-            }}
+              }}
           />
-        ),
+          ),
       },
       {
-        Header: 'Plan&Outcome',
-        accessor: 'planOutcome',
-        width: 120,
-        Cell: ({ row }) => {
+          Header: 'Plan&Outcome',
+          accessor: 'planOutcome',
+          width: 120,
+          Cell: ({ row }) => {
           return (
-            <Checkbox
+              <Checkbox
               type="checkbox"
               checked={row.original.planOutcome || false}
               disabled={false}
               onChange={(e) => {
-                const updatedData = data.map(item => {
+                  const updatedData = data.map(item => {
                   if (item.id === row.original.id) {
-                    return { 
+                      return { 
                       ...item, 
                       planOutcome: e.target.checked
-                    };
+                      };
                   }
                   return item;
-                });
-                
-                setData(updatedData);
-                window.electronAPI.saveDailyRoutine({
+                  });
+                  
+                  setData(updatedData);
+                  window.electronAPI.saveDailyRoutine({
                   date: new Date().toISOString().split('T')[0],
                   postSession: updatedData,
-                });
+                  });
               }}
-            />
+              />
           );
-        },
+          },
       },
-    ],
-    [data, selectedEntries]
+      ],
+      [data, selectedEntries, pairOptions]
   );
 
   const {
-    getTableProps,
-    getTableBodyProps,
-    headerGroups,
-    rows,
-    prepareRow,
+      getTableProps,
+      getTableBodyProps,
+      headerGroups,
+      rows,
+      prepareRow,
   } = useTable({ 
-    columns, 
-    data: sortedAndFilteredEntries,
-    initialState: {
-      sortBy: [{ id: 'date', desc: true }]
-    }
+      columns, 
+      data: sortedAndFilteredEntries,
+      initialState: {
+          sortBy: [{ id: 'date', desc: true }]
+      }
   });
 
   return (
-    <>
+      <>
       <GlobalStyle />
       <DatePickerStyles />
       <DailyRoutineContainer>
-        <Header>
+          <Header>
           <BackButton onClick={handleBack} />
           <Title>Post-Session Analysis Journal</Title>
-        </Header>
-        <JournalContent>
+          </Header>
+          <JournalContent>
           <JournalHeader>
-            <ButtonGroup>
+              <ButtonGroup>
               <ActionButton primary onClick={handleAdd}>
-                Add new Post-Session
+                  Add new Post-Session
               </ActionButton>
-            </ButtonGroup>
-            <ButtonGroup>
-              <DropdownContainer>
-                <ActionButton 
+              </ButtonGroup>
+              <ButtonGroup>
+              <div style={{ position: 'relative' }}>
+                  <ActionButton 
                   ref={rangeButtonRef}
                   onClick={() => setShowRangeDropdown(!showRangeDropdown)}
-                >
+                  >
                   Range
-                </ActionButton>
-                {showRangeDropdown && (
+                  </ActionButton>
+                  {showRangeDropdown && (
                   <RangeDropdown className="range-dropdown">
-                    <StyledDatePicker
+                      <StyledDatePicker
                       selectsRange={true}
                       startDate={startDate}
                       endDate={endDate}
@@ -957,174 +1056,188 @@ function PostSessionJournal() {
                       isClearable={true}
                       placeholderText="Select date range"
                       dateFormat="yyyy-MM-dd"
-                    />
-                    <FilterButtonGroup>
+                      />
+                      <FilterButtonGroup>
                       <FilterButton clear onClick={() => setDateRange([null, null])}>
-                        Clear
+                          Clear
                       </FilterButton>
                       <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
-                    </FilterButtonGroup>
+                      </FilterButtonGroup>
                   </RangeDropdown>
-                )}
-              </DropdownContainer>
+                  )}
+              </div>
               
-              <DropdownContainer>
-                <ActionButton 
+              <div style={{ position: 'relative' }}>
+                  <ActionButton 
                   ref={filterButtonRef}
                   onClick={() => setShowFilterDropdown(!showFilterDropdown)}
-                >
+                  >
                   Filter
-                </ActionButton>
-                {showFilterDropdown && (
+                  </ActionButton>
+                  {showFilterDropdown && (
                   <FilterDropdown className="filter-dropdown">
-                    <FilterGroup>
+                      <FilterGroup>
                       <FilterLabel>Pair</FilterLabel>
                       <FilterSelect
-                        name="pair"
-                        value={filterCriteria.pair}
-                        onChange={handleFilterChange}
+                          name="pair"
+                          value={filterCriteria.pair}
+                          onChange={handleFilterChange}
                       >
-                        <option value="">All Pairs</option>
-                        <option value="EUR/USD">EUR/USD</option>
-                        <option value="GBP/USD">GBP/USD</option>
-                        <option value="USD/JPY">USD/JPY</option>
+                          <option value="">All Pairs</option>
+                          {pairOptions.map(pair => (
+                            <option key={pair.id} value={pair.name}>{pair.name}</option>
+                          ))}
                       </FilterSelect>
-                    </FilterGroup>
+                      </FilterGroup>
 
-                    <FilterGroup>
+                      <FilterGroup>
                       <FilterLabel>Day Narrative</FilterLabel>
                       <FilterSelect
-                        name="dayNarrative"
-                        value={filterCriteria.dayNarrative}
-                        onChange={handleFilterChange}
+                          name="dayNarrative"
+                          value={filterCriteria.dayNarrative}
+                          onChange={handleFilterChange}
                       >
-                        <option value="">All Narratives</option>
-                        <option value="Bullish">Bullish</option>
-                        <option value="Bearish">Bearish</option>
-                        <option value="Neutral">Neutral</option>
-                        <option value="Day off">Day off</option>
+                          <option value="">All Narratives</option>
+                          <option value="Bullish">Bullish</option>
+                          <option value="Bearish">Bearish</option>
+                          <option value="Neutral">Neutral</option>
+                          <option value="Day off">Day off</option>
                       </FilterSelect>
-                    </FilterGroup>
+                      </FilterGroup>
 
-                    <FilterGroup>
+                      <FilterGroup>
                       <FilterLabel>Realization</FilterLabel>
                       <FilterSelect
-                        name="realization"
-                        value={filterCriteria.realization}
-                        onChange={handleFilterChange}
+                          name="realization"
+                          value={filterCriteria.realization}
+                          onChange={handleFilterChange}
                       >
-                        <option value="">All Realizations</option>
-                        <option value="Good">Good</option>
-                        <option value="Bad">Bad</option>
-                        <option value="Acceptable">Acceptable</option>
-                        <option value="Not Provided">Not Provided</option>
+                          <option value="">All Realizations</option>
+                          <option value="Good">Good</option>
+                          <option value="Bad">Bad</option>
+                          <option value="Acceptable">Acceptable</option>
+                          <option value="Not Provided">Not Provided</option>
                       </FilterSelect>
-                    </FilterGroup>
+                      </FilterGroup>
 
-                    <FilterButtonGroup>
+                      <FilterButtonGroup>
                       <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
                       <FilterButton onClick={handleFilterApply}>Apply</FilterButton>
-                    </FilterButtonGroup>
+                      </FilterButtonGroup>
                   </FilterDropdown>
-                )}
-              </DropdownContainer>
+                  )}
+              </div>
 
-              <DropdownContainer>
-                <ActionButton 
+              <div style={{ position: 'relative' }}>
+                  <ActionButton 
                   ref={sortButtonRef}
                   onClick={() => setShowSortDropdown(!showSortDropdown)}
-                >
+                  >
                   Sort
-                </ActionButton>
-                {showSortDropdown && (
+                  </ActionButton>
+                  {showSortDropdown && (
                   <SortDropdown className="sort-dropdown">
-                    <SortGroup>
+                      <SortGroup>
                       <FilterLabel>Sort by</FilterLabel>
                       <FilterSelect
-                        value={`${sortConfig.field}-${sortConfig.order}`}
-                        onChange={handleSortChange}
+                          value={`${sortConfig.field}-${sortConfig.order}`}
+                          onChange={handleSortChange}
                       >
-                        <option value="date-desc">Date (Newest First)</option>
-                        <option value="date-asc">Date (Oldest First)</option>
+                          <option value="date-desc">Date (Newest First)</option>
+                          <option value="date-asc">Date (Oldest First)</option>
                       </FilterSelect>
-                    </SortGroup>
+                      </SortGroup>
                   </SortDropdown>
-                )}
-              </DropdownContainer>
-            </ButtonGroup>
+                  )}
+              </div>
+              </ButtonGroup>
           </JournalHeader>
 
           <SelectAllContainer>
-            <Checkbox
+              <Checkbox
               checked={selectedEntries.length === data.length && data.length > 0}
               onChange={handleSelectAll}
-            />
-            <span>Select All Entries</span>
-            {selectedEntries.length > 0 && (
+              />
+              <span>Select All Entries</span>
+              {selectedEntries.length > 0 && (
               <DeleteSelectedButton
-                onClick={() => setShowDeleteConfirmation(true)}
+                  onClick={() => setShowDeleteConfirmation(true)}
               >
-                Delete Selected ({selectedEntries.length})
+                  Delete Selected ({selectedEntries.length})
               </DeleteSelectedButton>
-            )}
+              )}
           </SelectAllContainer>
 
-          <Table {...getTableProps()}>
-            <thead>
-              {headerGroups.map(headerGroup => (
-                <tr {...headerGroup.getHeaderGroupProps()}>
-                  {headerGroup.headers.map(column => (
-                    <TableHeader {...column.getHeaderProps()} style={{ width: column.width }}>
-                      {column.render('Header')}
-                    </TableHeader>
-                  ))}
-                </tr>
-              ))}
-            </thead>
-            <tbody {...getTableBodyProps()}>
-              {rows.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={columns.length} style={{ textAlign: 'center' }}>
-                    No entries yet
-                  </TableCell>
-                </TableRow>
-              ) : (
-                rows.map(row => {
-                  prepareRow(row);
-                  const isSelected = selectedEntries.includes(row.original.id);
-                  
-                  return (
-                    <TableRow key={row.original.id} {...row.getRowProps()} selected={isSelected}>
-                      {row.cells.map(cell => (
-                        <TableCell {...cell.getCellProps()} style={{ width: cell.column.width }}>
-                          {cell.render('Cell')}
-                        </TableCell>
+          <TableContainer>
+              <Table {...getTableProps()}>
+              <thead>
+                  {headerGroups.map(headerGroup => (
+                  <TableRow {...headerGroup.getHeaderGroupProps()}>
+                      {headerGroup.headers.map(column => (
+                      <Th {...column.getHeaderProps()} style={{ width: column.width }}>
+                          {column.render('Header')}
+                      </Th>
                       ))}
-                    </TableRow>
-                  );
-                })
-              )}
-            </tbody>
-          </Table>
+                  </TableRow>
+                  ))}
+              </thead>
+              <tbody {...getTableBodyProps()}>
+                  {rows.length === 0 ? (
+                  <TableRow>
+                      <Td colSpan={columns.length} style={{ textAlign: 'center' }}>
+                      No entries yet
+                      </Td>
+                  </TableRow>
+                  ) : (
+                  rows.map(row => {
+                      prepareRow(row);
+                      const isSelected = selectedEntries.includes(row.original.id);
+                      const isSubsession = Boolean(row.original.parentSessionId);
+                      
+                      return (
+                      <TableRow 
+                          key={row.original.id} 
+                          {...row.getRowProps()} 
+                          selected={isSelected}
+                          isSubsession={isSubsession}
+                      >
+                          {row.cells.map(cell => (
+                          <Td 
+                              key={cell.column.id}
+                              {...cell.getCellProps()}
+                              style={{
+                              width: cell.column.width
+                              }}
+                          >
+                              {cell.render('Cell')}
+                          </Td>
+                          ))}
+                      </TableRow>
+                      );
+                  })
+                  )}
+              </tbody>
+              </Table>
+          </TableContainer>
 
           {deletePopup && (
-            <Popup>
+              <Popup>
               <p>Want to delete?</p>
-              <PopupButton onClick={() => handleDelete(deletePopup)}>Yes</PopupButton>
+              <PopupButton onClick={() => confirmDelete(deletePopup)}>Yes</PopupButton>
               <PopupButton onClick={() => setDeletePopup(null)}>No</PopupButton>
-            </Popup>
+              </Popup>
           )}
 
           {showDeleteConfirmation && (
-            <Popup>
+              <Popup>
               <p>Are you sure you want to delete <span style={{ color: '#ff4757' }}>{selectedEntries.length}</span> selected entries?</p>
               <PopupButton onClick={handleDeleteSelected}>Yes, Delete All</PopupButton>
               <PopupButton onClick={() => setShowDeleteConfirmation(false)}>Cancel</PopupButton>
-            </Popup>
+              </Popup>
           )}
-        </JournalContent>
+          </JournalContent>
       </DailyRoutineContainer>
-    </>
+      </>
   );
 }
 

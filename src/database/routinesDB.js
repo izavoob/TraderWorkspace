@@ -36,7 +36,8 @@ class RoutinesDB {
             the_zone TEXT,
             parentSessionId TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (parentSessionId) REFERENCES presessions(id)
         )
       `, (err) => {
         if (err) {
@@ -98,8 +99,8 @@ class RoutinesDB {
       const sql = `INSERT INTO presessions (
         id, date, pair, narrative, execution, outcome, plan_outcome,
         forex_factory_news, topDownAnalysis, video_url, plans, chart_processes,
-        mindset_preparation, the_zone, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+        mindset_preparation, the_zone, parentSessionId, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
       
       const params = [
         processedSession.id,
@@ -115,7 +116,8 @@ class RoutinesDB {
         processedSession.plans,
         processedSession.chart_processes,
         processedSession.mindset_preparation,
-        processedSession.the_zone
+        processedSession.the_zone,
+        processedSession.parentSessionId || null
       ];
 
       console.log('Executing SQL:', sql);
@@ -166,6 +168,7 @@ class RoutinesDB {
         chart_processes = ?, 
         mindset_preparation = ?, 
         the_zone = ?,
+        parentSessionId = ?,
         updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?`;
       
@@ -183,6 +186,7 @@ class RoutinesDB {
         processedSession.chart_processes,
         processedSession.mindset_preparation,
         processedSession.the_zone,
+        processedSession.parentSessionId || null,
         processedSession.id
       ];
 
