@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import styled, { keyframes, createGlobalStyle } from 'styled-components';
 import { gsap } from 'gsap';
 
@@ -10,502 +10,269 @@ const LoadingGlobalStyle = createGlobalStyle`
     overflow: hidden;
     background-color: #121212;
   }
+  
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
 `;
 
-// Анімації
+// Контейнер для екрану завантаження
+const LoadingContainer = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  background-color: #121212;
+  z-index: 9999;
+`;
+
+// Контейнер для анімації
+const AnimationContainer = styled.div`
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  overflow: hidden;
+`;
+
+// Стилізований SVG контейнер
+const StyledSVG = styled.svg`
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  overflow: visible;
+`;
+
 const gradientAnimation = keyframes`
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 `;
 
-const shimmer = keyframes`
-  0% { background-position: -200% 0; }
-  100% { background-position: 200% 0; }
-`;
-
-const fadeInText = keyframes`
-  from {
-    opacity: 0;
-    transform: scale(0.9);
-  }
-  to {
-    opacity: 1;
-    transform: scale(1);
-  }
-`;
-
-// Стилізовані компоненти
-const LoadingContainer = styled.div`
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  flex-direction: column;
-  height: 100vh;
-  width: 100vw;
-  background-color: #121212;
-  position: relative;
-  overflow: hidden;
-`;
-
-const BackgroundCrystals = styled.div`
+// Текст логотипу
+const LogoText = styled.div`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 1;
-  opacity: 0.3;
+  font-family: 'IBM Plex Sans', sans-serif;
+  font-size: 64px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 3px;
+  z-index: 100;
+  top: 35%;
+  left: 50%;
+  transform: translateX(-50%);
+  white-space: nowrap;
+  pointer-events: none;
+  background: linear-gradient(45deg, #7425C9, #9355D9, #B886EE, #9355D9, #7425C9);
+  background-size: 300% 300%;
+  -webkit-background-clip: text;
+  color: transparent;
+  animation: ${gradientAnimation} 5s ease infinite;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
 `;
 
-const CrystalContainer = styled.div`
+// Горизонтальна лінія для трансформації
+const HorizontalLine = styled.div`
   position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  z-index: 5;
-`;
-
-const Crystal = styled.div`
-  position: absolute;
-  width: ${props => props.size}px;
-  height: ${props => props.size}px;
-  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
-  background-size: 200% 200%;
-  animation: ${gradientAnimation} 3s ease infinite;
-  box-shadow: 0 0 ${props => props.size / 2}px rgba(116, 37, 201, 0.7);
-  opacity: 0.8;
-  clip-path: polygon(
-    ${props => 50 + props.variation1}% 0%, 
-    ${props => 100 - props.variation2}% ${props => 50 - props.variation3}%, 
-    ${props => 50 + props.variation4}% 100%, 
-    ${props => 0 + props.variation5}% ${props => 50 + props.variation6}%
-  );
-  will-change: transform, opacity;
-  
-  &::after {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.5),
-      transparent
-    );
-    background-size: 200% 100%;
-    animation: ${shimmer} 2s infinite;
-    clip-path: inherit;
-  }
-`;
-
-const FadeOverlay = styled.div`
-  position: absolute;
-  top: 0;
-  left: 0;
-  width: 100%;
-  height: 100%;
-  background-color: #ffffff;
+  height: 4px;
+  background: linear-gradient(90deg, #5e2ca5, #7425C9);
+  border-radius: 2px;
   opacity: 0;
   z-index: 50;
-  pointer-events: none;
-`;
-
-const Title = styled.h1`
-  position: absolute;
-  font-size: 80px;
-  text-align: center;
-  z-index: 10;
-  opacity: 0;
-  top: 50%;
   left: 50%;
-  transform: translate(-50%, -50%) scale(0.9);
-  background: linear-gradient(45deg, #7425C9, #B886EE);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-  animation: ${fadeInText} 0.5s ease forwards;
-  animation-delay: 0.8s;
-  font-family: Arial, sans-serif;
-  font-weight: bold;
-  letter-spacing: 1px;
+  top: 50%;
+  transform: translate(-50%, -50%);
+  box-shadow: 0 0 15px rgba(94, 44, 165, 0.8);
 `;
 
-function LoadingScreen({ onComplete }) {
-  const [crystals, setCrystals] = useState([]);
-  const [backgroundCrystals, setBackgroundCrystals] = useState([]);
-  const containerRef = useRef(null);
-  const fadeOverlayRef = useRef(null);
-  const crystalsRef = useRef([]);
-  const backgroundCrystalsRef = useRef([]);
-  const titleRef = useRef(null);
+// Стилі для групи свічок з анімацією переходу
+const CandleGroup = styled.g`
+  transition: transform 2s cubic-bezier(0.4, 0, 0.2, 1);
+`;
 
-  // Функція для кращого створення точок тексту
-  const createTextPoints = (text, width, height, fontSize = 60) => {
-    const canvas = document.createElement('canvas');
-    const ctx = canvas.getContext('2d');
+const LoadingScreen = () => {
+  const svgRef = useRef(null);
+  const horizontalLineRef = useRef(null);
+  const logoTextRef = useRef(null);
+  const [candleOffsets, setCandleOffsets] = useState([]);
+  
+  // Функція для генерації випадкових зміщень для свічок
+  const generateRandomOffsets = () => {
+    const offsets = [];
+    let prevOffset = 0;
     
-    canvas.width = width;
-    canvas.height = height;
-    
-    ctx.font = `bold ${fontSize}px Arial`;
-    ctx.textAlign = 'center';
-    ctx.textBaseline = 'middle';
-    ctx.fillStyle = '#ffffff';
-    
-    // Малюємо текст більшим і товстішим для більшої кількості точок
-    ctx.shadowColor = '#7425C9';
-    ctx.shadowBlur = 10;
-    ctx.lineWidth = 5;
-    ctx.strokeStyle = '#7425C9';
-    ctx.strokeText(text, width / 2, height / 2);
-    ctx.shadowBlur = 0;
-    ctx.fillText(text, width / 2, height / 2);
-    
-    const imageData = ctx.getImageData(0, 0, width, height);
-    const data = imageData.data;
-    
-    const points = [];
-    // Зменшуємо крок для більшої детальності
-    const step = 8;
-    
-    for (let y = 0; y < height; y += step) {
-      for (let x = 0; x < width; x += step) {
-        const index = (y * width + x) * 4;
-        if (data[index + 3] > 0) {
-          points.push({
-            x: x,
-            y: y
-          });
-        }
-      }
+    for (let i = 0; i < 35; i++) {
+      // Генеруємо випадкове зміщення від -60 до 60, але з урахуванням попереднього значення
+      // щоб уникнути різких перепадів
+      const randomOffset = Math.max(
+        -60,
+        Math.min(
+          60,
+          prevOffset + (Math.random() - 0.5) * 70
+        )
+      );
+      offsets.push(randomOffset);
+      prevOffset = randomOffset;
     }
-    
-    // Випадково вибираємо точки, якщо їх забагато
-    if (points.length > 200) {
-      const shuffled = [...points].sort(() => 0.5 - Math.random());
-      return shuffled.slice(0, 200);
-    }
-    
-    // Якщо точок мало, створюємо додаткові
-    if (points.length < 50) {
-      const centerX = width / 2;
-      const centerY = height / 2;
-      
-      for (let i = 0; i < 100; i++) {
-        points.push({
-          x: centerX + (Math.random() * 200 - 100),
-          y: centerY + (Math.random() * 100 - 50)
-        });
-      }
-    }
-    
-    return points;
+    return offsets;
   };
 
+  // Генеруємо нові зміщення кожні 2 секунди
   useEffect(() => {
-    if (!containerRef.current) return;
+    setCandleOffsets(generateRandomOffsets());
     
-    const containerWidth = containerRef.current.clientWidth;
-    const containerHeight = containerRef.current.clientHeight;
+    const interval = setInterval(() => {
+      setCandleOffsets(generateRandomOffsets());
+    }, 2000);
     
-    const textPoints = createTextPoints("Trader Workspace", containerWidth, containerHeight, 80);
-    
-    const newCrystals = Array.from({ length: 60 }, (_, i) => {
-      const point = textPoints[i % textPoints.length];
-      return {
-        id: i,
-        size: Math.random() * 15 + 5,
-        x: Math.random() * containerWidth,
-        y: Math.random() * containerHeight,
-        targetX: point.x,
-        targetY: point.y,
-        rotation: Math.random() * 360,
-        variation1: Math.random() * 20 - 10,
-        variation2: Math.random() * 20 - 10,
-        variation3: Math.random() * 20 - 10,
-        variation4: Math.random() * 20 - 10,
-        variation5: Math.random() * 20 - 10,
-        variation6: Math.random() * 20 - 10,
-      };
-    });
-    
-    const newBackgroundCrystals = Array.from({ length: 10 }, (_, i) => ({
-      id: i,
-      size: Math.random() * 30 + 15,
-      x: Math.random() * containerWidth,
-      y: Math.random() * containerHeight,
-      rotation: Math.random() * 360,
-      variation1: Math.random() * 20 - 10,
-      variation2: Math.random() * 20 - 10,
-      variation3: Math.random() * 20 - 10,
-      variation4: Math.random() * 20 - 10,
-      variation5: Math.random() * 20 - 10,
-      variation6: Math.random() * 20 - 10,
-    }));
-    
-    setCrystals(newCrystals);
-    setBackgroundCrystals(newBackgroundCrystals);
-    
-    const createTWShape = () => {
-      const pointsT = [
-        {x: 0.4, y: 0.3}, {x: 0.4, y: 0.7},  // Vertical line
-        {x: 0.3, y: 0.3}, {x: 0.5, y: 0.3}   // Horizontal line
-      ];
-      
-      const pointsW = [
-        {x: 0.6, y: 0.3}, {x: 0.65, y: 0.7},
-        {x: 0.7, y: 0.5}, {x: 0.75, y: 0.7},
-        {x: 0.8, y: 0.3}
-      ];
-      
-      return [...pointsT, ...pointsW];
-    };
-
-    const animateWaterFlow = () => {
-      const containerWidth = containerRef.current.clientWidth;
-      const containerHeight = containerRef.current.clientHeight;
-      const twPoints = createTWShape();
-
-      crystalsRef.current.forEach((crystal, index) => {
-        if (!crystal) return;
-        
-        // Випадкові параметри руху
-        const angle = Math.random() * Math.PI * 2;
-        const distance = 100 + Math.random() * 200;
-        const speed = 3 + Math.random() * 3;
-        const rotationSpeed = Math.random() * 2 - 1;
-        const scaleVariation = 0.1 + Math.random() * 0.2;
-
-        // Випадкова точка для формування TW
-        const twPoint = twPoints[index % twPoints.length];
-        const targetX = twPoint.x * containerWidth;
-        const targetY = twPoint.y * containerHeight;
-
-        try {
-          gsap.to(crystal, {
-            x: `+=${Math.cos(angle) * distance}`,
-            y: `+=${Math.sin(angle) * distance}`,
-            rotation: `+=${rotationSpeed * 360}`,
-            scale: 1 + scaleVariation,
-            duration: speed,
-            ease: "sine.inOut",
-            repeat: -1,
-            yoyo: true,
-            onRepeat: () => {
-              // Поступово рухаємо кристали до позицій TW
-              gsap.to(crystal, {
-                x: targetX,
-                y: targetY,
-                duration: 2,
-                ease: "power2.out"
-              });
-            },
-            modifiers: {
-              x: (x) => {
-                const crystalWidth = crystal.offsetWidth;
-                return Math.max(-crystalWidth, Math.min(containerWidth + crystalWidth, x));
-              },
-              y: (y) => {
-                const crystalHeight = crystal.offsetHeight;
-                return Math.max(-crystalHeight, Math.min(containerHeight + crystalHeight, y));
-              }
-            }
-          });
-        } catch (error) {
-          console.warn('Помилка анімації:', error);
-        }
-      });
-    
-    backgroundCrystalsRef.current.forEach((crystal) => {
-      if (!crystal) return;
-      
-      // Повільніший, більш тонкий рух для фонових кристалів
-      const angle = Math.random() * Math.PI * 2;
-      const distance = 50 + Math.random() * 100;
-      const speed = 5 + Math.random() * 3;
-      const rotationSpeed = Math.random() * 0.5 - 0.25;
-
-      try {
-        gsap.to(crystal, {
-          x: `+=${Math.cos(angle) * distance}`,
-          y: `+=${Math.sin(angle) * distance}`,
-          rotation: `+=${rotationSpeed * 360}`,
-          duration: speed,
-          ease: "sine.inOut",
-          repeat: -1,
-          yoyo: true,
-          modifiers: {
-            x: (x) => {
-              const crystalWidth = crystal.offsetWidth;
-              return Math.max(-crystalWidth, Math.min(containerWidth + crystalWidth, x));
-            },
-            y: (y) => {
-              const crystalHeight = crystal.offsetHeight;
-              return Math.max(-crystalHeight, Math.min(containerHeight + crystalHeight, y));
-            }
-          }
-        });
-      } catch (error) {
-        console.warn('Помилка анімації:', error);
-      }
-    });
-  };
-    
-    animateWaterFlow();
-    
-    // Збираємо кристали у форму тексту
-    crystalsRef.current.forEach((crystal, index) => {
-      if (!crystal) return;
-      
-      try {
-        gsap.to(crystal, {
-          x: newCrystals[index].targetX,
-          y: newCrystals[index].targetY,
-          rotation: 0,
-          duration: 1.5,
-          ease: "power2.out",
-          delay: Math.random() * 0.3
-        });
-      } catch (error) {
-        console.warn('Помилка анімації:', error);
-      }
-    });
-    
-    // Запускаємо фінальну анімацію
+    return () => clearInterval(interval);
+  }, []);
+  
+  useEffect(() => {
+    // Створюємо часову лінію для анімації
     const timeline = gsap.timeline({
-      delay: 1.5,
       onComplete: () => {
-        if (typeof onComplete === 'function') {
-          onComplete();
-        }
+        console.log("Анімація завершена");
       }
     });
-
-    // Світіння кристалів
-    timeline.to(crystalsRef.current, {
-      scale: 1.5,
+    
+    // Анімація сітки - швидша на 70%
+    timeline.from('.grid-line', {
+      scale: 0,
       opacity: 1,
-      boxShadow: "0 0 30px rgba(116, 37, 201, 1)",
-      duration: 0.3,
-      stagger: { amount: 0.2 }
+      duration: 0.24,
+      stagger: 0.006,
+      transformOrigin: 'center',
+      ease: 'power2.out'
     });
-
-    // Вибух кристалів
-    timeline.to(crystalsRef.current, {
-      x: (i, target) => {
-        const angle = Math.random() * Math.PI * 2;
-        return `+=${Math.cos(angle) * 1000}`;
-      },
-      y: (i, target) => {
-        const angle = Math.random() * Math.PI * 2;
-        return `+=${Math.sin(angle) * 1000}`;
-      },
-      rotation: () => `+=${Math.random() * 720 - 360}`,
-      scale: 0,
-      opacity: 0,
-      duration: 0.5,
-      ease: "power3.out"
-    }, "+=0.3");
-
-    // Вибух фонових кристалів
-    timeline.to(backgroundCrystalsRef.current, {
-      x: (i, target) => {
-        const angle = Math.random() * Math.PI * 2;
-        return `+=${Math.cos(angle) * 700}`;
-      },
-      y: (i, target) => {
-        const angle = Math.random() * Math.PI * 2;
-        return `+=${Math.sin(angle) * 700}`;
-      },
-      rotation: () => `+=${Math.random() * 720 - 360}`,
-      scale: 0,
-      opacity: 0,
-      duration: 0.6,
-      ease: "power3.out"
-    }, "-=0.5");
-
-    // Фінальне затемнення
-    timeline.to(fadeOverlayRef.current, {
+    
+    // Анімація свічок - швидша на 70%
+    timeline.from('.candle-body', {
+      height: 0,
       opacity: 1,
-      duration: 0.2,
-      ease: "power2.inOut"
-    }, "-=0.3");
+      duration: 0.3,
+      stagger: 0.03,
+      transformOrigin: 'bottom',
+      ease: 'power1.out'
+    }, '-=0.09');
+    
+    // Анімація вікнів свічок - швидша на 70%
+    timeline.from('.candle-wick', {
+      height: 0,
+      opacity: 1,
+      duration: 0.24,
+      stagger: 0.03,
+      transformOrigin: 'bottom',
+      ease: 'power1.out'
+    }, '-=0.24');
+    
+    // Додаємо світіння до свічок - швидша на 70%
+    timeline.to('.candle-body', {
+      filter: 'drop-shadow(0 0 5px #5e2ca5)',
+      duration: 0.15,
+      stagger: 0.015
+    }, '-=0.15');
+    
+    // Додаємо логування для відстеження прогресу анімації
+    timeline.eventCallback("onUpdate", () => {
+      console.log("Прогрес анімації:", timeline.progress());
+    });
     
     return () => {
+      // Очищення анімації при розмонтуванні компонента
       timeline.kill();
-      gsap.killTweensOf([
-        ...crystalsRef.current,
-        ...backgroundCrystalsRef.current,
-        fadeOverlayRef.current
-      ]);
     };
-  }, [onComplete]);
-
-  const setCrystalRef = (el, index) => {
-    crystalsRef.current[index] = el;
-  };
-
-  const setBackgroundCrystalRef = (el, index) => {
-    backgroundCrystalsRef.current[index] = el;
-  };
-
+  }, []);
+  
   return (
     <>
       <LoadingGlobalStyle />
-      <LoadingContainer ref={containerRef}>
-        <Title ref={titleRef}>Trader Workspace</Title>
-        <BackgroundCrystals>
-          {backgroundCrystals.map((crystal, index) => (
-            <Crystal
-              key={`bg-${crystal.id}`}
-              ref={el => setBackgroundCrystalRef(el, index)}
-              size={crystal.size}
-              x={crystal.x}
-              y={crystal.y}
-              rotation={crystal.rotation}
-              variation1={crystal.variation1}
-              variation2={crystal.variation2}
-              variation3={crystal.variation3}
-              variation4={crystal.variation4}
-              variation5={crystal.variation5}
-              variation6={crystal.variation6}
-              style={{
-                transform: `translate3d(${crystal.x}px, ${crystal.y}px, 0) rotate(${crystal.rotation}deg)`
-              }}
-            />
-          ))}
-        </BackgroundCrystals>
-        
-        <CrystalContainer>
-          {crystals.map((crystal, index) => (
-            <Crystal
-              key={crystal.id}
-              ref={el => setCrystalRef(el, index)}
-              size={crystal.size}
-              x={crystal.x}
-              y={crystal.y}
-              rotation={crystal.rotation}
-              variation1={crystal.variation1}
-              variation2={crystal.variation2}
-              variation3={crystal.variation3}
-              variation4={crystal.variation4}
-              variation5={crystal.variation5}
-              variation6={crystal.variation6}
-              style={{
-                transform: `translate3d(${crystal.x}px, ${crystal.y}px, 0) rotate(${crystal.rotation}deg)`
-              }}
-            />
-          ))}
-        </CrystalContainer>
-        
-        <FadeOverlay ref={fadeOverlayRef} />
+      <LoadingContainer>
+        <AnimationContainer>
+          <StyledSVG ref={svgRef} viewBox="0 0 1000 600" preserveAspectRatio="none" fill="none" xmlns="http://www.w3.org/2000/svg">
+            {/* Сітка - горизонтальні лінії */}
+            {Array.from({ length: 20 }).map((_, i) => (
+              <line 
+                key={`h-${i}`}
+                className="grid-line"
+                x1="0" 
+                y1={i * 30} 
+                x2="1000" 
+                y2={i * 30} 
+                stroke="#333333" 
+                strokeWidth="1"
+              />
+            ))}
+            
+            {/* Сітка - вертикальні лінії */}
+            {Array.from({ length: 30 }).map((_, i) => (
+              <line 
+                key={`v-${i}`}
+                className="grid-line"
+                x1={i * 33.33} 
+                y1="0" 
+                x2={i * 33.33} 
+                y2="600" 
+                stroke="#333333" 
+                strokeWidth="1"
+              />
+            ))}
+            
+            {/* Свічки - розташовані нижче центру екрану */}
+            <g transform="translate(25, 350)">
+              {Array.from({ length: 35 }).map((_, index) => (
+                <CandleGroup 
+                  key={`candle-${index}`} 
+                  className="candle-group" 
+                  transform={`translate(${index * 27}, ${candleOffsets[index] || 0})`}
+                >
+                  <rect 
+                    className="candle-body" 
+                    x="0" 
+                    y={index % 2 === 0 ? "-10" : "10"} 
+                    width="15" 
+                    height={index % 2 === 0 ? "70" : "50"} 
+                    fill={index % 3 === 0 ? "#2ca55e" : "#a52c2c"} 
+                    rx="2" 
+                  />
+                  <line 
+                    className="candle-wick" 
+                    x1="7.5" 
+                    y1={index % 2 === 0 ? "-25" : "-5"} 
+                    x2="7.5" 
+                    y2={index % 2 === 0 ? "-10" : "10"} 
+                    stroke={index % 3 === 0 ? "#2ca55e" : "#a52c2c"} 
+                    strokeWidth="2" 
+                  />
+                  <line 
+                    className="candle-wick" 
+                    x1="7.5" 
+                    y1={index % 2 === 0 ? "60" : "60"} 
+                    x2="7.5" 
+                    y2={index % 2 === 0 ? "75" : "70"} 
+                    stroke={index % 3 === 0 ? "#2ca55e" : "#a52c2c"} 
+                    strokeWidth="2" 
+                  />
+                </CandleGroup>
+              ))}
+            </g>
+          </StyledSVG>
+          
+          <HorizontalLine ref={horizontalLineRef} />
+          <LogoText ref={logoTextRef}>
+            Trading Workspace
+          </LogoText>
+        </AnimationContainer>
       </LoadingContainer>
     </>
   );
-}
+};
 
 export default LoadingScreen;

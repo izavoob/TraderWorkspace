@@ -25,7 +25,7 @@ const ModalOverlay = styled.div`
   z-index: 2000;
   padding: 20px;
   box-sizing: border-box;
-  transform: translateY(${props => props.scrollOffset}px);
+  transform: translateY(${props => props.scrollY}px);
   overflow: hidden;
 `;
 
@@ -392,31 +392,27 @@ const NoteModal = ({
   const [selectedTag, setSelectedTag] = useState(null);
   const [tags, setTags] = useState([]);
   const [images, setImages] = useState([]);
-  const [scrollOffset, setScrollOffset] = useState(0);
   const [showNotification, setShowNotification] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
+  const [scrollY, setScrollY] = useState(0);
 
   useEffect(() => {
     if (isOpen) {
-      // Зберегти поточну позицію скролу
       const currentScroll = window.scrollY;
-      setScrollOffset(currentScroll);
-      
-      // Заблокувати скрол
-      document.body.style.position = 'fixed';
-      document.body.style.top = `-${currentScroll}px`;
-      document.body.style.width = '100%';
+      setScrollY(currentScroll);
+      // Блокуємо скрол
       document.body.style.overflow = 'hidden';
-      
       console.log('Модальне вікно відкрито з нотаткою:', note);
+      
       loadTags();
       
       if (note) {
         console.log('Встановлення форми з існуючими даними нотатки:', note);
+        console.log('Встановлення заголовка:', note.title);
         setTitle(note.title || '');
+        console.log('Встановлення контенту:', note.content || note.text);
         setContent(note.content || note.text || '');
         
-        // Встановлюємо тег, якщо він є
         if (note.tag_id && note.tag_name) {
           setSelectedTag({
             value: note.tag_id,
@@ -426,11 +422,9 @@ const NoteModal = ({
           setSelectedTag(null);
         }
         
-        // Завантажуємо зображення
         if (!note.images || note.images.length === 0) {
           console.log('Зображення не знайдені в нотатці, завантажую з бази даних...');
           if (note.id) {
-            // Захищаємося від помилок при завантаженні зображень
             loadImages(note.id).catch(err => {
               console.error('Помилка завантаження зображень:', err);
               setImages([]);
@@ -438,28 +432,21 @@ const NoteModal = ({
           }
         } else {
           console.log('Встановлення зображень з нотатки:', note.images);
-          
-          // Створюємо множину унікальних шляхів для запобігання дублюванню
           const uniqueImagePaths = new Set();
           const uniqueImages = note.images.filter(img => {
             if (!img || !img.image_path) {
               console.warn('Знайдено зображення без шляху:', img);
               return false;
             }
-            
-            // Перевіряємо, чи вже є таке зображення
             if (uniqueImagePaths.has(img.image_path)) {
               console.warn('Дублікат зображення в нотатці:', img.image_path);
               return false;
             }
-            
-            // Додаємо шлях до множини унікальних шляхів
             uniqueImagePaths.add(img.image_path);
             return true;
           });
           
           console.log('Унікальні зображення для відображення:', uniqueImages.length);
-          console.log('Деталі зображень:', uniqueImages);
           setImages(uniqueImages);
         }
       } else {
@@ -471,29 +458,24 @@ const NoteModal = ({
         setTimeout(() => setShowNotification(true), 100);
       }
     }
-    
+
     return () => {
-      if (isOpen) {
-        // Відновити скрол
-        const scrollY = document.body.style.top;
-        document.body.style.position = '';
-        document.body.style.top = '';
-        document.body.style.width = '';
-        document.body.style.overflow = '';
-        window.scrollTo(0, parseInt(scrollY || '0') * -1);
-      }
+      // Розблоковуємо скрол при закритті
+      document.body.style.overflow = '';
     };
   }, [isOpen, note]);
 
   const loadTags = async () => {
     try {
       const tagsData = await window.electronAPI.getAllNoteTags();
-      setTags(tagsData.map(tag => ({
+      console.log('Завантажені теги:', tagsData);
+      const formattedTags = tagsData.map(tag => ({
         value: tag.id,
         label: tag.name
-      })));
+      }));
+      setTags(formattedTags);
     } catch (error) {
-      console.error('Error loading tags:', error);
+      console.error('Помилка завантаження тегів:', error);
     }
   };
 
@@ -778,73 +760,20 @@ const NoteModal = ({
     }
   };
 
-  const [scrollPosition, setScrollPosition] = useState(0);
-  const [modalPosition, setModalPosition] = useState({ top: 0, left: 0 });
-
-  const lockScroll = () => {
-    const scrollY = window.scrollY;
-    setScrollPosition(scrollY);
-    
-    // Заблокувати скрол без зміщення сторінки
-    document.documentElement.style.overflow = 'hidden';
-    document.body.style.position = 'fixed';
-    document.body.style.top = `-${scrollY}px`;
-    document.body.style.width = '100%';
-    
-    // Зберегти позицію NoteModal
-    const modal = document.querySelector('[data-note-modal]');
-    if (modal) {
-      const rect = modal.getBoundingClientRect();
-      setModalPosition({
-        top: rect.top + scrollY,
-        left: rect.left
-      });
-    }
-  };
-
-  const unlockScroll = () => {
-    // Відновити скрол
-    const scrollY = Math.abs(parseInt(document.body.style.top || '0'));
-    document.documentElement.style.overflow = '';
-    document.body.style.position = '';
-    document.body.style.top = '';
-    document.body.style.width = '';
-    window.scrollTo(0, scrollY);
-  };
-
   const openFullscreen = (src) => {
     const imagePath = src.startsWith('file:///') ? src : `file:///${src.replace(/\\/g, '/')}`;
-    lockScroll();
     setFullscreenImage({ src: imagePath });
   };
 
   const closeFullscreen = () => {
-    unlockScroll();
     setFullscreenImage(null);
   };
-
-  useEffect(() => {
-    if (isOpen) {
-      lockScroll();
-      loadTags();
-      
-      if (note) {
-        console.log('Встановлення форми з існуючими даними нотатки:', note);
-      }
-    }
-    
-    return () => {
-      if (isOpen) {
-        unlockScroll();
-      }
-    };
-  }, [isOpen, note]);
 
   if (!isOpen) return null;
 
   return (
     <>
-      <ModalOverlay onClick={onClose} scrollOffset={scrollOffset}>
+      <ModalOverlay onClick={onClose} scrollY={scrollY}>
         <Modal onClick={e => e.stopPropagation()}>
           <Title>{isReviewMode ? 'Note Review' : (note ? 'Edit Note' : 'Add New Note')}</Title>
           <FormContainer>
@@ -991,52 +920,26 @@ const NoteModal = ({
       </ModalOverlay>
       
       {fullscreenImage && (
-        <div
-          style={{
-            position: 'fixed',
-            top: modalPosition.top,
-            left: modalPosition.left,
-            width: '100%',
-            height: '100%',
-            backgroundColor: 'rgba(0, 0, 0, 0.95)',
-            zIndex: 3000,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            padding: '20px'
-          }}
-          onClick={closeFullscreen}
+        <ModalOverlay 
+          onClick={closeFullscreen} 
+          scrollY={scrollY}
+          style={{ zIndex: 3000 }}
         >
           <div
             style={{
+              background: 'rgba(0, 0, 0, 0.95)',
+              borderRadius: '15px',
+              padding: '20px',
               position: 'relative',
-              maxWidth: '90vw',
-              maxHeight: '90vh',
-              width: '100%',
-              height: '100%',
+              width: '90%',
+              height: '90%',
               display: 'flex',
               alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden'
+              justifyContent: 'center'
             }}
             onClick={e => e.stopPropagation()}
           >
-            <button
-              style={{
-                position: 'absolute',
-                top: '20px',
-                right: '20px',
-                background: 'transparent',
-                border: 'none',
-                color: 'white',
-                fontSize: '24px',
-                cursor: 'pointer',
-                zIndex: 1
-              }}
-              onClick={closeFullscreen}
-            >
-              ×
-            </button>
+            <CloseButton onClick={closeFullscreen}>×</CloseButton>
             <img
               src={fullscreenImage.src}
               alt="Fullscreen preview"
@@ -1044,15 +947,16 @@ const NoteModal = ({
                 maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain',
+                borderRadius: '8px',
                 cursor: 'pointer'
               }}
               onClick={closeFullscreen}
             />
           </div>
-        </div>
+        </ModalOverlay>
       )}
     </>
   );
 };
 
-export default NoteModal; 
+export default NoteModal;

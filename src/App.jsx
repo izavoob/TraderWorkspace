@@ -180,7 +180,6 @@ function App() {
   const isHome = location.pathname === '/';
 
   useEffect(() => {
-    // Показуємо LoadingScreen на 5 секунд, щоб анімація встигла завершитися
     const timer = setTimeout(() => {
       setIsLoading(false);
     }, 2550);

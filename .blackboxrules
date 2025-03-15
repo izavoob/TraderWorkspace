@@ -1,3 +1,3 @@
 Always respond on ukrainian language.
-Always do edits in code without my confirmation.
-Don`t do edits in code partly. Always do full edit AND don`t do edits in code with my confirmation.
+auto-accept: true
+confirm-on-completion: true
