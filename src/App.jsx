@@ -9,6 +9,7 @@ import DailyRoutine from './components/DailyRoutine.jsx';
 import PreSessionJournal from './components/PreSessionJournal.jsx';
 import PreSessionFull from './components/PreSessionFull.jsx';
 import PostSessionJournal from './components/PostSessionJournal.jsx';
+import PostSessionFull from './components/PostSessionFull.jsx';
 import Placeholder from './components/Placeholder.jsx';
 import PerformanceAnalysis from './components/PerformanceAnalysis.jsx';
 import WPA from './components/PerformanceAnalysis/WPA/WPA.jsx';
@@ -275,6 +276,7 @@ function App() {
             <Route path="/daily-routine/pre-session/full" element={<PreSessionFull />} />
             <Route path="/daily-routine/pre-session/full/:id" element={<PreSessionFull />} />
             <Route path="/daily-routine/post-session" element={<PostSessionJournal />} />
+            <Route path="/daily-routine/post-session/:id" element={<PostSessionFull />} />
             <Route path="/learning-section" element={<LearningSection />} />
             <Route path="/learning-section/strategy" element={<Strategy />} />
             <Route path="/learning-section/trading-psychology" element={<TradingPsychology />} />

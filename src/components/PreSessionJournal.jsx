@@ -4,6 +4,7 @@ import { useTable } from 'react-table';
 import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
 import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
+import AddPairIcon from '../assets/icons/add-pair-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 
@@ -329,12 +330,12 @@ const Th = styled.th`
 `;
 
 const Td = styled.td`
-  padding: 10px;
   border: 1px solid #5e2ca5;
-  background: #2e2e2e;
-  position: relative;
+  padding: 6px;
   text-align: center;
   color: #fff;
+  background-color: #2e2e2e;
+  position: relative;
 `;
 
 const TableRow = styled.tr`
@@ -823,10 +824,9 @@ function PreSessionJournal() {
   }, [data, filterCriteria, startDate, endDate]);
 
   const sortedAndFilteredEntries = useMemo(() => {
-    // Спочатку групуємо записи за parentSessionId
     const sessionGroups = filteredEntries.reduce((groups, entry) => {
       if (!entry.parentSessionId) {
-        // Якщо це основна сесія, створюємо нову групу
+        // Основная сессия
         if (!groups[entry.id]) {
           groups[entry.id] = {
             main: entry,
@@ -836,7 +836,7 @@ function PreSessionJournal() {
           groups[entry.id].main = entry;
         }
       } else {
-        // Якщо це підсесія, додаємо її до групи батьківської сесії
+        // Дочерняя сессия
         if (!groups[entry.parentSessionId]) {
           groups[entry.parentSessionId] = {
             main: null,
@@ -849,24 +849,26 @@ function PreSessionJournal() {
       return groups;
     }, {});
 
-    // Сортуємо основні сесії
+    // Сортируем основные сессии
     const mainSessions = Object.values(sessionGroups)
       .filter(group => group.main)
       .map(group => group.main)
       .sort((a, b) => {
-        if (sortConfig.field === 'date') {
-          const dateA = new Date(a.date || 0).getTime();
-          const dateB = new Date(b.date || 0).getTime();
-          return sortConfig.order === 'asc' ? dateA - dateB : dateB - dateA;
-        }
-        return 0;
+        const dateA = new Date(a.date);
+        const dateB = new Date(b.date);
+        return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
       });
 
-    // Формуємо фінальний масив, додаючи підсесії після їх батьківських сесій
+    // Формируем финальный массив, добавляя дочерние сессии после родительских
     return mainSessions.reduce((result, mainSession) => {
       result.push(mainSession);
-      if (sessionGroups[mainSession.id].subsessions.length > 0) {
-        result.push(...sessionGroups[mainSession.id].subsessions);
+      const subsessions = sessionGroups[mainSession.id]?.subsessions || [];
+      if (subsessions.length > 0) {
+        result.push(...subsessions.sort((a, b) => {
+          const dateA = new Date(a.date);
+          const dateB = new Date(b.date);
+          return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
+        }));
       }
       return result;
     }, []);
@@ -877,7 +879,7 @@ function PreSessionJournal() {
       {
         Header: 'Actions',
         accessor: 'actions',
-        width: 80,
+        width: 80, // Уменьшаем ширину, так как убрали кнопку
         Cell: ({ row }) => (
           <ButtonsContainer>
             <Checkbox
@@ -1094,24 +1096,29 @@ function PreSessionJournal() {
     data: sortedAndFilteredEntries 
   });
 
-  const handleCreateSubsession = async () => {
-    if (selectedEntries.length !== 1) return;
-
-    const selectedEntry = data.find(entry => entry.id === selectedEntries[0]);
-    if (!selectedEntry) return;
-
+  const handleCreateSubsession = async (parentId) => {
     try {
-      const fullSession = await window.electronAPI.getPresession(selectedEntry.id);
+      // Получаем родительскую сессию
+      const parentSession = data.find(entry => entry.id === parentId);
+      if (!parentSession || parentSession.parentSessionId) {
+        console.log('Invalid parent session');
+        return;
+      }
+  
+      // Получаем полные данные родительской сессии
+      const fullSession = await window.electronAPI.getPresession(parentId);
       
+      // Создаем новую подсессию
       const newSession = {
         id: Date.now().toString(),
         date: fullSession.date,
+        weekDay: new Date(fullSession.date).toLocaleDateString('en-US', { weekday: 'long' }),
         mindset_preparation: fullSession.mindset_preparation,
         the_zone: fullSession.the_zone,
         video_url: fullSession.video_url,
-        parentSessionId: selectedEntry.id,
+        parentSessionId: parentId,
         pair: '',
-        narrative: '',
+        narrative: parentSession.narrative,
         execution: '',
         outcome: '',
         plan_outcome: false,
@@ -1124,23 +1131,17 @@ function PreSessionJournal() {
         }),
         chart_processes: JSON.stringify([])
       };
-
+  
+      // Сохраняем новую подсессию
       await window.electronAPI.savePresession(newSession);
       
-      const updatedSessions = await window.electronAPI.getAllPresessions();
-      setData(updatedSessions.map(presession => ({
-        id: presession.id,
-        date: presession.date,
-        weekDay: new Date(presession.date).toLocaleDateString('en-US', { weekday: 'long' }),
-        pair: presession.pair || '',
-        narrative: presession.narrative || '',
-        execution: presession.execution || '',
-        outcome: presession.outcome || '',
-        planOutcome: presession.plan_outcome === 1,
-        parentSessionId: presession.parentSessionId || null
-      })));
+      // Перезагружаем данные
+      await loadData();
       
+      // Очищаем выбор
       setSelectedEntries([]);
+      
+      console.log('Subsession created successfully');
     } catch (error) {
       console.error('Error creating subsession:', error);
     }
@@ -1305,13 +1306,6 @@ function PreSessionJournal() {
               onChange={handleSelectAll}
             />
             <span>Select All Entries</span>
-            {selectedEntries.length === 1 && (
-              <AddSubsessionButton
-                onClick={handleCreateSubsession}
-              >
-                Additional Pair
-              </AddSubsessionButton>
-            )}
             {selectedEntries.length > 0 && (
               <DeleteSelectedButton
                 onClick={() => setShowDeleteConfirmation(true)}
@@ -1358,9 +1352,7 @@ function PreSessionJournal() {
                           <Td 
                             key={cell.column.id}
                             {...cell.getCellProps()}
-                            style={{
-                              width: cell.column.width
-                            }}
+                            style={{ width: cell.column.width }}
                           >
                             {cell.render('Cell')}
                           </Td>
