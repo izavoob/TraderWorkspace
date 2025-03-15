@@ -30,6 +30,7 @@
     "gopd": "^1.2.0",
     "got": "^11.8.6",
     "graceful-fs": "^4.2.11",
+    "gsap": "^3.12.7",
     "has-property-descriptors": "^1.0.2",
     "http-cache-semantics": "^4.1.1",
     "http2-wrapper": "^1.0.3",

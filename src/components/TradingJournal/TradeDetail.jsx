@@ -925,62 +925,93 @@ function TradeDetail() {
   const [notification, setNotification] = useState(null);
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
+  const [isSaving, setIsSaving] = useState(false);
+  const [notes, setNotes] = useState([]);
 
   useEffect(() => {
-    const loadData = async () => {
+    // Завантаження даних при монтуванні компонента
+    const loadInitialData = async () => {
       try {
-        console.log('Початок завантаження трейду');
-        setIsLoading(true);
-        
-        // Завантажуємо трейд
-        const tradeData = await window.electronAPI.getTrade(id);
-        console.log('Завантажений трейд:', tradeData);
-        
-        // Завантажуємо акаунти
+        // Завантаження аккаунтів та інших необхідних даних
         const accountsData = await window.electronAPI.getAllAccounts();
         setAccounts(accountsData);
-
-        // Завантажуємо елементи виконання
-        const sections = [
-          'pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 
-          'fta', 'slPosition', 'volumeConfirmation',
-          'pairs', 'directions', 'sessions', 'positionType'
-        ];
         
-        const executionData = {};
-        for (const section of sections) {
-          const items = await window.electronAPI.getAllExecutionItems(section);
-          executionData[section] = items;
-        }
-        setExecutionItems(executionData);
-        
-        if (tradeData) {
-          // Завантажуємо нотатки для цього трейду
-          const notes = await window.electronAPI.getNotesBySource('trade', id);
-          
-          // Встановлюємо дані трейду разом з нотатками
-          setTrade({
-            ...tradeData,
-            notes: notes.map(note => ({
-              title: note.title,
-              text: note.content,
-              id: note.id,
-              tagId: note.tag_id,
-              tagName: note.tag_name
-            }))
-          });
-          
-          setIsEditing(false);
-        }
+        // Завантаження деталей трейду
+        await fetchTradeDetails();
       } catch (error) {
-        console.error('Помилка при завантаженні трейду:', error);
-      } finally {
+        console.error('Помилка завантаження початкових даних:', error);
         setIsLoading(false);
       }
     };
+    
+    loadInitialData();
+  }, [id]); // Залежність від id, щоб перезавантажувати дані при зміні id
 
-    loadData();
-  }, [id]);
+  const fetchTradeDetails = async () => {
+      try {
+      console.log('Завантаження деталей трейду ID:', id);
+        const tradeData = await window.electronAPI.getTrade(id);
+      
+      if (!tradeData) {
+        console.error('Трейд не знайдено');
+        navigate('/trades');
+        return;
+      }
+      
+      console.log('Отримані дані трейду:', tradeData);
+      setTrade(tradeData);
+      
+      // Заповнюємо форму даними трейду
+      const formDataFromTrade = { ...tradeData };
+      
+      // Конвертуємо рядки JSON у об'єкти, якщо потрібно
+      if (typeof formDataFromTrade.volumeConfirmation === 'string') {
+        try {
+          formDataFromTrade.volumeConfirmation = JSON.parse(formDataFromTrade.volumeConfirmation);
+        } catch (e) {
+          console.warn('Помилка парсингу volumeConfirmation:', e);
+          formDataFromTrade.volumeConfirmation = [];
+        }
+      }
+      
+      // Завантажуємо нотатки для трейду
+      console.log('Завантаження нотаток для трейду ID:', id);
+      const tradeNotes = await window.electronAPI.getNotesBySource('trade', id);
+      console.log('Отримані нотатки для трейду:', tradeNotes);
+      
+      // Важливо: зберігаємо ID нотаток
+      const notesWithImages = await Promise.all(tradeNotes.map(async (note) => {
+        console.log(`Обробка нотатки ID=${note.id}`);
+        
+        // Перевіряємо чи є зображення в нотатці
+        if (!note.images || note.images.length === 0) {
+          console.log(`Завантаження зображень для нотатки ID=${note.id}`);
+          const images = await window.electronAPI.getNoteImages(note.id);
+          console.log(`Отримано ${images.length} зображень для нотатки ID=${note.id}`);
+          
+          // Повертаємо нотатку з завантаженими зображеннями, зберігаючи ID
+          return {
+            ...note,
+            images: images || []
+          };
+        }
+        
+        // Повертаємо нотатку з існуючими зображеннями, зберігаючи ID
+        return note;
+      }));
+      
+      console.log('Нотатки з зображеннями:', notesWithImages);
+      setTrade(prev => ({ ...prev, notes: notesWithImages }));
+      // Також оновлюємо окремий стан notes
+      setNotes(notesWithImages);
+      
+      setIsLoading(false);
+      } catch (error) {
+      console.error('Помилка завантаження деталей трейду:', error);
+      setIsLoading(false);
+      navigate('/trades');
+    }
+  };
 
   const handleBack = () => {
     navigate(-1);
@@ -1045,62 +1076,165 @@ function TradeDetail() {
 
   const handleSave = async () => {
     try {
-      console.log('Початок збереження трейду');
+      console.log('Починаю збереження трейду');
+      setIsSaving(true);
       
-      // Спочатку отримуємо актуальні нотатки з бази даних
-      const currentNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
-      console.log('Отримані актуальні нотатки:', currentNotes);
+      // Спочатку отримуємо актуальні нотатки з бази даних для порівняння
+      console.log('Отримання поточних нотаток для трейду ID:', trade.id);
+      const existingNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
+      console.log('Отримані поточні нотатки з бази даних:', existingNotes);
       
-      const updatedTrade = {
-        ...trade,
-        notes: currentNotes || [],
-        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
-      };
+      // Порівнюємо існуючі нотатки з тими, що в state
+      // Створюємо мапу існуючих нотаток за ID для швидкого пошуку
+      const existingNotesMap = existingNotes.reduce((map, note) => {
+        map[note.id] = note;
+        return map;
+      }, {});
       
-      console.log('Дані трейду перед збереженням:', updatedTrade);
-
-      // Зберігаємо трейд
-      await window.electronAPI.updateTrade(trade.id, updatedTrade);
-      console.log('Трейд успішно оновлено');
-
-      // Оновлюємо нотатки з актуальними даними трейду
-      if (currentNotes && currentNotes.length > 0) {
-        for (const note of currentNotes) {
-          const noteToUpdate = {
-            ...note,
-            source_type: note.source_type || 'trade',
-            source_id: note.source_id || trade.id,
-            trade_no: trade.no,
-            trade_date: trade.date,
-            title: note.title,
-            content: note.content || note.text, // Підтримка обох форматів
-            tag_id: note.tag_id // Ensure tag_id is included
-          };
-          await window.electronAPI.updateNote(noteToUpdate);
-        }
-      }
-      
-      // Оновлюємо локальний стан трейду з актуальними нотатками
-      setTrade(updatedTrade);
-      
-      setIsEditing(false);
-      setHasUnsavedChanges(false);
-      setNotification({
-        type: 'success',
-        message: 'Changes saved successfully!'
+      // Фільтруємо нотатки в state, щоб уникнути дублювання
+      const notesToUpdate = trade.notes.filter(note => {
+        // Залишаємо нотатки, які або:
+        // 1. Не мають ID (нові нотатки)
+        // 2. Мають ID, який існує в базі даних
+        return !note.id || existingNotesMap[note.id];
       });
       
-      // Очищаємо повідомлення через 3 секунди
+      console.log('Нотатки для оновлення після фільтрації:', notesToUpdate);
+      
+      // Зберігаємо трейд перед збереженням нотаток
+      console.log('Оновлення даних трейду:', trade);
+      await window.electronAPI.updateTrade(trade.id, trade);
+      console.log('Трейд успішно оновлено');
+      
+      // Оновлюємо нотатки із збереженням їх ID
+      console.log('Оновлення нотаток для трейду, filtered notes:', notesToUpdate);
+      
+      const notePromises = notesToUpdate.map(async (note) => {
+        try {
+          // Зберігаємо оригінальні зображення нотатки перед будь-якими змінами
+          const originalImages = note.images || [];
+          const oldNoteId = note.id; // Зберігаємо старий ID нотатки
+          
+          // Важливо: Перевіряємо, чи існує нотатка в базі даних
+          if (note.id) {
+            console.log(`Перевірка існування нотатки з ID=${note.id}`);
+            const existingNote = await window.electronAPI.getNoteById(note.id);
+            
+            if (existingNote) {
+              console.log(`Нотатка з ID=${note.id} знайдена, оновлюємо`);
+              // Оновлюємо існучу нотатку з ID та збереженням зв'язку з трейдом
+              const updatedNote = {
+                ...note,
+                id: note.id, // Явно зберігаємо ID
+                source_type: 'trade',
+                source_id: trade.id,
+                trade_no: trade.no,
+                trade_date: trade.date
+              };
+              
+              console.log('Дані для оновлення нотатки:', updatedNote);
+              await window.electronAPI.updateNote(updatedNote);
+              console.log(`Нотатка з ID=${note.id} успішно оновлена`);
+              
+              // Оновлюємо зображення для нотатки
+              if (originalImages && originalImages.length > 0) {
+                console.log(`Перевірка ${originalImages.length} зображень для нотатки ID=${note.id}`);
+                for (const image of originalImages) {
+                  if (!image.id) {
+                    console.log('Додавання нового зображення до нотатки:', image.image_path);
+                    await window.electronAPI.addNoteImage(note.id, image.image_path);
+                  }
+                }
+              }
+              
+              return { success: true, note: updatedNote, oldId: oldNoteId };
+            } else {
+              console.warn(`Нотатка з ID=${note.id} не знайдена в базі даних. Можливо, вона була видалена. Зберігаємо поточну.`);
+              // Замість створення нової нотатки, повертаємо існуючу з тим самим ID
+              return { success: true, note: note, oldId: oldNoteId };
+            }
+          } else {
+            // Це нова нотатка, створюємо її
+            console.log('Створення нової нотатки для трейду');
+            const newNoteToSave = {
+              title: note.title,
+              content: note.content || note.text, // Підтримка обох форматів
+              tag_id: note.tag_id,
+              source_type: 'trade',
+              source_id: trade.id,
+              trade_no: trade.no,
+              trade_date: trade.date
+            };
+            
+            const newNoteId = await window.electronAPI.addNote(newNoteToSave);
+            console.log(`Нова нотатка створена з ID=${newNoteId}`);
+            
+            // Зберігаємо зображення для нової нотатки
+            if (originalImages && originalImages.length > 0) {
+              console.log(`Додавання ${originalImages.length} зображень до нової нотатки ID=${newNoteId}`);
+              
+              for (const image of originalImages) {
+                console.log(`Додавання зображення ${image.image_path} до нової нотатки ID=${newNoteId}`);
+                await window.electronAPI.addNoteImage(newNoteId, image.image_path);
+              }
+            }
+            
+            // Отримуємо оновлену нотатку з бази даних
+            const newNote = await window.electronAPI.getNoteById(newNoteId);
+            console.log('Отримана створена нотатка:', newNote);
+            
+            // Додаємо зображення до об'єкту нотатки
+            const images = await window.electronAPI.getNoteImages(newNoteId);
+            newNote.images = images;
+            
+            return { success: true, note: newNote, oldId: oldNoteId };
+          }
+        } catch (error) {
+          console.error(`Помилка при обробці нотатки ${note.id || 'нова'}:`, error);
+          return { success: false, error };
+        }
+      });
+      
+      const results = await Promise.all(notePromises);
+      console.log('Результати обробки нотаток:', results);
+      
+      // Перевіряємо результати
+      const errors = results.filter(result => !result.success);
+      if (errors.length > 0) {
+        console.warn(`${errors.length} нотаток не вдалося зберегти`);
+      }
+      
+      // Оновлюємо стан notes, зберігаючи ID нотаток
+      const updatedNotes = results
+        .filter(result => result.success)
+        .map(result => result.note);
+      
+      // Актуалізуємо стан трейду з оновленими нотатками
+      setTrade(prev => ({ ...prev, notes: updatedNotes }));
+      setNotes(updatedNotes); // Оновлюємо також основний стан нотаток
+      
+      console.log('Трейд та нотатки збережені успішно');
+      setIsSaving(false);
+      setIsEditing(false);
+      setHasUnsavedChanges(false);
+      
+      // Відображаємо повідомлення про успіх
+      setNotification({
+        type: 'success',
+        message: 'Trade saved successfully!'
+      });
+      
+      // Прибираємо повідомлення через 3 секунди
       setTimeout(() => {
         setNotification(null);
       }, 3000);
       
+      // НЕ оновлюємо дані на сторінці, щоб уникнути дублювання
+      // await fetchTradeDetails();
     } catch (error) {
       console.error('Помилка при збереженні трейду:', error);
-      setNotification({
-        type: 'error',
-        message: 'Error saving changes!'
-      });
+      setIsSaving(false);
+      alert(`Помилка при збереженні трейду: ${error.message}`);
     }
   };
 
@@ -1119,8 +1253,17 @@ function TradeDetail() {
             risk,
             rr
           });
+          // Перевіряємо тип volumeConfirmation перед використанням split
           if (currentTrade.volumeConfirmation) {
-            setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
+            if (typeof currentTrade.volumeConfirmation === 'string') {
+              setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
+            } else if (Array.isArray(currentTrade.volumeConfirmation)) {
+              setTempVolumeConfirmation([...currentTrade.volumeConfirmation]);
+            } else {
+              // Якщо volumeConfirmation не є ні рядком, ні масивом, встановлюємо порожній масив
+              console.warn('volumeConfirmation має невідомий тип:', typeof currentTrade.volumeConfirmation);
+              setTempVolumeConfirmation([]);
+            }
           }
         }
       } catch (error) {
@@ -1239,88 +1382,144 @@ function TradeDetail() {
   };
 
   const saveNote = async () => {
-    if (noteTitle && noteText) {
-      try {
-        let noteData;
-        
-        if (editNoteIndex !== null) {
-          // Зберігаємо всі існуючі дані нотатки
-          const existingNote = trade.notes[editNoteIndex];
-          noteData = {
-            id: existingNote.id,
-            title: noteTitle,
-            content: noteText,
-            source_type: existingNote.source_type || 'trade',
-            source_id: existingNote.source_id || id,
-            trade_no: trade.no,
-            trade_date: trade.date,
-            tag_id: existingNote.tag_id || null,
-            tag_name: existingNote.tag_name || null,
-            images: existingNote.images || []
-          };
-        } else {
-          // Створюємо нову нотатку
-          noteData = {
+    try {
+      if (!noteTitle || !noteText) {
+        console.error('Відсутній заголовок або вміст нотатки');
+        alert('Title and content are required');
+        return;
+      }
+      
+      console.log('Збереження нотатки:', { title: noteTitle, content: noteText });
+      
+      // Підготовка об'єкту нотатки для збереження
+      const noteToSave = {
             title: noteTitle,
             content: noteText,
             source_type: 'trade',
-            source_id: id,
+            source_id: trade.id,
             trade_no: trade.no,
-            trade_date: trade.date,
-            tag_id: null,
-            tag_name: null,
-            images: []
-          };
-        }
-
-        if (editNoteIndex !== null) {
-          await window.electronAPI.updateNote(noteData);
-          const updatedNotes = [...trade.notes];
-          updatedNotes[editNoteIndex] = {
-            ...updatedNotes[editNoteIndex],
-            title: noteTitle,
-            content: noteText,
-            source_type: noteData.source_type,
-            source_id: noteData.source_id,
-            tag_id: noteData.tag_id,
-            tag_name: noteData.tag_name,
-            images: noteData.images
-          };
-          setTrade(prev => ({ ...prev, notes: updatedNotes }));
-        } else {
-          const noteId = await window.electronAPI.addNote(noteData);
-          setTrade(prev => ({ 
-            ...prev, 
-            notes: [...prev.notes, { 
-              id: noteId,
-              title: noteTitle,
-              content: noteText,
-              source_type: 'trade',
-              source_id: id,
-              trade_no: trade.no,
-              trade_date: trade.date,
-              tag_id: null,
-              tag_name: null,
-              images: []
-            }] 
-          }));
-        }
-
-        setNoteTitle('');
-        setNoteText('');
-        setEditNoteIndex(null);
-        setShowNotePopup(false);
-      } catch (error) {
-        console.error('Error saving note:', error);
+            trade_date: trade.date
+      };
+      
+      console.log('Підготовлена нотатка для збереження:', noteToSave);
+      
+      let savedNoteId;
+      let originalImages = [];
+      
+      // Зберігаємо посилання на оригінальні зображення
+      if (selectedNote && selectedNote.images) {
+        originalImages = [...selectedNote.images];
       }
+      
+      // Перевіряємо, чи це оновлення існуючої нотатки
+      if (selectedNote && selectedNote.id) {
+        console.log(`Оновлення існуючої нотатки ID=${selectedNote.id}`);
+        
+        try {
+          // Перевіряємо чи існує нотатка
+          const existingNote = await window.electronAPI.getNoteById(selectedNote.id);
+          console.log('Існуюча нотатка:', existingNote);
+          
+          if (existingNote) {
+            // Оновлюємо існуючу нотатку
+            noteToSave.id = selectedNote.id; // Важливо: встановлюємо ID
+            await window.electronAPI.updateNote({
+              ...noteToSave,
+              id: selectedNote.id // Дублюємо ID для впевненості
+            });
+            console.log(`Нотатка з ID=${selectedNote.id} успішно оновлена`);
+            savedNoteId = selectedNote.id;
+          } else {
+            console.warn(`Нотатка з ID=${selectedNote.id} не знайдена, створюємо нову`);
+            savedNoteId = await window.electronAPI.addNote(noteToSave);
+            console.log(`Нова нотатка створена з ID=${savedNoteId}`);
+          }
+        } catch (checkError) {
+          console.error('Помилка перевірки існування нотатки:', checkError);
+          savedNoteId = await window.electronAPI.addNote(noteToSave);
+          console.log(`Нова нотатка створена з ID=${savedNoteId} (після помилки)`);
+        }
+      } else {
+        // Створення нової нотатки
+        console.log('Створення нової нотатки');
+        savedNoteId = await window.electronAPI.addNote(noteToSave);
+        console.log(`Нова нотатка створена з ID=${savedNoteId}`);
+      }
+      
+      // Зберігаємо зображення для нотатки
+      if (originalImages && originalImages.length > 0) {
+        console.log(`Обробка ${originalImages.length} зображень для нотатки ID=${savedNoteId}`);
+        
+        for (const image of originalImages) {
+          // Зберігаємо тільки нові зображення без ID або копіюємо існуючі
+          console.log('Копіювання зображення до нотатки:', image.image_path);
+          try {
+            await window.electronAPI.addNoteImage(savedNoteId, image.image_path);
+            console.log('Зображення успішно додано/скопійовано');
+          } catch (imageError) {
+            console.error('Помилка додавання/копіювання зображення:', imageError);
+          }
+        }
+      }
+      
+      // Отримуємо оновлену нотатку з бази даних з усіма зображеннями
+      const savedNote = await window.electronAPI.getNoteById(savedNoteId);
+      console.log('Отримана збережена нотатка:', savedNote);
+      
+      // Завантажуємо зображення для нотатки
+      const images = await window.electronAPI.getNoteImages(savedNoteId);
+      console.log(`Отримано ${images.length} зображень для нотатки ID=${savedNoteId}`);
+      
+      // Створюємо повний об'єкт нотатки з зображеннями
+      const completeNote = {
+        ...savedNote,
+        images: images
+      };
+      
+      console.log('Повна нотатка з зображеннями:', completeNote);
+      
+      // Оновлюємо локальний масив нотаток
+      setNotes(prev => {
+        if (selectedNote && selectedNote.id) {
+          // Оновлюємо існуючу нотатку
+          return prev.map(note => 
+            note.id === selectedNote.id ? completeNote : note
+          );
+        } else {
+          // Додаємо нову нотатку
+          return [...prev, completeNote];
+        }
+      });
+      
+      // Оновлюємо також notes у trade
+      setTrade(prev => {
+        if (selectedNote && selectedNote.id) {
+          // Оновлюємо існуючу нотатку
+          const updatedNotes = prev.notes.map(note => 
+            note.id === selectedNote.id ? completeNote : note
+          );
+          return { ...prev, notes: updatedNotes };
+        } else {
+          // Додаємо нову нотатку
+          return { ...prev, notes: [...prev.notes, completeNote] };
+        }
+      });
+      
+      // Скидаємо стан редагування
+      setShowNotePopup(false);
+      setNoteTitle('');
+      setNoteText('');
+      setSelectedNote(null);
+      
+      console.log('Нотатка успішно збережена');
+    } catch (error) {
+      console.error('Помилка збереження нотатки:', error);
+      alert(`Error saving note: ${error.message}`);
     }
   };
 
   const deleteNote = (index) => {
-    setTrade((prev) => ({
-      ...prev,
-      notes: prev.notes.filter((_, i) => i !== index),
-    }));
+    setNotes(prev => prev.filter((_, i) => i !== index));
     setShowNotePopup(false);
     document.body.style.overflow = 'auto';
   };
@@ -1329,18 +1528,49 @@ function TradeDetail() {
     setShowNotePopup(false);
     setNoteTitle('');
     setNoteText('');
-    setEditNoteIndex(null);
+    setSelectedNote(null);
     document.body.style.overflow = 'auto';
   };
 
   const handleNoteUpdate = async () => {
-    // Отримуємо актуальні нотатки з бази даних
-    const currentNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
-    // Оновлюємо стан трейду
-    setTrade(prev => ({
-      ...prev,
-      notes: currentNotes || []
-    }));
+    try {
+      console.log('Оновлення нотаток для трейду ID:', trade.id);
+      
+      // Отримуємо актуальні нотатки з бази даних
+      const currentNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
+      console.log('Отримані нотатки з бази даних:', currentNotes);
+      
+      // Завантажуємо зображення для кожної нотатки
+      const notesWithImages = await Promise.all(currentNotes.map(async (note) => {
+        try {
+          console.log(`Завантаження зображень для нотатки ID=${note.id}`);
+          const images = await window.electronAPI.getNoteImages(note.id);
+          console.log(`Отримано ${images.length} зображень для нотатки ID=${note.id}`);
+          
+          return {
+            ...note,
+            text: note.content, // Перетворюємо content на text для сумісності
+            images: images || []
+          };
+        } catch (imageError) {
+          console.error(`Помилка завантаження зображень для нотатки ID=${note.id}:`, imageError);
+          return {
+            ...note,
+            text: note.content,
+            images: []
+          };
+        }
+      }));
+      
+      console.log('Нотатки з зображеннями для оновлення стану:', notesWithImages);
+      
+      // Оновлюємо обидва стани нотаток
+      setNotes(notesWithImages);
+      setTrade(prev => ({ ...prev, notes: notesWithImages }));
+    } catch (error) {
+      console.error('Error updating notes:', error);
+      alert(`Помилка оновлення нотаток: ${error.message}`);
+    }
   };
 
   return (
@@ -1855,8 +2085,13 @@ function TradeDetail() {
               )}
 
               {showNotePopup && (
-                <ModalOverlay onClick={cancelNote}>
-                  <NotePopup onClick={e => e.stopPropagation()}>
+                <ModalOverlay onClick={() => {
+                  setShowNotePopup(false);
+                  setNoteTitle('');
+                  setNoteText('');
+                  setSelectedNote(null);
+                }}>
+                  <NotePopup onClick={(e) => e.stopPropagation()}>
                     <NotePopupTitle>{editNoteIndex !== null ? 'Edit Note' : 'Add Note'}</NotePopupTitle>
                     <NotePopupInput
                       type="text"
@@ -1870,10 +2105,21 @@ function TradeDetail() {
                       onChange={(e) => setNoteText(e.target.value)}
                     />
                     <NotePopupButtons>
-                      <FormButton onClick={saveNote}>Save</FormButton>
-                      <FormButton onClick={cancelNote}>Cancel</FormButton>
+                      <FormButton onClick={() => {
+                        saveNote();
+                        setShowNotePopup(false);
+                      }}>Save</FormButton>
+                      <FormButton onClick={() => {
+                        setShowNotePopup(false);
+                        setNoteTitle('');
+                        setNoteText('');
+                        setSelectedNote(null);
+                      }}>Cancel</FormButton>
                       {editNoteIndex !== null && (
-                        <FormButton onClick={() => deleteNote(editNoteIndex)}>Delete</FormButton>
+                        <FormButton onClick={() => {
+                          deleteNote(editNoteIndex);
+                          setShowNotePopup(false);
+                        }}>Delete</FormButton>
                       )}
                     </NotePopupButtons>
                   </NotePopup>

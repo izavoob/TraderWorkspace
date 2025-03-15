@@ -1,4 +1,3 @@
-
 const electron = require('electron');
 const { app, BrowserWindow, ipcMain } = electron;
 const path = require('path');
@@ -415,22 +414,47 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         );
       });
 
-      // Delete existing notes for this trade
-      const existingNotes = await notesDB.getNotesBySource('trade', tradeId);
-      for (const note of existingNotes) {
-        await notesDB.deleteNote(note.id);
-      }
-
-      // Add new notes
+      // Update or add notes
       if (updatedTrade.notes && updatedTrade.notes.length > 0) {
+        console.log(`Обробка ${updatedTrade.notes.length} нотаток для трейду ID=${tradeId}`);
         for (const note of updatedTrade.notes) {
-          await notesDB.addNote({
-            ...note,
-            sourceType: 'trade',
-            sourceId: tradeId,
-            tradeNo: updatedTrade.no,
-            tradeDate: updatedTrade.date
-          });
+          if (note.id) {
+            console.log(`Оновлення існуючої нотатки з ID=${note.id}`);
+            // Оновлюємо існуючу нотатку
+            await notesDB.updateNote({
+              ...note,
+              source_type: 'trade',
+              source_id: tradeId,
+              trade_no: updatedTrade.no,
+              trade_date: updatedTrade.date
+            });
+            
+            // Оновлюємо зображення для нотатки
+            if (note.images && note.images.length > 0) {
+              for (const image of note.images) {
+                if (!image.id) {
+                  await notesDB.addNoteImage(note.id, image.image_path);
+                }
+              }
+            }
+          } else {
+            console.log('Створення нової нотатки для трейду');
+            // Створюємо нову нотатку
+            const newNoteId = await notesDB.addNote({
+              ...note,
+              source_type: 'trade',
+              source_id: tradeId,
+              trade_no: updatedTrade.no,
+              trade_date: updatedTrade.date
+            });
+            
+            // Додаємо зображення до нової нотатки
+            if (note.images && note.images.length > 0) {
+              for (const image of note.images) {
+                await notesDB.addNoteImage(newNoteId, image.image_path);
+              }
+            }
+          }
         }
       }
 
@@ -613,11 +637,169 @@ ipcMain.handle('addNoteTag', async (event, name) => {
 });
 
 ipcMain.handle('addNote', async (event, note) => {
-  return await notesDB.addNote(note);
+  try {
+    console.log('Received note data:', note);
+
+    // Перевірка та встановлення обов'язкових полів
+    if (!note.source_type) {
+      console.warn('No source_type provided, defaulting to "trade"');
+      note.source_type = 'trade'; // Значення за замовчуванням
+    }
+    
+    if (!note.source_id) {
+      console.warn('No source_id provided, setting to empty string');
+      note.source_id = ''; // Порожній рядок як значення за замовчуванням
+    }
+
+    // Перевірка наявності обов'язкових полів
+    if (!note.title || !note.content) {
+      console.error('Missing required fields:', { title: note.title, content: note.content });
+      throw new Error('Title and content are required');
+    }
+
+    // Додаткова перевірка та встановлення тегу
+    let tagId = note.tagId || note.tag_id;
+    if (!tagId && note.tag_name) {
+      // Якщо тег вказаний за назвою, але немає ID, спробуємо знайти або створити
+      const existingTag = await new Promise((resolve, reject) => {
+        notesDB.db.get('SELECT id FROM note_tags WHERE name = ?', [note.tag_name], (err, row) => {
+          if (err) reject(err);
+          else resolve(row);
+        });
+      });
+
+      if (existingTag) {
+        tagId = existingTag.id;
+      } else {
+        // Створюємо новий тег, якщо не існує
+        tagId = await notesDB.addTag(note.tag_name);
+      }
+    }
+
+    // Підготовка даних для додавання
+    const noteToAdd = {
+      title: note.title,
+      content: note.content || note.text,
+      source_type: note.source_type,
+      source_id: note.source_id,
+      tagId: tagId,
+      tradeNo: note.tradeNo || note.trade_no,
+      tradeDate: note.tradeDate || note.trade_date
+    };
+
+    console.log('Note to add:', noteToAdd);
+
+    // Додаємо нотатку
+    const noteId = await notesDB.addNote(noteToAdd);
+
+    // Зберігаємо зображення
+    if (note.images && note.images.length > 0) {
+      for (const image of note.images) {
+        if (!image.id) {
+          // Якщо це base64 або локальний шлях, зберігаємо як файл
+          let imagePath = image.image_path;
+          if (image.image_path.startsWith('data:') || !image.image_path.includes('screenshots')) {
+            const buffer = image.image_path.startsWith('data:') 
+              ? Buffer.from(image.image_path.split(',')[1], 'base64')
+              : await require('fs').promises.readFile(image.image_path);
+            
+            imagePath = await ipcMain.invoke('save-blob-as-file', buffer);
+          }
+          
+          await notesDB.addNoteImage(noteId, imagePath);
+        }
+      }
+    }
+
+    console.log('Note added successfully with ID:', noteId);
+    return noteId;
+  } catch (error) {
+    console.error('Error adding note:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('updateNote', async (event, note) => {
-  return await notesDB.updateNote(note);
+  try {
+    console.log('[main.js] Оновлення нотатки:', note);
+    console.log('[main.js] ID нотатки:', note.id);
+    
+    // Базова перевірка параметрів
+    if (!note || !note.id) {
+      console.error('[main.js] ID нотатки відсутній');
+      throw new Error('Note ID is required for update');
+    }
+    
+    // Перевіряємо чи існує нотатка в базі даних перед оновленням
+    try {
+      const existingNote = await notesDB.getNoteById(note.id);
+      if (!existingNote) {
+        console.error(`[main.js] Нотатка з ID=${note.id} не знайдена в базі даних`);
+        
+        // Якщо нотатка не знайдена, але ми маємо достатньо даних, створимо нову нотатку зі збереженням ID
+        if (note.title && (note.content || note.text)) {
+          console.log(`[main.js] Створення нової нотатки з ID=${note.id}`);
+          
+          // Створюємо SQL запит для додавання нотатки із заданим ID
+          const insertResult = await new Promise((resolve, reject) => {
+            const sql = `
+              INSERT INTO notes (
+                id, title, content, tag_id, source_type, source_id, 
+                trade_no, trade_date, created_at, updated_at
+              ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            `;
+            
+            const params = [
+              note.id,
+              note.title,
+              note.content || note.text || '',
+              note.tagId || note.tag_id || null,
+              note.source_type || note.sourceType || 'trade',
+              note.source_id || note.sourceId || '',
+              note.trade_no || note.tradeNo || null,
+              note.trade_date || note.tradeDate || null
+            ];
+            
+            notesDB.db.run(sql, params, function(err) {
+              if (err) {
+                console.error('[main.js] Помилка створення нотатки зі збереженням ID:', err);
+                reject(err);
+              } else {
+                console.log(`[main.js] Нотатка створена з ID=${note.id}`);
+                resolve(true);
+              }
+            });
+          });
+          
+          // Перевіряємо результат створення нотатки
+          if (!insertResult) {
+            throw new Error(`Failed to create note with ID=${note.id}`);
+          }
+          
+          // Отримуємо створену нотатку
+          const createdNote = await notesDB.getNoteById(note.id);
+          return createdNote;
+        } else {
+          throw new Error(`Note with ID=${note.id} not found and cannot be created due to missing data`);
+        }
+      }
+      
+      // Якщо нотатка існує, оновлюємо її
+      console.log(`[main.js] Нотатка з ID=${note.id} знайдена, оновлюємо її`);
+      await notesDB.updateNote(note);
+      
+      // Повертаємо оновлену нотатку
+      const updatedNote = await notesDB.getNoteById(note.id);
+      return updatedNote;
+      
+    } catch (checkError) {
+      console.error('[main.js] Помилка при перевірці існування нотатки:', checkError);
+      throw checkError;
+    }
+  } catch (error) {
+    console.error('[main.js] Помилка оновлення нотатки:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('getNoteById', async (event, id) => {
@@ -625,7 +807,116 @@ ipcMain.handle('getNoteById', async (event, id) => {
 });
 
 ipcMain.handle('getNotesBySource', async (event, sourceType, sourceId) => {
-  return await notesDB.getNotesBySource(sourceType, sourceId);
+  try {
+    console.log(`[main.js] Отримую нотатки для sourceType=${sourceType}, sourceId=${sourceId}`);
+    const notes = await notesDB.getNotesBySource(sourceType, sourceId);
+    console.log(`[main.js] Отримано ${notes.length} нотаток`);
+    
+    // Додаємо зображення до кожної нотатки
+    const notesWithImages = await Promise.all(notes.map(async (note) => {
+      try {
+        console.log(`[main.js] Завантаження зображень для нотатки ID=${note.id}`);
+        
+        // Якщо нотатка вже має зображення від SQL запиту, обробляємо їх
+        if (note.images && note.images.length > 0) {
+          console.log(`[main.js] Знайдено ${note.images.length} зображень у нотатці з SQL запиту`);
+          
+          // Обробляємо наявні зображення
+          const processedImages = await Promise.all(note.images.map(async (image) => {
+            const screenshotsPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'screenshots');
+            
+            // Якщо шлях не є абсолютним, додаємо повний шлях
+            let imagePath = image.image_path;
+            if (!path.isAbsolute(imagePath)) {
+              imagePath = path.join(screenshotsPath, path.basename(imagePath));
+            }
+            
+            // Перевіряємо чи файл існує
+            try {
+              await fs.access(imagePath);
+              console.log(`[main.js] Файл існує: ${imagePath}`);
+              return {
+                ...image,
+                image_path: imagePath
+              };
+            } catch (fileError) {
+              // Спробуємо пошукати файл в директорії screenshots з використанням тільки базового імені
+              try {
+                const baseFilename = path.basename(imagePath);
+                const alternativePath = path.join(screenshotsPath, baseFilename);
+                await fs.access(alternativePath);
+                console.log(`[main.js] Знайдено альтернативний шлях: ${alternativePath}`);
+                return {
+                  ...image,
+                  image_path: alternativePath
+                };
+              } catch (altError) {
+                console.warn(`[main.js] Зображення не знайдено: ${imagePath}`);
+                return {
+                  ...image,
+                  image_path: imagePath
+                };
+              }
+            }
+          }));
+          
+          return {
+            ...note,
+            images: processedImages
+          };
+        } else {
+          // Якщо нотатка не має зображень від SQL запиту, отримуємо їх окремо
+          console.log(`[main.js] Немає зображень у SQL запиті, отримую з getNoteImages`);
+          const images = await notesDB.getNoteImages(note.id);
+          
+          if (images && images.length > 0) {
+            console.log(`[main.js] Знайдено ${images.length} зображень через getNoteImages`);
+            
+            // Обробляємо зображення отримані через getNoteImages
+            const processedImages = await Promise.all(images.map(async (image) => {
+              const screenshotsPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'screenshots');
+              
+              // Нормалізуємо шлях до зображення
+              let imagePath = image.image_path;
+              if (!path.isAbsolute(imagePath)) {
+                imagePath = path.join(screenshotsPath, path.basename(imagePath));
+              }
+              
+              // Перевіряємо чи файл існує
+              try {
+                await fs.access(imagePath);
+                return {
+                  ...image,
+                  image_path: imagePath
+                };
+              } catch (fileError) {
+                console.warn(`[main.js] Зображення не знайдено: ${imagePath}`);
+                return {
+                  ...image,
+                  image_path: imagePath
+                };
+              }
+            }));
+            
+            return {
+              ...note,
+              images: processedImages
+            };
+          }
+        }
+        
+        return note;
+      } catch (imageError) {
+        console.error(`[main.js] Помилка при обробці зображень для нотатки ${note.id}:`, imageError);
+        return note;
+      }
+    }));
+    
+    return notesWithImages;
+  } catch (error) {
+    console.error('[main.js] Помилка отримання нотаток за джерелом:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
@@ -642,11 +933,98 @@ ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
 });
 
 ipcMain.handle('addNoteImage', async (event, noteId, imagePath) => {
-  return await notesDB.addNoteImage(noteId, imagePath);
+  try {
+    console.log(`[main.js] Додавання зображення до нотатки ID=${noteId}`);
+    console.log(`[main.js] Шлях до зображення:`, imagePath);
+    
+    // Перевірка, чи існує файл
+    try {
+      await fs.access(imagePath);
+      console.log(`[main.js] Файл існує: ${imagePath}`);
+    } catch (fileError) {
+      console.error(`[main.js] Файл не знайдено: ${imagePath}`);
+      throw new Error(`File not found: ${imagePath}`);
+    }
+    
+    // Переконаємось, що ми зберігаємо відносний шлях у базі даних для переносимості
+    const screenshotsPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'screenshots');
+    let relativeImagePath = imagePath;
+    
+    // Якщо шлях містить директорію screenshots, вилучаємо тільки ім'я файлу
+    if (imagePath.includes('screenshots')) {
+      relativeImagePath = path.basename(imagePath);
+      console.log(`[main.js] Перетворено на відносний шлях: ${relativeImagePath}`);
+    }
+    
+    // Додаємо зображення до бази даних з відносним шляхом
+    const imageId = await notesDB.addNoteImage(noteId, relativeImagePath);
+    console.log(`[main.js] Зображення успішно додано з ID=${imageId}`);
+    
+    return imageId;
+  } catch (error) {
+    console.error('[main.js] Помилка додавання зображення нотатки:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('getNoteImages', async (event, noteId) => {
-  return await notesDB.getNoteImages(noteId);
+  try {
+    console.log(`[main.js] Отримання зображень для нотатки ID=${noteId}`);
+    const images = await notesDB.getNoteImages(noteId);
+    console.log(`[main.js] Отримано ${images.length} зображень з бази даних`);
+    
+    // Перевіряємо та нормалізуємо шляхи зображень
+    const screenshotsPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'screenshots');
+    console.log('[main.js] Директорія зображень:', screenshotsPath);
+    
+    const processedImages = await Promise.all(images.map(async (image, index) => {
+      // Якщо шлях не є абсолютним, додаємо повний шлях
+      let imagePath = image.image_path;
+      if (!path.isAbsolute(imagePath)) {
+        imagePath = path.join(screenshotsPath, path.basename(imagePath));
+        console.log(`[main.js] Нормалізований шлях для зображення ${index + 1}:`, imagePath);
+      }
+      
+      // Перевіряємо чи файл існує
+      try {
+        await fs.access(imagePath);
+        console.log(`[main.js] Файл існує: ${imagePath}`);
+        return {
+          ...image,
+          image_path: imagePath
+        };
+      } catch (fileError) {
+        console.warn(`[main.js] Файл не знайдено: ${imagePath}`);
+        // Спробуємо пошукати файл в директорії screenshots з використанням тільки базового імені
+        try {
+          const baseFilename = path.basename(imagePath);
+          const alternativePath = path.join(screenshotsPath, baseFilename);
+          await fs.access(alternativePath);
+          console.log(`[main.js] Знайдено альтернативний шлях: ${alternativePath}`);
+          return {
+            ...image,
+            image_path: alternativePath
+          };
+        } catch (altError) {
+          console.error(`[main.js] Файл не знайдено ні за оригінальним, ні за альтернативним шляхом:`, {
+            original: imagePath,
+            alternative: path.join(screenshotsPath, path.basename(imagePath))
+          });
+          return {
+            ...image,
+            image_path: imagePath, // Повертаємо оригінальний шлях, навіть якщо файл не знайдено
+            error: 'File not found'
+          };
+        }
+      }
+    }));
+    
+    console.log('[main.js] Оброблені зображення для повернення:', processedImages);
+    return processedImages;
+  } catch (error) {
+    console.error('[main.js] Помилка отримання зображень нотатки:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('deleteNoteImage', async (event, imageId) => {

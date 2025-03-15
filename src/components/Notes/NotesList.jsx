@@ -178,7 +178,14 @@ const AddText = styled.span`
   font-size: 1.2em;
 `;
 
-const NotesListComponent = ({ sourceType, sourceId, onAddNote, onNoteUpdate, isEditing = true }) => {
+const NotesListComponent = ({ 
+  sourceType, 
+  sourceId, 
+  onAddNote, 
+  onNoteUpdate, 
+  isEditing = true,
+  onNoteAdded // Новий пропс для обробки додавання нотатки
+}) => {
   const [notes, setNotes] = useState([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedNote, setSelectedNote] = useState(null);
@@ -190,7 +197,25 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, onNoteUpdate, isE
   const loadNotes = async () => {
     try {
       const notes = await window.electronAPI.getNotesBySource(sourceType, sourceId);
-      setNotes(notes || []);
+      
+      // Завантажуємо зображення для кожної нотатки
+      const notesWithImages = await Promise.all(notes.map(async (note) => {
+        try {
+          const images = await window.electronAPI.getNoteImages(note.id);
+          return {
+            ...note,
+            images: images || []
+          };
+        } catch (imageError) {
+          console.error(`Error loading images for note ${note.id}:`, imageError);
+          return {
+            ...note,
+            images: []
+          };
+        }
+      }));
+      
+      setNotes(notesWithImages);
     } catch (error) {
       console.error('Error loading notes:', error);
     }
@@ -210,14 +235,18 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, onNoteUpdate, isE
 
   const handleSave = async (noteData) => {
     try {
-      console.log('Saving note:', noteData);
+      console.log('Saving note from NotesList:', noteData);
       
       const noteToSave = {
         ...noteData,
-        source_type: sourceType || noteData.source_type,
-        source_id: sourceId || noteData.source_id,
-        content: noteData.content || noteData.text // Підтримка обох форматів
+        source_type: sourceType || noteData.source_type || 'trade',
+        source_id: sourceId || noteData.source_id || '',
+        content: noteData.content || noteData.text, // Підтримка обох форматів
+        tagId: noteData.tagId || noteData.tag_id, // Додаємо обидва варіанти
+        tag_id: noteData.tagId || noteData.tag_id  // Додаємо обидва варіанти
       };
+      
+      console.log('Prepared note to save in NotesList:', noteToSave);
       
       if (noteData.id) {
         // Оновлюємо існуючу нотатку
@@ -244,6 +273,12 @@ const NotesListComponent = ({ sourceType, sourceId, onAddNote, onNoteUpdate, isE
               await window.electronAPI.addNoteImage(newNoteId, image.image_path);
             }
           }
+        }
+        
+        // Викликаємо колбек для додавання нотатки, якщо він є
+        if (typeof onNoteAdded === 'function') {
+          const newNote = await window.electronAPI.getNoteById(newNoteId);
+          onNoteAdded(newNote);
         }
       }
       

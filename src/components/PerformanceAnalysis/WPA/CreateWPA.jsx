@@ -1055,7 +1055,10 @@ function CreateWPA() {
     const loadNotes = async () => {
       if (startDate && endDate) {
         try {
+          console.log('Завантаження нотаток для періоду:', { startDate, endDate });
           const allNotes = await window.electronAPI.getAllNotes();
+          console.log('Отримано нотаток з бази даних:', allNotes.length);
+          
           const filteredNotes = allNotes.filter(note => {
             const noteDate = note.tradeDate ? new Date(note.tradeDate) : null;
             if (!noteDate) return false;
@@ -1066,6 +1069,25 @@ function CreateWPA() {
             
             return noteDate >= start && noteDate <= end;
           });
+          
+          console.log('Відфільтровано нотаток в діапазоні дат:', filteredNotes.length);
+          
+          // Попередньо завантажимо зображення для нотаток
+          for (const note of filteredNotes) {
+            if (note.id) {
+              try {
+                const images = await window.electronAPI.getNoteImages(note.id);
+                if (images && images.length > 0) {
+                  console.log(`Завантажено ${images.length} зображень для нотатки ${note.id}`);
+                  // Додаємо зображення до нотатки
+                  note.images = images;
+                }
+              } catch (err) {
+                console.error(`Помилка завантаження зображень для нотатки ${note.id}:`, err);
+              }
+            }
+          }
+          
           setNotes(filteredNotes);
         } catch (error) {
           console.error('Error loading notes:', error);
@@ -1076,8 +1098,38 @@ function CreateWPA() {
     loadNotes();
   }, [startDate, endDate]);
 
-  const handleNoteClick = (note) => {
-    setSelectedNote(note);
+  const handleNoteClick = async (note) => {
+    console.log('Відкриття нотатки:', note);
+    
+    // Перевіримо, чи є зображення у нотатці
+    if (note.id && (!note.images || note.images.length === 0)) {
+      console.log('Завантаження зображень для нотатки перед відкриттям:', note.id);
+      try {
+        const images = await window.electronAPI.getNoteImages(note.id);
+        if (images && images.length > 0) {
+          console.log(`Для нотатки ${note.id} завантажено ${images.length} зображень`);
+          note.images = images;
+          // Окремо логуємо шляхи до зображень для діагностики
+          images.forEach((img, index) => {
+            console.log(`Зображення ${index+1}:`, {
+              id: img.id,
+              path: img.image_path,
+              fullPath: img.fullImagePath || '(немає)'
+            });
+          });
+        } else {
+          console.log(`Для нотатки ${note.id} не знайдено зображень`);
+          note.images = [];
+        }
+      } catch (err) {
+        console.error(`Помилка завантаження зображень для нотатки ${note.id}:`, err);
+        note.images = [];
+      }
+    } else if (note.images && note.images.length > 0) {
+      console.log(`Нотатка ${note.id} вже має ${note.images.length} зображень`);
+    }
+    
+    setSelectedNote({...note}); // Створюємо нову копію об'єкта, щоб уникнути проблем з реактивністю
     setIsModalOpen(true);
   };
 

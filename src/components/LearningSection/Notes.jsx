@@ -24,7 +24,6 @@ const NotesContainer = styled.div`
   overflow: hidden;
   display: flex;
   flex-direction: column;
-  position: fixed;
   top: 0;
   left: 0;
   right: 0;
@@ -113,20 +112,27 @@ const Subtitle = styled.h2`
   z-index: 1;
   font-weight: normal;
 `;
-const HeaderActions = styled.div`
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 15px;
-  margin: 20px;
-  width: 100%;
-  max-width: 1200px;
+const HeaderActionsContainer = styled.div`
   position: relative;
+  top: 0px;
+  left: 0;
+  right: 0;
   z-index: 999;
+  display: flex;
+  margin-top: 50px;
+  justify-content: flex-end;
+  padding: 0 30px;
+  background: transparent;
+`;
+
+const ActionButtonsWrapper = styled.div`
+  display: flex;
+  gap: 15px;
+  align-items: center;
 `;
 
 const Content = styled.div`
-  padding: 0 20px;
+  
   width: 100%;
   max-width: 1200px;
   margin-left: auto;
@@ -142,7 +148,6 @@ const NotesList = styled.div`
   gap: 15px;
   margin-top: 10px;
   width: 100%;
-  padding-bottom: 100px;
 `;
 
 const NoteCard = styled.div`
@@ -579,48 +584,50 @@ function Notes() {
         <Subtitle>Let's review your notes!</Subtitle>
       </Header>
 
-      <MainContent>
-        <HeaderActions>
-          <ActionButton 
+      <HeaderActionsContainer>
+        <ActionButtonsWrapper>
+          <ActionButton style={{right: '150px'}}
             data-filter-toggle="true"
             onClick={() => setShowFilters(!showFilters)}
           >
             {showFilters ? 'Hide Filters' : 'Show Filters'}
           </ActionButton>
           {selectedNotes.length > 0 && (
-            <ActionButton variant="delete" onClick={handleDeleteSelected}>
+            <ActionButton style={{right: '150px'}} variant="delete" onClick={handleDeleteSelected}>
               Delete Selected ({selectedNotes.length})
             </ActionButton>
           )}
+        </ActionButtonsWrapper>
+        
+        <FiltersDropdown show={showFilters} ref={filtersRef}>
+          <FilterGroup>
+            <FilterLabel>Source Type</FilterLabel>
+            <Select
+              value={filters.sourceType}
+              onChange={(e) => handleFilterChange('sourceType', e.target.value)}
+            >
+              <option value="">All Sources</option>
+              <option value="presession">Pre-Session</option>
+              <option value="trade">Trade</option>
+            </Select>
+          </FilterGroup>
           
-          <FiltersDropdown show={showFilters} ref={filtersRef}>
-            <FilterGroup>
-              <FilterLabel>Source Type</FilterLabel>
-              <Select
-                value={filters.sourceType}
-                onChange={(e) => handleFilterChange('sourceType', e.target.value)}
-              >
-                <option value="">All Sources</option>
-                <option value="presession">Pre-Session</option>
-                <option value="trade">Trade</option>
-              </Select>
-            </FilterGroup>
-            
-            <FilterGroup>
-              <FilterLabel>Tag</FilterLabel>
-              <Select
-                value={filters.tagId}
-                onChange={(e) => handleFilterChange('tagId', e.target.value)}
-              >
-                <option value="">All Tags</option>
-                {tags.map(tag => (
-                  <option key={tag.id} value={tag.id}>{tag.name}</option>
-                ))}
-              </Select>
-            </FilterGroup>
-          </FiltersDropdown>
-        </HeaderActions>
+          <FilterGroup>
+            <FilterLabel>Tag</FilterLabel>
+            <Select
+              value={filters.tagId}
+              onChange={(e) => handleFilterChange('tagId', e.target.value)}
+            >
+              <option value="">All Tags</option>
+              {tags.map(tag => (
+                <option key={tag.id} value={tag.id}>{tag.name}</option>
+              ))}
+            </Select>
+          </FilterGroup>
+        </FiltersDropdown>
+      </HeaderActionsContainer>
 
+      <MainContent>
         <Content>
           <NotesList>
             {filteredNotes.length > 0 ? (
