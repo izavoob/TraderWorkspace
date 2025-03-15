@@ -1047,6 +1047,10 @@ const NotesBlock = ({ sessionId }) => {
       <NotesList 
         sourceType="presession" 
         sourceId={sessionId}
+        onNoteAdded={(newNote) => {
+          console.log('New note added:', newNote);
+          // Додаткова логіка, якщо потрібно
+        }}
       />
     </SectionBlock>
   );

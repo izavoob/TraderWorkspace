@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "main.js",
   "dependencies": {
+    "@svgdotjs/svg.js": "^3.2.4",
     "boolean": "^3.2.0",
     "buffer-crc32": "^0.2.13",
     "cacheable-lookup": "^5.0.4",
@@ -30,6 +31,7 @@
     "gopd": "^1.2.0",
     "got": "^11.8.6",
     "graceful-fs": "^4.2.11",
+    "gsap": "^3.12.2",
     "has-property-descriptors": "^1.0.2",
     "http-cache-semantics": "^4.1.1",
     "http2-wrapper": "^1.0.3",

@@ -1173,13 +1173,27 @@ function CreateTrade() {
         sourceType: 'trade',
         sourceId: tradeId,
         tradeNo: null, // Буде оновлено після збереження трейду
-        tradeDate: null // Буде оновлено після збереження трейду
+        tradeDate: null, // Буде оновлено після збереження трейду
+        tagId: note.tag_id || note.tagId || null,
+        tagName: note.tag_name || note.tagName || null
       });
+      
+      // Отримуємо повну інформацію про збережену нотатку
+      const fullNote = await window.electronAPI.getNoteById(savedNote.id);
       
       // Оновлюємо стан trade з новою нотаткою
       setTrade(prev => ({
         ...prev,
-        notes: [...(prev.notes || []), savedNote]
+        notes: [...(prev.notes || []), {
+          id: fullNote.id,
+          title: fullNote.title,
+          text: fullNote.content,
+          source_type: fullNote.source_type,
+          source_id: fullNote.source_id,
+          tag_id: fullNote.tag_id,
+          tag_name: fullNote.tag_name,
+          images: fullNote.images || []
+        }]
       }));
 
       setShowNotePopup(false);

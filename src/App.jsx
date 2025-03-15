@@ -181,10 +181,9 @@ function App() {
   const isHome = location.pathname === '/';
 
   useEffect(() => {
-    // Показуємо LoadingScreen на 3 секунди
     const timer = setTimeout(() => {
       setIsLoading(false);
-    }, 1000);
+    }, 2550);
 
     return () => clearTimeout(timer);
   }, []);
@@ -284,6 +283,7 @@ function App() {
             <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
             <Route path="/performance-analysis/wpa" element={<WPA />} />
             <Route path="/performance-analysis/wpa/create" element={<CreateWPA />} />
+            <Route path="/performance-analysis/wpa/create/:id" element={<CreateWPA />} />
             <Route path="/performance-analysis/mpa" element={<MPA />} />
             <Route path="/performance-analysis/qpa" element={<QPA />} />
             <Route path="/performance-analysis/ypa" element={<YPA />} />
