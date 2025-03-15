@@ -249,14 +249,26 @@ const SectionTitle = styled.h3`
 
 const FormGroup = styled.div`
   margin-bottom: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+  width: 100%;
 `;
 
 const Label = styled.label`
   color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  margin-bottom: 8px;
   display: block;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  opacity: 0.9;
+
+  &:hover {
+    opacity: 1;
+  }
 `;
 
 const Select = styled.select`
@@ -357,26 +369,26 @@ const TextArea = styled.textarea`
 `;
 
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
-  width: 20px;
-  height: 20px;
+  width: 28px;
+  height: 28px;
   cursor: pointer;
   appearance: none;
   border: 2px solid #5e2ca5;
-  border-radius: 4px;
-  background-color: #3e3e3e;
+  border-radius: 6px;
+  background-color: #2e2e2e;
   transition: all 0.2s ease;
   position: relative;
-  margin-top: 2px;
+  margin: 0;
 
   &:checked {
-    background: linear-gradient(135deg, #7425C9, #B886EE);
-    border-color: transparent;
+    background: #2e2e2e;
+    border-color: #5e2ca5;
 
     &:after {
       content: '✓';
       position: absolute;
-      color: white;
-      font-size: 14px;
+      color: #5e2ca5;
+      font-size: 18px;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -385,17 +397,36 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 
   &:hover {
     border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
+  }
+
+  &:focus {
+    outline: none;
+    border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
   }
 `;
 
 const CheckboxLabel = styled.label`
   display: flex;
-  align-items: flex-start;
-  gap: 10px;
+  align-items: center;
+  gap: 15px;
   color: #fff;
-  font-size: 14px;
-  margin-bottom: 10px;
+  font-size: 16px;
+  margin-bottom: 15px;
   cursor: pointer;
+  background-color: #2e2e2e;
+  border: 2px solid #5e2ca5;
+  border-radius: 6px;
+  padding: 15px;
+  width: 100%;
+  box-sizing: border-box;
+  transition: all 0.2s ease;
+
+  &:hover {
+    border-color: #B886EE;
+    background: rgba(94, 44, 165, 0.1);
+  }
 `;
 
 const ButtonGroup = styled.div`
@@ -802,6 +833,8 @@ function PostSessionFull() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [isNoteModalOpen, setIsNoteModalOpen] = useState(false);
 
+  const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
+
   useEffect(() => {
     loadPairOptions();
     if (sessionData) {
@@ -816,6 +849,12 @@ function PostSessionFull() {
       }
     }
   }, [sessionData]);
+
+  useEffect(() => {
+    if (formData.date) {
+      setCurrentDate(formData.date.toISOString().split('T')[0]);
+    }
+  }, [formData.date]);
 
   const loadPairOptions = async () => {
     try {
@@ -930,35 +969,26 @@ function PostSessionFull() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      const currentDate = new Date().toISOString().split('T')[0];
-      const routine = await window.electronAPI.getDailyRoutine(currentDate);
-      
-      const sessionId = id || Date.now().toString(36) + Math.random().toString(36).substr(2);
-      
-      let postSessions = routine?.postSession || [];
-      const formattedData = {
-        ...formData,
-        id: sessionId,
-        date: formData.date.toISOString().split('T')[0],
-        timeframeAnalysis: timeframeData,
-        planAnalysis,
-        performanceAnalysis
+      const postSessionData = {
+        id: id || Date.now().toString(36) + Math.random().toString(36).substr(2),
+        date: currentDate,
+        pair: formData.pair,
+        narrative: formData.dayNarrative,
+        execution: formData.realization,
+        outcome: formData.planOutcome ? 1 : 0,
+        routineExecution: formData.routineExecution ? 1 : 0,
+        planOutcome: formData.planOutcome ? 1 : 0,
+        videoUrl: formData.videoUrl,
+        timeframeAnalysis: JSON.stringify(timeframeData),
+        planAnalysis: JSON.stringify(planAnalysis),
+        performanceAnalysis: JSON.stringify(performanceAnalysis)
       };
 
       if (id) {
-        postSessions = postSessions.map(session => 
-          session.id === id ? formattedData : session
-        );
+        await window.electronAPI.updatePostSession(postSessionData);
       } else {
-        postSessions.push(formattedData);
+        await window.electronAPI.addPostSession(postSessionData);
       }
-
-      // Сохраняем сессию
-      await window.electronAPI.saveDailyRoutine({
-        ...routine,
-        date: currentDate,
-        postSession: postSessions
-      });
 
       navigate('/daily-routine/post-session');
     } catch (error) {
@@ -1032,7 +1062,7 @@ function PostSessionFull() {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label>Trading Pair</Label>
+                  <Label>Pair</Label>
                   <Select
                     name="pair"
                     value={formData.pair}

@@ -58,4 +58,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteNoteImage: (imageId) => ipcRenderer.invoke('deleteNoteImage', imageId),
   updateNotesWithTradeData: (tradeId) => ipcRenderer.invoke('updateNotesWithTradeData', tradeId),
   updateNotesWithPresessionData: (presessionId) => ipcRenderer.invoke('updateNotesWithPresessionData', presessionId),
+  addPostSession: (postSession) => ipcRenderer.invoke('addPostSession', postSession),
+  updatePostSession: (postSession) => ipcRenderer.invoke('updatePostSession', postSession),
+  getPostSessionById: (id) => ipcRenderer.invoke('getPostSessionById', id),
+  getAllPostSessions: () => ipcRenderer.invoke('getAllPostSessions'),
 });
