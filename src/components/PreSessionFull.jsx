@@ -291,10 +291,18 @@ const FormGroup = styled.div`
 
 const Label = styled.label`
   color: #fff;
-  font-size: 14px;
-  font-weight: 500;
-  margin-bottom: 5px;
+  font-size: 16px;
+  font-weight: 600;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  margin-bottom: 8px;
   display: block;
+  letter-spacing: 0.3px;
+  text-transform: uppercase;
+  opacity: 0.9;
+
+  &:hover {
+    opacity: 1;
+  }
 `;
 
 const Input = styled.input`
@@ -1683,7 +1691,7 @@ function PreSessionFull() {
                 </FormGroup>
 
                 <FormGroup>
-                  <Label>Currency Pair</Label>
+                  <Label>Pair</Label>
                   <Select
                     name="pair"
                     value={sessionData.pair}

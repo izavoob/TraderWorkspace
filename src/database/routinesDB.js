@@ -55,8 +55,13 @@ class RoutinesDB {
             pair TEXT,
             narrative TEXT,
             execution TEXT,
-            outcome TEXT,
-            notes TEXT,
+            outcome INTEGER DEFAULT 0,
+            routine_execution INTEGER DEFAULT 0,
+            plan_outcome INTEGER DEFAULT 0,
+            video_url TEXT,
+            timeframe_analysis TEXT,
+            plan_analysis TEXT,
+            performance_analysis TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
         )
@@ -307,111 +312,148 @@ class RoutinesDB {
   // Пост-сесії
   async addPostSession(postSession) {
     return new Promise((resolve, reject) => {
-      console.log('Adding new post-session to database:', this.dbPath);
-      console.log('Post-session data:', postSession);
-
-      this.db.run(
-        `INSERT INTO postsessions (
-            id, date, pair, narrative, execution, outcome, notes, created_at, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`,
-        [
-          postSession.id,
-          postSession.date,
-          postSession.pair,
-          postSession.narrative,
-          postSession.execution,
-          postSession.outcome,
-          postSession.notes
-        ],
-        function(err) {
-          if (err) {
-            console.error('Error creating post-session:', err);
-            reject(err);
-          } else {
-            console.log('Post-session saved successfully with ID:', postSession.id);
-            resolve(postSession.id);
-          }
+      const sql = `
+        INSERT INTO postsessions (
+          id, date, pair, narrative, execution, outcome,
+          routine_execution, plan_outcome, video_url,
+          timeframe_analysis, plan_analysis, performance_analysis
+        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `;
+      
+      this.db.run(sql, [
+        postSession.id,
+        postSession.date,
+        postSession.pair,
+        postSession.narrative,
+        postSession.execution,
+        postSession.outcome,
+        postSession.routineExecution,
+        postSession.planOutcome,
+        postSession.videoUrl,
+        postSession.timeframeAnalysis,
+        postSession.planAnalysis,
+        postSession.performanceAnalysis
+      ], function(err) {
+        if (err) {
+          console.error('Error adding post session:', err);
+          reject(err);
+        } else {
+          resolve(postSession.id);
         }
-      );
+      });
     });
   }
 
   async updatePostSession(postSession) {
     return new Promise((resolve, reject) => {
-      console.log('Updating post-session in database:', this.dbPath);
-      console.log('Post-session data:', postSession);
-
-      this.db.run(
-        `UPDATE postsessions SET 
-            date = ?, 
-            pair = ?, 
-            narrative = ?, 
-            execution = ?, 
-            outcome = ?, 
-            notes = ?, 
-            updated_at = CURRENT_TIMESTAMP 
-         WHERE id = ?`,
-        [
-          postSession.date,
-          postSession.pair,
-          postSession.narrative,
-          postSession.execution,
-          postSession.outcome,
-          postSession.notes,
-          postSession.id
-        ],
-        (err) => {
-          if (err) {
-            console.error('Error updating post-session:', err);
-            reject(err);
-          } else {
-            console.log('Post-session updated successfully');
-            resolve(true);
-          }
+      const sql = `
+        UPDATE postsessions SET
+          date = ?,
+          pair = ?,
+          narrative = ?,
+          execution = ?,
+          outcome = ?,
+          routine_execution = ?,
+          plan_outcome = ?,
+          video_url = ?,
+          timeframe_analysis = ?,
+          plan_analysis = ?,
+          performance_analysis = ?,
+          updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `;
+      
+      this.db.run(sql, [
+        postSession.date,
+        postSession.pair,
+        postSession.narrative,
+        postSession.execution,
+        postSession.outcome,
+        postSession.routineExecution,
+        postSession.planOutcome,
+        postSession.videoUrl,
+        postSession.timeframeAnalysis,
+        postSession.planAnalysis,
+        postSession.performanceAnalysis,
+        postSession.id
+      ], function(err) {
+        if (err) {
+          console.error('Error updating post session:', err);
+          reject(err);
+        } else {
+          resolve(true);
         }
-      );
+      });
     });
   }
 
   async getPostSessionById(id) {
     return new Promise((resolve, reject) => {
-      console.log('Getting post-session by ID:', id);
-      this.db.get(
-        `SELECT * FROM postsessions WHERE id = ?`,
-        [id],
-        (err, row) => {
-          if (err) {
-            console.error('Error getting post-session by ID:', err);
-            reject(err);
-          } else {
-            if (row) {
-              console.log('Post-session found:', row);
-            } else {
-              console.log('No post-session found with ID:', id);
+      const sql = 'SELECT * FROM postsessions WHERE id = ?';
+      this.db.get(sql, [id], (err, row) => {
+        if (err) {
+          console.error('Error getting post session:', err);
+          reject(err);
+        } else {
+          if (row) {
+            // Parse JSON fields and convert snake_case to camelCase
+            try {
+              row.timeframeAnalysis = JSON.parse(row.timeframe_analysis);
+              row.planAnalysis = JSON.parse(row.plan_analysis);
+              row.performanceAnalysis = JSON.parse(row.performance_analysis);
+              row.routineExecution = row.routine_execution;
+              row.planOutcome = row.plan_outcome;
+              row.videoUrl = row.video_url;
+              
+              // Delete snake_case fields
+              delete row.timeframe_analysis;
+              delete row.plan_analysis;
+              delete row.performance_analysis;
+              delete row.routine_execution;
+              delete row.plan_outcome;
+              delete row.video_url;
+            } catch (e) {
+              console.warn('Error parsing JSON fields:', e);
             }
-            resolve(row);
           }
+          resolve(row);
         }
-      );
+      });
     });
   }
 
   async getAllPostSessions() {
     return new Promise((resolve, reject) => {
-      console.log('Getting all post-sessions from database:', this.dbPath);
-      this.db.all(
-        `SELECT * FROM postsessions ORDER BY date DESC`,
-        [],
-        (err, rows) => {
-          if (err) {
-            console.error('Error getting all post-sessions:', err);
-            reject(err);
-          } else {
-            console.log(`Retrieved ${rows.length} post-sessions`);
-            resolve(rows);
-          }
+      const sql = 'SELECT * FROM postsessions ORDER BY date DESC';
+      this.db.all(sql, [], (err, rows) => {
+        if (err) {
+          console.error('Error getting all post sessions:', err);
+          reject(err);
+        } else {
+          // Parse JSON fields and convert snake_case to camelCase for each row
+          rows.forEach(row => {
+            try {
+              row.timeframeAnalysis = JSON.parse(row.timeframe_analysis);
+              row.planAnalysis = JSON.parse(row.plan_analysis);
+              row.performanceAnalysis = JSON.parse(row.performance_analysis);
+              row.routineExecution = row.routine_execution;
+              row.planOutcome = row.plan_outcome;
+              row.videoUrl = row.video_url;
+              
+              // Delete snake_case fields
+              delete row.timeframe_analysis;
+              delete row.plan_analysis;
+              delete row.performance_analysis;
+              delete row.routine_execution;
+              delete row.plan_outcome;
+              delete row.video_url;
+            } catch (e) {
+              console.warn('Error parsing JSON fields:', e);
+            }
+          });
+          resolve(rows);
         }
-      );
+      });
     });
   }
 

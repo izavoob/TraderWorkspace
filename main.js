@@ -995,3 +995,44 @@ ipcMain.handle('updateNotesWithPresessionData', async (event, presessionId) => {
     throw error;
   }
 });
+
+// Post-session handlers
+ipcMain.handle('addPostSession', async (event, postSession) => {
+  await ensureDatabaseInitialized();
+  try {
+    return await routinesDB.addPostSession(postSession);
+  } catch (error) {
+    console.error('Error adding post session:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updatePostSession', async (event, postSession) => {
+  await ensureDatabaseInitialized();
+  try {
+    return await routinesDB.updatePostSession(postSession);
+  } catch (error) {
+    console.error('Error updating post session:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getPostSessionById', async (event, id) => {
+  await ensureDatabaseInitialized();
+  try {
+    return await routinesDB.getPostSessionById(id);
+  } catch (error) {
+    console.error('Error getting post session:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getAllPostSessions', async () => {
+  await ensureDatabaseInitialized();
+  try {
+    return await routinesDB.getAllPostSessions();
+  } catch (error) {
+    console.error('Error getting all post sessions:', error);
+    throw error;
+  }
+});
