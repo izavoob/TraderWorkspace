@@ -8,6 +8,7 @@ const ExecutionDB = require('./src/database/executionDB');
 const NotesDB = require('./src/database/notesDB');
 const RoutinesDB = require('./src/database/routinesDB');
 const PerformanceDB = require('./src/database/performanceDB');
+const { migrateDatabase } = require('./migration');
 
 let db = null;
 let accountsDB = null;
@@ -68,7 +69,9 @@ async function initializeDatabase() {
       if (err) {
         console.error('Error connecting to trades database:', err);
       } else {
-        // Create trades table if it doesn't exist
+        console.log('trades.db initialized successfully');
+        
+        // Створюємо таблицю trades, якщо вона не існує
         db.run(`
           CREATE TABLE IF NOT EXISTS trades (
             id TEXT PRIMARY KEY,
@@ -76,13 +79,6 @@ async function initializeDatabase() {
             date TEXT,
             pair TEXT,
             direction TEXT,
-            entry_price REAL,
-            stop_loss REAL,
-            take_profit REAL,
-            risk_reward REAL,
-            outcome TEXT,
-            pnl REAL,
-            notes TEXT,
             account TEXT,
             positionType TEXT,
             risk TEXT,
@@ -114,7 +110,12 @@ async function initializeDatabase() {
           if (err) {
             console.error('Error creating trades table:', err);
           } else {
-            console.log('trades.db initialized successfully');
+            console.log('Trades table created/verified successfully');
+            
+            // Виконуємо міграцію для видалення непотрібних колонок
+            migrateDatabase()
+              .then(() => console.log('Database migration completed successfully'))
+              .catch(err => console.error('Error during database migration:', err));
           }
         });
       }

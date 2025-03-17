@@ -5,8 +5,12 @@ import DeleteIcon from '../../assets/icons/delete-icon.svg';;
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { registerLocale } from 'react-datepicker';
+import uk from 'date-fns/locale/uk';
 import NotesList from '../Notes/NotesList.jsx';
 import NoteModal from '../Notes/NoteModal.jsx';
+
+registerLocale('uk', uk);
 
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined) return '$0.00';
@@ -1284,15 +1288,9 @@ function CreateTrade() {
                 <FormLabel>Date</FormLabel>
                 <StyledDatePicker
                   selected={trade.date ? new Date(trade.date) : new Date()}
-                  onChange={(date) => {
-                    const formattedDate = date.toISOString().split('T')[0];
-                    setTrade(prev => ({
-                      ...prev,
-                      date: formattedDate
-                    }));
-                  }}
+                  onChange={(date) => handleChange({ target: { name: 'date', value: date.toISOString().split('T')[0] } })}
                   dateFormat="yyyy-MM-dd"
-                  placeholderText="Select date"
+                  locale="uk"
                 />
               </FormField>
               <FormField>
