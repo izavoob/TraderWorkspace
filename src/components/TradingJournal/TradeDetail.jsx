@@ -1,11 +1,15 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
 import DeleteIcon from '../../assets/icons/delete-icon.svg';
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { registerLocale } from 'react-datepicker';
+import uk from 'date-fns/locale/uk';
 import NotesList from '../Notes/NotesList.jsx';
+
+registerLocale('uk', uk);
 
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined) return '$0.00';
@@ -635,6 +639,7 @@ const CloseButton = styled.button`
   cursor: pointer;
   color: #fff;
   font-size: 1.2em;
+  opacity: 0;
 `;
 
 const ModalOverlay = styled.div`
@@ -929,23 +934,36 @@ function TradeDetail() {
   const [notes, setNotes] = useState([]);
 
   useEffect(() => {
-    // Завантаження даних при монтуванні компонента
     const loadInitialData = async () => {
       try {
-        // Завантаження аккаунтів та інших необхідних даних
+        // Завантаження аккаунтів
         const accountsData = await window.electronAPI.getAllAccounts();
         setAccounts(accountsData);
+        
+        // Завантаження елементів execution
+        const sections = [
+          'pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 
+          'fta', 'slPosition', 'volumeConfirmation',
+          'pairs', 'directions', 'sessions', 'positionType'
+        ];
+        
+        const executionData = {};
+        for (const section of sections) {
+          const items = await window.electronAPI.getAllExecutionItems(section);
+          executionData[section] = items;
+        }
+        setExecutionItems(executionData);
         
         // Завантаження деталей трейду
         await fetchTradeDetails();
       } catch (error) {
-        console.error('Помилка завантаження початкових даних:', error);
+        console.error('Error loading initial data:', error);
         setIsLoading(false);
       }
     };
     
     loadInitialData();
-  }, [id]); // Залежність від id, щоб перезавантажувати дані при зміні id
+  }, [id]);
 
   const fetchTradeDetails = async () => {
       try {
@@ -1596,17 +1614,11 @@ function TradeDetail() {
                     <FormField>
                       <FormLabel>Date</FormLabel>
                       <StyledDatePicker
-                        selected={trade.date ? new Date(trade.date) : null}
-                        onChange={(date) => {
-                          const formattedDate = date.toISOString().split('T')[0];
-                          setTrade(prev => ({
-                            ...prev,
-                            date: formattedDate
-                          }));
-                        }}
+                        selected={new Date(trade.date)}
+                        onChange={(date) => handleChange({ target: { name: 'date', value: date.toISOString().split('T')[0] } })}
                         dateFormat="yyyy-MM-dd"
-                        placeholderText="Select date"
-                        disabled={!isEditing}
+                        className="form-control"
+                        locale="uk"
                       />
                     </FormField>
                     <FormField>

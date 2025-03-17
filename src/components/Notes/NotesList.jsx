@@ -196,7 +196,9 @@ const NotesListComponent = ({
 
   const loadNotes = async () => {
     try {
+      console.log('Завантаження нотаток для джерела:', sourceType, sourceId);
       const notes = await window.electronAPI.getNotesBySource(sourceType, sourceId);
+      console.log('Завантажено нотаток:', notes.length);
       
       // Завантажуємо зображення для кожної нотатки
       const notesWithImages = await Promise.all(notes.map(async (note) => {
@@ -215,6 +217,7 @@ const NotesListComponent = ({
         }
       }));
       
+      console.log('Завантажено нотаток з зображеннями:', notesWithImages.length);
       setNotes(notesWithImages);
     } catch (error) {
       console.error('Error loading notes:', error);
@@ -237,6 +240,12 @@ const NotesListComponent = ({
     try {
       console.log('Saving note from NotesList:', noteData);
       
+      // Перевіряємо, чи noteData - це об'єкт з усіма необхідними полями
+      if (!noteData || !noteData.title) {
+        console.error('Invalid note data received:', noteData);
+        return;
+      }
+      
       const noteToSave = {
         ...noteData,
         source_type: sourceType || noteData.source_type || 'trade',
@@ -257,6 +266,7 @@ const NotesListComponent = ({
         if (noteData.images) {
           for (const image of noteData.images) {
             if (!image.id) {
+              console.log('Adding new image to existing note:', image);
               await window.electronAPI.addNoteImage(noteData.id, image.image_path);
             }
           }
@@ -265,11 +275,13 @@ const NotesListComponent = ({
         // Створюємо нову нотатку
         console.log('Creating new note:', noteToSave);
         const newNoteId = await window.electronAPI.addNote(noteToSave);
+        console.log('New note created with ID:', newNoteId);
         
         // Зберігаємо зображення для нової нотатки
         if (noteData.images) {
           for (const image of noteData.images) {
             if (!image.id) {
+              console.log('Adding image to new note:', image);
               await window.electronAPI.addNoteImage(newNoteId, image.image_path);
             }
           }
@@ -278,15 +290,18 @@ const NotesListComponent = ({
         // Викликаємо колбек для додавання нотатки, якщо він є
         if (typeof onNoteAdded === 'function') {
           const newNote = await window.electronAPI.getNoteById(newNoteId);
+          console.log('Calling onNoteAdded with new note:', newNote);
           onNoteAdded(newNote);
         }
       }
       
       // Оновлюємо список нотаток
+      console.log('Reloading notes after save');
       await loadNotes();
       
       // Повідомляємо батьківський компонент про оновлення
       if (onNoteUpdate) {
+        console.log('Calling onNoteUpdate');
         await onNoteUpdate();
       }
       

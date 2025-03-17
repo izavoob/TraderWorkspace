@@ -7,7 +7,15 @@ class NotesDB {
         console.error('Could not connect to database', err);
       } else {
         console.log('Connected to notes database');
-        this.initializeDatabase();
+        // Включаємо підтримку зовнішніх ключів
+        this.db.run('PRAGMA foreign_keys = ON', (err) => {
+          if (err) {
+            console.error('Could not enable foreign keys:', err);
+          } else {
+            console.log('Foreign keys enabled');
+            this.initializeDatabase();
+          }
+        });
       }
     });
   }
@@ -54,6 +62,7 @@ class NotesDB {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           note_id INTEGER NOT NULL,
           image_path TEXT NOT NULL,
+          comment TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
         )
@@ -346,39 +355,130 @@ class NotesDB {
 
   async deleteNote(id) {
     return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM notes WHERE id = ?', [id], (err) => {
-        if (err) reject(err);
-        else resolve(true);
+      // Спочатку видаляємо пов'язані зображення
+      console.log(`Видалення нотатки з ID=${id} та пов'язаних зображень`);
+      
+      // Використовуємо транзакцію для забезпечення атомарності операції
+      this.db.serialize(() => {
+        this.db.run('BEGIN TRANSACTION');
+        
+        // Видаляємо пов'язані зображення
+        this.db.run('DELETE FROM note_images WHERE note_id = ?', [id], (err) => {
+          if (err) {
+            console.error(`Помилка видалення зображень для нотатки ID=${id}:`, err);
+            this.db.run('ROLLBACK');
+            reject(err);
+            return;
+          }
+          
+          console.log(`Зображення для нотатки ID=${id} успішно видалені`);
+          
+          // Видаляємо саму нотатку
+          this.db.run('DELETE FROM notes WHERE id = ?', [id], (err) => {
+            if (err) {
+              console.error(`Помилка видалення нотатки ID=${id}:`, err);
+              this.db.run('ROLLBACK');
+              reject(err);
+              return;
+            }
+            
+            console.log(`Нотатка ID=${id} успішно видалена`);
+            this.db.run('COMMIT');
+            resolve(true);
+          });
+        });
       });
     });
   }
 
   async deleteNotesBySource(sourceType, sourceId) {
     return new Promise((resolve, reject) => {
-      this.db.run(
-        'DELETE FROM notes WHERE source_type = ? AND source_id = ?',
+      console.log(`Видалення нотаток за джерелом: тип=${sourceType}, id=${sourceId}`);
+      
+      // Спочатку отримуємо ID всіх нотаток, які будуть видалені
+      this.db.all(
+        'SELECT id FROM notes WHERE source_type = ? AND source_id = ?',
         [sourceType, sourceId],
-        (err) => {
+        (err, rows) => {
           if (err) {
-            console.error('Error deleting notes by source:', err);
+            console.error('Помилка отримання ID нотаток для видалення:', err);
             reject(err);
-          } else {
-            resolve(true);
+            return;
           }
+          
+          const noteIds = rows.map(row => row.id);
+          console.log(`Знайдено ${noteIds.length} нотаток для видалення:`, noteIds);
+          
+          if (noteIds.length === 0) {
+            console.log('Нотатки не знайдені, нічого видаляти');
+            resolve(true);
+            return;
+          }
+          
+          // Використовуємо транзакцію для забезпечення атомарності операції
+          this.db.serialize(() => {
+            this.db.run('BEGIN TRANSACTION');
+            
+            // Видаляємо пов'язані зображення для всіх нотаток
+            const placeholders = noteIds.map(() => '?').join(',');
+            this.db.run(
+              `DELETE FROM note_images WHERE note_id IN (${placeholders})`,
+              noteIds,
+              (err) => {
+                if (err) {
+                  console.error('Помилка видалення зображень для нотаток:', err);
+                  this.db.run('ROLLBACK');
+                  reject(err);
+                  return;
+                }
+                
+                console.log('Зображення для нотаток успішно видалені');
+                
+                // Видаляємо самі нотатки
+                this.db.run(
+                  'DELETE FROM notes WHERE source_type = ? AND source_id = ?',
+                  [sourceType, sourceId],
+                  (err) => {
+                    if (err) {
+                      console.error('Помилка видалення нотаток:', err);
+                      this.db.run('ROLLBACK');
+                      reject(err);
+                      return;
+                    }
+                    
+                    console.log('Нотатки успішно видалені');
+                    this.db.run('COMMIT');
+                    resolve(true);
+                  }
+                );
+              }
+            );
+          });
         }
       );
     });
   }
 
   // Методи для роботи з зображеннями
-  async addNoteImage(noteId, imagePath) {
+  async addNoteImage(noteId, imagePath, comment = null) {
     return new Promise((resolve, reject) => {
       console.log(`Додавання зображення до нотатки ID=${noteId}`);
       console.log(`Шлях до зображення:`, imagePath);
+      console.log(`Коментар до зображення:`, comment);
       
       // Перетворюємо шлях у відносний, щоб забезпечити переносимість
       let relativeImagePath = imagePath;
-      if (imagePath.includes('screenshots')) {
+      
+      // Якщо шлях містить base64 дані, зберігаємо як є
+      if (imagePath.startsWith('data:')) {
+        console.log('Зображення в форматі base64, зберігаємо як є');
+      } 
+      // Якщо шлях вже починається з 'screenshots/', залишаємо як є
+      else if (imagePath.startsWith('screenshots/')) {
+        console.log('Шлях вже містить папку screenshots:', imagePath);
+      }
+      // Якщо шлях містить повний шлях до файлу
+      else if (imagePath.includes('/') || imagePath.includes('\\')) {
         // Витягуємо тільки ім'я файлу
         relativeImagePath = require('path').basename(imagePath);
         console.log(`Перетворено на відносний шлях: ${relativeImagePath}`);
@@ -396,15 +496,29 @@ class NotesDB {
           }
           
           if (existingImage) {
-            console.log(`Зображення з шляхом ${relativeImagePath} вже існує для нотатки ID=${noteId}, повертаємо існуючий ID=${existingImage.id}`);
-            resolve(existingImage.id);
+            console.log(`Зображення з шляхом ${relativeImagePath} вже існує для нотатки ID=${noteId}, оновлюємо коментар`);
+            
+            // Оновлюємо коментар для існуючого зображення
+            this.db.run(
+              'UPDATE note_images SET comment = ? WHERE id = ?',
+              [comment, existingImage.id],
+              (err) => {
+                if (err) {
+                  console.error('Помилка оновлення коментаря до зображення:', err);
+                  reject(err);
+                } else {
+                  console.log(`Коментар до зображення ID=${existingImage.id} оновлено`);
+                  resolve(existingImage.id);
+                }
+              }
+            );
             return;
           }
           
           // Зображення не знайдено, додаємо нове
           this.db.run(
-            'INSERT INTO note_images (note_id, image_path) VALUES (?, ?)',
-            [noteId, relativeImagePath],
+            'INSERT INTO note_images (note_id, image_path, comment) VALUES (?, ?, ?)',
+            [noteId, relativeImagePath, comment],
             function(err) {
               if (err) {
                 console.error('Помилка додавання зображення:', err);
@@ -429,6 +543,7 @@ class NotesDB {
           id,
           note_id,
           image_path,
+          comment,
           created_at
         FROM note_images 
         WHERE note_id = ?
@@ -451,6 +566,7 @@ class NotesDB {
               id: row.id,
               note_id: row.note_id,
               image_path: row.image_path,
+              comment: row.comment,
               created_at: row.created_at
             });
           });
@@ -467,6 +583,26 @@ class NotesDB {
         if (err) reject(err);
         else resolve(true);
       });
+    });
+  }
+
+  async updateNoteImageComment(imageId, comment) {
+    return new Promise((resolve, reject) => {
+      console.log(`Оновлення коментаря для зображення ID=${imageId}:`, comment);
+      
+      this.db.run(
+        'UPDATE note_images SET comment = ? WHERE id = ?',
+        [comment, imageId],
+        (err) => {
+          if (err) {
+            console.error('Помилка оновлення коментаря до зображення:', err);
+            reject(err);
+          } else {
+            console.log(`Коментар до зображення ID=${imageId} успішно оновлено`);
+            resolve(true);
+          }
+        }
+      );
     });
   }
 
