@@ -34,7 +34,7 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 120;
+  margin-top: 20px;
   width: 100%;
 `;
 
@@ -104,6 +104,7 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
+
 const Subtitle = styled.h2`
   margin: 5px auto 0;
   font-size: 1.2em;
@@ -112,6 +113,7 @@ const Subtitle = styled.h2`
   z-index: 1;
   font-weight: normal;
 `;
+
 const HeaderActionsContainer = styled.div`
   position: relative;
   top: 0px;
@@ -132,14 +134,75 @@ const ActionButtonsWrapper = styled.div`
 `;
 
 const Content = styled.div`
-  
-  width: 100%;
+  display: flex;
   max-width: 1200px;
-  margin-left: auto;
-  margin-right: auto;
+  width: 100%;
+  gap: 20px;
+  justify-content: space-between;
+  margin-bottom: 20px;
+`;
+
+const NotesBlock = styled.div`
+  flex: 1;
+  background: #2e2e2e;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+  overflow: hidden;
+  max-height: 600px;
+  border: 2px solid #7425C9;
+`;
+
+const MistakesBlock = styled.div`
+  flex: 1;
+  background: #2e2e2e;
+  border-radius: 15px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  display: flex;
+  flex-direction: column;
+  height: calc(100vh - 180px);
+  overflow: hidden;
+  max-height: 600px;
+  border: 2px solid #d32f2f;
+`;
+
+const BlockTitle = styled.h2`
+  color: rgb(230, 243, 255);
+  text-align: center;
+  margin: 0;
+  padding: 15px 0;
+  font-size: 1.5em;
+  border-bottom: 1px solid ${props => props.type === 'mistakes' ? 'rgba(211, 47, 47, 0.3)' : 'rgba(116, 37, 201, 0.3)'};
+  background: ${props => props.type === 'mistakes' ? 'rgba(211, 47, 47, 0.1)' : 'rgba(116, 37, 201, 0.1)'};
+  position: sticky;
+  top: 0;
+  z-index: 10;
+`;
+
+const NotesContent = styled.div`
+  padding: 15px;
   overflow-y: auto;
-  overflow-x: hidden;
-  height: calc(100vh - 200px);
+  flex: 1;
+  height: calc(100% - 50px);
+  
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  
+  &::-webkit-scrollbar-thumb {
+    background: ${props => props.type === 'mistakes' ? '#d32f2f' : '#7425C9'};
+    border-radius: 4px;
+  }
+  
+  &::-webkit-scrollbar-thumb:hover {
+    background: ${props => props.type === 'mistakes' ? '#b71c1c' : '#5e2ca5'};
+  }
 `;
 
 const NotesList = styled.div`
@@ -151,13 +214,36 @@ const NotesList = styled.div`
 `;
 
 const NoteCard = styled.div`
-  display: flex;
-  align-items: flex-start;
-  gap: 15px;
+  background: #3e3e3e;
+  border-radius: 10px;
+  padding: 15px;
+  margin-bottom: 15px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  
+  &:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:last-child {
+    margin-bottom: 0;
+  }
+  
+  img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 8px;
+    margin-top: 10px;
+    display: block;
+  }
 `;
 
 const NoteContent = styled.div`
-  background: rgba(116, 37, 201, 0.1);
+  background: rgb(26, 26, 26));
   border: 2px solid #5e2ca5;
   border-radius: 15px;
   padding: 20px;
@@ -212,6 +298,7 @@ const NoNotesMessage = styled.div`
 const TagBadge = styled.span`
   background-color: ${props => {
     if (props.type === 'Note') return '#7425C9';
+    if (props.type === 'Mistake') return '#d32f2f';
     if (props.type === 'presession') return '#7425C9';
     if (props.type === 'trade') return '#B886EE';
     return '#5e2ca5';
@@ -371,7 +458,6 @@ function Notes() {
   const [selectedNote, setSelectedNote] = useState(null);
   const [filters, setFilters] = useState({
     sourceType: '',
-    tagId: ''
   });
   const [tags, setTags] = useState([]);
   const [showFilters, setShowFilters] = useState(false);
@@ -401,7 +487,29 @@ function Notes() {
       console.log('Завантаження нотаток...');
       const allNotes = await window.electronAPI.getAllNotes();
       console.log('Отримані нотатки:', allNotes);
-      setNotes(allNotes);
+      
+      // Завантажуємо зображення для кожної нотатки окремо
+      const notesWithImages = await Promise.all(allNotes.map(async (note) => {
+        try {
+          if (note.id) {
+            console.log(`Завантаження зображень для нотатки ID=${note.id}`);
+            const images = await window.electronAPI.getNoteImages(note.id);
+            console.log(`Отримано ${images.length} зображень для нотатки ID=${note.id}`);
+            
+            return {
+              ...note,
+              images: images
+            };
+          }
+          return note;
+        } catch (error) {
+          console.error(`Помилка завантаження зображень для нотатки ID=${note.id}:`, error);
+          return note;
+        }
+      }));
+      
+      console.log('Нотатки з завантаженими зображеннями:', notesWithImages);
+      setNotes(notesWithImages);
     } catch (error) {
       console.error('Помилка завантаження нотаток:', error);
     }
@@ -483,10 +591,30 @@ function Notes() {
     }
   };
 
-  const handleNoteClick = (note) => {
+  const handleNoteClick = async (note) => {
     console.log('Клік на нотатці:', note);
-    setSelectedNote(note);
-    setIsModalOpen(true);
+    
+    try {
+      if (note && note.id) {
+        // Отримуємо зображення для нотатки
+        const noteImages = await window.electronAPI.getNoteImages(note.id);
+        console.log('Отримані зображення для нотатки:', noteImages);
+        
+        // Оновлюємо нотатку з отриманими зображеннями
+        setSelectedNote({
+          ...note,
+          images: noteImages
+        });
+      } else {
+        setSelectedNote(note);
+      }
+      
+      setIsModalOpen(true);
+    } catch (error) {
+      console.error('Помилка при отриманні зображень для нотатки:', error);
+      setSelectedNote(note);
+      setIsModalOpen(true);
+    }
   };
 
   const handleNoteSelect = (noteId) => {
@@ -516,6 +644,22 @@ function Notes() {
   const handleSaveNote = async (noteData) => {
     try {
       console.log('Збереження нотатки у Notes.jsx:', noteData);
+      
+      // Обробка зображень перед збереженням
+      if (noteData.images && noteData.images.length > 0) {
+        const processedImages = noteData.images.map(image => {
+          // Якщо шлях до зображення містить лише ім'я файлу, переконуємося, що воно буде збережено в папці screenshots
+          if (image.image_path && !image.image_path.includes('/') && !image.image_path.includes('\\')) {
+            return {
+              ...image,
+              image_path: `screenshots/${image.image_path}`
+            };
+          }
+          return image;
+        });
+        
+        noteData.images = processedImages;
+      }
       
       if (noteData.id) {
         // Оновлюємо існуючу нотатку
@@ -569,18 +713,25 @@ function Notes() {
 
   const filteredNotes = notes.filter(note => {
     const sourceType = note.source_type || note.sourceType;
-    const tagId = note.tag_id;
     
     if (filters.sourceType && sourceType !== filters.sourceType) return false;
-    if (filters.tagId && tagId !== parseInt(filters.tagId)) return false;
     return true;
   });
+
+  // Розділяємо нотатки на Notes і Mistakes
+  const noteItems = filteredNotes.filter(note => 
+    note.tag_name === 'Note' || (!note.tag_name && !note.tag_id)
+  );
+  
+  const mistakeItems = filteredNotes.filter(note => 
+    note.tag_name === 'Mistake'
+  );
 
   return (
     <NotesContainer>
       <Header>
         <BackButton to="/learning-section" title="Back" aria-label="Back" />
-        <Title>Trade Notes</Title>
+        <Title>Notes and Mistakes</Title>
         <Subtitle>Let's review your notes!</Subtitle>
       </Header>
 
@@ -611,56 +762,86 @@ function Notes() {
               <option value="trade">Trade</option>
             </Select>
           </FilterGroup>
-          
-          <FilterGroup>
-            <FilterLabel>Tag</FilterLabel>
-            <Select
-              value={filters.tagId}
-              onChange={(e) => handleFilterChange('tagId', e.target.value)}
-            >
-              <option value="">All Tags</option>
-              {tags.map(tag => (
-                <option key={tag.id} value={tag.id}>{tag.name}</option>
-              ))}
-            </Select>
-          </FilterGroup>
         </FiltersDropdown>
       </HeaderActionsContainer>
 
       <MainContent>
         <Content>
-          <NotesList>
-            {filteredNotes.length > 0 ? (
-              filteredNotes.map(note => (
-                <NoteCard key={note.id}>
-                  <Checkbox
-                    type="checkbox"
-                    checked={selectedNotes.includes(note.id)}
-                    onChange={() => handleNoteSelect(note.id)}
-                    onClick={(e) => e.stopPropagation()}
-                  />
-                  <NoteContent onClick={() => handleNoteClick(note)}>
-                    <NoteHeader>
-                      <NoteTitle>{note.title}</NoteTitle>
-                      <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
-                        {note.tag_name && (
-                          <TagBadge type={note.tag_name}>{note.tag_name}</TagBadge>
-                        )}
-                        <TradeLink onClick={(e) => handleSourceClick(e, note.source_type || note.sourceType, note.source_id || note.sourceId)}>
-                          {getSourceText(note)}
-                        </TradeLink>
-                      </div>
-                    </NoteHeader>
-                    <NoteText>{note.content}</NoteText>
-                  </NoteContent>
-                </NoteCard>
-              ))
-            ) : (
-              <NoNotesMessage>
-                No notes available. Add notes from Pre-Session Analysis or Trade pages.
-              </NoNotesMessage>
-            )}
-          </NotesList>
+          <NotesBlock>
+            <BlockTitle>Notes</BlockTitle>
+            <NotesContent>
+              <NotesList>
+                {noteItems.length > 0 ? (
+                  noteItems.map(note => (
+                    <NoteCard key={note.id}>
+                      <Checkbox
+                        type="checkbox"
+                        checked={selectedNotes.includes(note.id)}
+                        onChange={() => handleNoteSelect(note.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <NoteContent onClick={() => handleNoteClick(note)}>
+                        <NoteHeader>
+                          <NoteTitle>{note.title}</NoteTitle>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            {note.tag_name && (
+                              <TagBadge type={note.tag_name}>{note.tag_name}</TagBadge>
+                            )}
+                            <TradeLink onClick={(e) => handleSourceClick(e, note.source_type || note.sourceType, note.source_id || note.sourceId)}>
+                              {getSourceText(note)}
+                            </TradeLink>
+                          </div>
+                        </NoteHeader>
+                        <NoteText>{note.content}</NoteText>
+                      </NoteContent>
+                    </NoteCard>
+                  ))
+                ) : (
+                  <NoNotesMessage>
+                    No notes available. Add notes from Pre-Session Analysis or Trade pages.
+                  </NoNotesMessage>
+                )}
+              </NotesList>
+            </NotesContent>
+          </NotesBlock>
+          
+          <MistakesBlock>
+            <BlockTitle type="mistakes">Mistakes</BlockTitle>
+            <NotesContent type="mistakes">
+              <NotesList>
+                {mistakeItems.length > 0 ? (
+                  mistakeItems.map(note => (
+                    <NoteCard key={note.id}>
+                      <Checkbox
+                        type="checkbox"
+                        checked={selectedNotes.includes(note.id)}
+                        onChange={() => handleNoteSelect(note.id)}
+                        onClick={(e) => e.stopPropagation()}
+                      />
+                      <NoteContent onClick={() => handleNoteClick(note)}>
+                        <NoteHeader>
+                          <NoteTitle>{note.title}</NoteTitle>
+                          <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                            {note.tag_name && (
+                              <TagBadge type={note.tag_name}>{note.tag_name}</TagBadge>
+                            )}
+                            <TradeLink onClick={(e) => handleSourceClick(e, note.source_type || note.sourceType, note.source_id || note.sourceId)}>
+                              {getSourceText(note)}
+                            </TradeLink>
+                          </div>
+                        </NoteHeader>
+                        <NoteText>{note.content}</NoteText>
+                      </NoteContent>
+                    </NoteCard>
+                  ))
+                ) : (
+                  <NoNotesMessage>
+                    No mistakes recorded. Add mistakes from Pre-Session Analysis or Trade pages.
+                  </NoNotesMessage>
+                )}
+              </NotesList>
+            </NotesContent>
+          </MistakesBlock>
         </Content>
       </MainContent>
 

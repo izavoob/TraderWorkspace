@@ -378,7 +378,17 @@ class NotesDB {
       
       // Перетворюємо шлях у відносний, щоб забезпечити переносимість
       let relativeImagePath = imagePath;
-      if (imagePath.includes('screenshots')) {
+      
+      // Якщо шлях містить base64 дані, зберігаємо як є
+      if (imagePath.startsWith('data:')) {
+        console.log('Зображення в форматі base64, зберігаємо як є');
+      } 
+      // Якщо шлях вже починається з 'screenshots/', залишаємо як є
+      else if (imagePath.startsWith('screenshots/')) {
+        console.log('Шлях вже містить папку screenshots:', imagePath);
+      }
+      // Якщо шлях містить повний шлях до файлу
+      else if (imagePath.includes('/') || imagePath.includes('\\')) {
         // Витягуємо тільки ім'я файлу
         relativeImagePath = require('path').basename(imagePath);
         console.log(`Перетворено на відносний шлях: ${relativeImagePath}`);

@@ -761,12 +761,45 @@ const NoteModal = ({
   };
 
   const openFullscreen = (src) => {
-    const imagePath = src.startsWith('file:///') ? src : `file:///${src.replace(/\\/g, '/')}`;
+    const imagePath = formatImagePath(src);
     setFullscreenImage({ src: imagePath });
   };
 
   const closeFullscreen = () => {
     setFullscreenImage(null);
+  };
+
+  // Функція для форматування шляху до зображення
+  const formatImagePath = (imagePath) => {
+    if (!imagePath) return '';
+    
+    console.log('Оригінальний шлях до зображення:', imagePath);
+    
+    // Перевіряємо, чи шлях вже містить протокол file://
+    if (imagePath.startsWith('file://')) {
+      console.log('Шлях вже містить протокол file://', imagePath);
+      return imagePath;
+    }
+    
+    // Якщо шлях містить лише ім'я файлу (без шляху)
+    if (!imagePath.includes('/') && !imagePath.includes('\\')) {
+      // Шукаємо зображення в папці screenshots
+      const screenshotsPath = `screenshots`;
+      const formattedPath = `${screenshotsPath}/${imagePath}`;
+      console.log('Сформований шлях до зображення:', formattedPath);
+      // Додаємо протокол file:// до шляху
+      return `file:///${formattedPath.replace(/\\/g, '/')}`;
+    }
+    
+    // Якщо шлях вже містить папку screenshots
+    if (imagePath.startsWith('screenshots/')) {
+      console.log('Шлях вже містить папку screenshots:', imagePath);
+      // Додаємо протокол file:// до шляху
+      return `file:///${imagePath.replace(/\\/g, '/')}`;
+    }
+    
+    // Для інших випадків просто додаємо протокол file://
+    return `file:///${imagePath.replace(/\\/g, '/')}`;
   };
 
   if (!isOpen) return null;
@@ -818,7 +851,7 @@ const NoteModal = ({
                 {images.length > 0 ? (
                   <>
                     <img 
-                      src={images[0].image_path} 
+                      src={formatImagePath(images[0].image_path)} 
                       alt="Note image" 
                       style={{ 
                         width: '100%', 
@@ -853,7 +886,7 @@ const NoteModal = ({
               <div style={{ marginTop: '20px' }}>
                 {images.map((image, index) => {
                   // Перевірка та конвертація шляху до зображення
-                  const imagePath = image.image_path;
+                  const imagePath = formatImagePath(image.image_path);
                   console.log(`Відображення зображення ${index + 1} в режимі перегляду:`, {
                     шлях: imagePath,
                     зображення: image
@@ -864,7 +897,7 @@ const NoteModal = ({
                       key={`review-image-${index}`}
                       src={imagePath} 
                       alt={`Note image ${index + 1}`} 
-                      onClick={() => openFullscreen(imagePath)}
+                      onClick={() => openFullscreen(image.image_path)}
                       style={{ 
                         maxWidth: '100%',  
                         cursor: 'pointer',

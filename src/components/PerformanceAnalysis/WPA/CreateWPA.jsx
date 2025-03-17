@@ -174,7 +174,7 @@ const SectionTitle = styled.h2`
   color: rgb(230, 243, 255);
   margin: 0 0 20px;
   font-size: 1.8em;
-  text-align: left;
+  text-align: center;
   padding-bottom: 10px;
   border-bottom: 2px solid rgba(94, 44, 165, 0.4);
 `;
@@ -1169,7 +1169,7 @@ function CreateWPA() {
   const renderDateSelection = () => (
     <BlocksContainer>
       <DatePickerContainer>
-        <SectionTitle>Select Date Range</SectionTitle>
+        <SectionTitle>Selected Date Range</SectionTitle>
         <DateSelectionContainer>
           <DateRangeDisplay>
             {startDate && endDate
