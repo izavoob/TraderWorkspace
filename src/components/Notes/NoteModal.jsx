@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import styled, { keyframes } from 'styled-components';
 import CreatableSelect from 'react-select/creatable';
 
@@ -71,14 +71,17 @@ const Input = styled.input`
 `;
 
 const TextArea = styled.textarea`
-  min-height: 200px;
-  padding: 10px;
+  
+  height: auto;
+  min-height: 150px;
+  padding: 15px;
   background: #3e3e3e;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   color: #fff;
   font-size: 1em;
   resize: vertical;
+  overflow: hidden;
 
   &:focus {
     outline: none;
@@ -129,6 +132,7 @@ const AddImageButton = styled.div`
   padding: 20px;
   cursor: pointer;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   transition: all 0.3s ease;
@@ -178,6 +182,60 @@ const DeleteImageButtonOverlay = styled.button`
     background: rgba(244, 67, 54, 0.9);
     transform: scale(1.1);
   }
+`;
+
+const CommentImageButtonOverlay = styled.button`
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(33, 150, 243, 0.7);
+  border: none;
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  z-index: 10;
+  opacity: 0;
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+
+  &:hover {
+    background: rgba(33, 150, 243, 0.9);
+    transform: scale(1.1);
+  }
+`;
+
+const ImageCommentInput = styled.textarea`
+  width: 97%;
+  padding: 8px 10px;
+  background: #3e3e3e;
+  border: 1px solid #5e2ca5;
+  border-radius: 0 0 8px 8px;
+  color: #fff;
+  resize: none;
+  min-height: 40px;
+  margin-top: -5px;
+  transition: all 0.3s ease;
+  overflow: hidden;
+
+  &:focus {
+    outline: none;
+    border-color: #b886ee;
+  }
+`;
+
+const CommentHint = styled.div`
+  font-size: 0.9em;
+  color: #ff4d4d;
+  padding: 4px 10px;
+  text-align: right;
+  font-weight: bold;
 `;
 
 const AddIcon = styled.div`
@@ -395,6 +453,40 @@ const NoteModal = ({
   const [showNotification, setShowNotification] = useState(false);
   const [fullscreenImage, setFullscreenImage] = useState(null);
   const [scrollY, setScrollY] = useState(0);
+  const [imageComments, setImageComments] = useState({});
+  const [activeCommentId, setActiveCommentId] = useState(null);
+  const [showCommentHint, setShowCommentHint] = useState(false);
+  const [commentHintId, setCommentHintId] = useState(null);
+  const [pendingComments, setPendingComments] = useState({});
+  
+  const textAreaRef = useRef(null);
+  const commentInputRefs = useRef({});
+
+  // Функція для автоматичної зміни висоти текстових полів
+  const autoResizeTextarea = (element) => {
+    if (!element) return;
+    
+    // Скидаємо висоту до мінімальної
+    element.style.height = 'auto';
+    // Встановлюємо нову висоту на основі вмісту
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
+  // Застосовуємо автоматичну зміну висоти до основного текстового поля
+  useEffect(() => {
+    if (textAreaRef.current) {
+      autoResizeTextarea(textAreaRef.current);
+    }
+  }, [content]);
+
+  // Застосовуємо автоматичну зміну висоти до полів коментарів
+  useEffect(() => {
+    Object.keys(commentInputRefs.current).forEach(id => {
+      if (commentInputRefs.current[id]) {
+        autoResizeTextarea(commentInputRefs.current[id]);
+      }
+    });
+  }, [imageComments]);
 
   useEffect(() => {
     if (isOpen) {
@@ -407,47 +499,58 @@ const NoteModal = ({
       loadTags();
       
       if (note) {
-        console.log('Встановлення форми з існуючими даними нотатки:', note);
-        console.log('Встановлення заголовка:', note.title);
+        console.log('Завантаження даних нотатки:', note);
         setTitle(note.title || '');
-        console.log('Встановлення контенту:', note.content || note.text);
         setContent(note.content || note.text || '');
         
-        if (note.tag_id && note.tag_name) {
-          setSelectedTag({
-            value: note.tag_id,
-            label: note.tag_name
-          });
-        } else {
-          setSelectedTag(null);
+        // Встановлюємо тег, якщо він є
+        if (note.tag_id || note.tagId) {
+          const tagId = note.tag_id || note.tagId;
+          console.log('Встановлення тегу з ID:', tagId);
+          setSelectedTag({ value: tagId, label: note.tag_name || 'Tag' });
         }
         
-        if (!note.images || note.images.length === 0) {
-          console.log('Зображення не знайдені в нотатці, завантажую з бази даних...');
+        // Завантажуємо зображення для нотатки
           if (note.id) {
-            loadImages(note.id).catch(err => {
-              console.error('Помилка завантаження зображень:', err);
-              setImages([]);
-            });
-          }
-        } else {
-          console.log('Встановлення зображень з нотатки:', note.images);
+          loadImages(note.id);
+        } else if (note.images && note.images.length > 0) {
+          console.log('Використовуємо зображення з об\'єкта нотатки:', note.images);
+          
+          // Перевіряємо, чи всі зображення мають унікальні шляхи
           const uniqueImagePaths = new Set();
           const uniqueImages = note.images.filter(img => {
-            if (!img || !img.image_path) {
-              console.warn('Знайдено зображення без шляху:', img);
+            if (!img.image_path) {
+              console.warn('Зображення без шляху:', img);
               return false;
             }
+            
+            // Перевіряємо, чи вже є таке зображення (запобігаємо дублюванню)
             if (uniqueImagePaths.has(img.image_path)) {
-              console.warn('Дублікат зображення в нотатці:', img.image_path);
+              console.warn('Дублікат зображення:', img.image_path);
               return false;
             }
+            
+            // Додаємо шлях до множини унікальних шляхів
             uniqueImagePaths.add(img.image_path);
             return true;
           });
           
           console.log('Унікальні зображення для відображення:', uniqueImages.length);
           setImages(uniqueImages);
+          
+          // Завантажуємо коментарі до зображень
+          const commentsObj = {};
+          uniqueImages.forEach(img => {
+            if (img.comment) {
+              commentsObj[img.id] = img.comment;
+              
+              // Автоматично активуємо коментарі, які вже існують
+              if (!isReviewMode) {
+                setActiveCommentId(img.id);
+              }
+            }
+          });
+          setImageComments(commentsObj);
         }
       } else {
         console.log('Створення нової нотатки, скидання форми');
@@ -514,11 +617,26 @@ const NoteModal = ({
           console.log(`Зображення ${index+1}:`, {
             id: img.id,
             path: img.image_path,
+            comment: img.comment,
             fullPath: img.fullImagePath || img.image_path
           });
         });
         
         setImages(validImages);
+        
+        // Завантажуємо коментарі до зображень
+        const commentsObj = {};
+        validImages.forEach(img => {
+          if (img.comment) {
+            commentsObj[img.id] = img.comment;
+            
+            // Автоматично активуємо коментарі, які вже існують
+            if (!isReviewMode) {
+              setActiveCommentId(img.id);
+            }
+          }
+        });
+        setImageComments(commentsObj);
       } else {
         console.log('Не знайдено зображень для нотатки');
         setImages([]);
@@ -535,6 +653,11 @@ const NoteModal = ({
     setContent('');
     setSelectedTag(null);
     setImages([]);
+    setImageComments({});
+    setActiveCommentId(null);
+    setShowCommentHint(false);
+    setCommentHintId(null);
+    setPendingComments({});
   };
 
   const handleCreateTag = async (inputValue) => {
@@ -549,8 +672,28 @@ const NoteModal = ({
   };
 
   const handlePaste = async (e) => {
-    e.preventDefault();
     console.log('Paste event triggered in NoteModal');
+    
+    // Перевіряємо, чи подія відбулася в текстовому полі
+    const isTextArea = e.target.tagName === 'TEXTAREA' || e.target.tagName === 'INPUT';
+    
+    // Якщо це текстове поле, дозволяємо стандартну поведінку вставлення тексту
+    if (isTextArea) {
+      console.log('Paste event in text field, allowing default behavior');
+      // Не викликаємо preventDefault(), щоб дозволити стандартну поведінку
+      
+      // Викликаємо autoResizeTextarea після вставлення тексту
+      setTimeout(() => {
+        if (e.target) {
+          autoResizeTextarea(e.target);
+        }
+      }, 0);
+      
+      return;
+    }
+    
+    // Якщо це не текстове поле, обробляємо вставлення зображень
+    e.preventDefault();
     
     const items = e.clipboardData?.items;
     if (!items) {
@@ -583,6 +726,9 @@ const NoteModal = ({
           
           console.log('Отримано шлях до зображення:', filePath);
           
+          // Генеруємо тимчасовий ID для нового зображення
+          const tempId = `temp_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+          
           setImages(prev => {
             const isDuplicate = prev.some(img => img.image_path === filePath);
             if (isDuplicate) {
@@ -590,11 +736,8 @@ const NoteModal = ({
               return prev;
             }
             console.log('Adding new image:', filePath);
-            return [...prev, { id: null, image_path: filePath }];
+            return [...prev, { id: tempId, image_path: filePath }];
           });
-          
-          // Видаляємо break, щоб обробити всі зображення з буфера обміну
-          // break; // Only process one image at a time
         } catch (error) {
           console.error('Error processing pasted image:', error);
         }
@@ -602,129 +745,127 @@ const NoteModal = ({
     }
   };
 
-  const handleSave = async (noteData) => {
+  const handleSave = async () => {
     try {
-      console.log('Збереження нотатки:', noteData);
+      console.log('Збереження нотатки, ID:', note?.id);
       
       // Перевірка наявності обов'язкових полів
-      if (!noteData.title || !noteData.content) {
-        console.error('Відсутні обов\'язкові поля: title і content');
-        throw new Error('Title and content are required');
+      if (!title.trim()) {
+        alert('Title is required');
+        return;
       }
       
-      // Підготовка даних для збереження
-      const noteToSave = {
-        ...noteData,
-        source_type: sourceType || noteData.source_type || 'trade',
-        source_id: sourceId || noteData.source_id || '',
-        // Передаємо як tagId, так і tag_id для сумісності
-        tagId: noteData.tagId || (selectedTag ? selectedTag.value : null),
-        tag_id: noteData.tag_id || (selectedTag ? selectedTag.value : null),
+      // Зберігаємо основні дані нотатки
+      const noteData = {
+        id: note?.id,
+        title,
+        content,
+        tag_id: selectedTag ? selectedTag.value : null,
+        tagId: selectedTag ? selectedTag.value : null,
+        source_type: sourceType || (note ? note.source_type || note.sourceType : null),
+        source_id: sourceId || (note ? note.source_id || note.sourceId : null),
+        trade_no: note ? note.trade_no || note.tradeNo : null,
+        trade_date: note ? note.trade_date || note.tradeDate : null,
+        images: images
       };
-
-      console.log('Підготовлена нотатка для збереження:', noteToSave);
-      console.log('ID нотатки для збереження:', noteToSave.id); // Перевірка ID
+      
+      console.log('Підготовлені дані для збереження:', noteData);
       
       let savedNoteId;
-      let savedNote;
-
-      if (noteToSave.id) {
-        // ВАЖЛИВО: Оновлюємо існуючу нотатку, зберігаючи її ID
-        console.log('Оновлення існуючої нотатки ID:', noteToSave.id);
+      let savedNote = { ...noteData };
+      
+      if (note && note.id) {
+        // Оновлюємо існуючу нотатку
+        console.log('Оновлення існуючої нотатки з ID:', note.id);
         
+        try {
         // Отримуємо поточну нотатку з бази даних, щоб зберегти її значення source
-        const existingNote = await window.electronAPI.getNoteById(noteToSave.id);
-        
-        // Отримуємо всі зображення, які зараз є в базі даних для цієї нотатки
-        const existingImages = await window.electronAPI.getNoteImages(noteToSave.id);
-        console.log('Існуючі зображення в базі даних:', existingImages);
-        
-        // Знаходимо зображення, які були видалені (є в базі даних, але немає в поточному стані)
-        const imagesToDelete = existingImages.filter(existingImg => 
-          !images.some(currentImg => currentImg.id === existingImg.id)
-        );
-        
-        console.log('Зображення для видалення з бази даних:', imagesToDelete);
-        
-        // Видаляємо зображення з бази даних
-        for (const imageToDelete of imagesToDelete) {
-          try {
-            console.log('Видалення зображення з бази даних, ID:', imageToDelete.id);
-            await window.electronAPI.deleteNoteImage(imageToDelete.id);
-          } catch (error) {
-            console.error('Помилка видалення зображення з бази даних:', error);
-          }
-        }
+          const existingNote = await window.electronAPI.getNoteById(note.id);
+          console.log('Отримано існуючу нотатку з бази даних:', existingNote);
         
         // Переконуємося, що ми зберігаємо оригінальні значення source
         const updatedNote = {
-          ...noteToSave,
+            ...noteData,
+            id: note.id,
           // Зберігаємо оригінальні значення, якщо вони існують
-          trade_no: existingNote.trade_no || noteToSave.trade_no,
-          trade_date: existingNote.trade_date || noteToSave.trade_date,
-          source_type: existingNote.source_type || noteToSave.source_type,
-          source_id: existingNote.source_id || noteToSave.source_id
+            trade_no: existingNote.trade_no || noteData.trade_no,
+            trade_date: existingNote.trade_date || noteData.trade_date,
+            source_type: existingNote.source_type || noteData.source_type,
+            source_id: existingNote.source_id || noteData.source_id
         };
         
         console.log('Оновлена нотатка зі збереженими значеннями source:', updatedNote);
-        await window.electronAPI.updateNote(updatedNote);
-        savedNoteId = updatedNote.id;
-        console.log('Нотатка успішно оновлена, ID залишився:', savedNoteId);
+          const updatedNoteResult = await window.electronAPI.updateNote(updatedNote);
+          console.log('Результат оновлення нотатки:', updatedNoteResult);
+          
+          savedNoteId = note.id;
+          savedNote = { ...updatedNote };
+
+          // Зберігаємо зображення для існуючої нотатки
+          console.log('Зберігаємо зображення для існуючої нотатки:', images);
+          for (const image of images) {
+            if (!image.id || image.id.toString().startsWith('temp_')) {
+              console.log('Додаємо нове зображення:', image);
+              const imageId = await window.electronAPI.addNoteImage(savedNoteId, image.image_path);
+              console.log('Зображення додано з ID:', imageId);
+              
+              // Якщо є коментар для цього зображення, зберігаємо його
+              if (imageComments[image.id]) {
+                console.log('Зберігаємо коментар для нового зображення:', imageComments[image.id]);
+                await window.electronAPI.updateNoteImageComment(imageId, imageComments[image.id]);
+              }
+            } else if (imageComments[image.id]) {
+              // Оновлюємо коментар для існуючого зображення
+              console.log('Оновлюємо коментар для існуючого зображення:', image.id, imageComments[image.id]);
+              await window.electronAPI.updateNoteImageComment(image.id, imageComments[image.id]);
+            }
+          }
+        } catch (error) {
+          console.error('Помилка при оновленні нотатки:', error);
+          throw error;
+        }
       } else {
         // Створюємо нову нотатку
         console.log('Створення нової нотатки');
-        savedNoteId = await window.electronAPI.addNote(noteToSave);
+        try {
+          // Використовуємо addNote замість saveNote для нових нотаток
+          savedNoteId = await window.electronAPI.addNote(noteData);
         console.log('Нова нотатка створена з ID:', savedNoteId);
-      }
+          savedNote.id = savedNoteId;
       
-      // Зберігаємо нові зображення для нотатки
-      if (images && images.length > 0) {
-        console.log(`Збереження ${images.length} зображень для нотатки ID:${savedNoteId}`);
+          // Зберігаємо зображення для нової нотатки
+          console.log('Зберігаємо зображення для нової нотатки:', images);
         for (const image of images) {
-          // Зберігаємо тільки нові зображення без ID
-          if (!image.id) {
-            console.log('Обробка нового зображення:', image.image_path);
-            let imagePath = image.image_path;
+            console.log('Додаємо зображення:', image);
+            const imageId = await window.electronAPI.addNoteImage(savedNoteId, image.image_path);
+            console.log('Зображення додано з ID:', imageId);
             
-            try {
-              // Якщо це base64 зображення, зберігаємо його як файл
-              if (image.image_path.startsWith('data:')) {
-                const buffer = Buffer.from(image.image_path.split(',')[1], 'base64');
-                imagePath = await window.electronAPI.saveBlobAsFile(buffer);
-              }
-              
-              console.log(`Додавання зображення до нотатки ID:${savedNoteId}`, imagePath);
-              await window.electronAPI.addNoteImage(savedNoteId, imagePath);
-            } catch (imgError) {
-              console.error('Помилка при збереженні зображення:', imgError);
+            // Якщо є коментар для цього зображення, зберігаємо його
+            if (imageComments[image.id]) {
+              console.log('Зберігаємо коментар для зображення:', imageComments[image.id]);
+              await window.electronAPI.updateNoteImageComment(imageId, imageComments[image.id]);
             }
-          } else {
-            console.log('Пропуск існуючого зображення з ID:', image.id);
           }
+        } catch (error) {
+          console.error('Помилка при створенні нової нотатки:', error);
+          throw error;
         }
       }
       
-      // Отримуємо оновлену нотатку з усіма зображеннями
-      console.log('Отримання оновленої нотатки з ID:', savedNoteId);
-      savedNote = await window.electronAPI.getNoteById(savedNoteId);
-      console.log('Отримана нотатка з бази даних:', savedNote);
+      console.log('Нотатка збережена з ID:', savedNoteId);
       
-      // Додатково завантажуємо зображення для нотатки
-      const noteImages = await window.electronAPI.getNoteImages(savedNoteId);
-      console.log('Завантажені зображення для нотатки:', noteImages);
+      // Очищаємо список відкладених коментарів
+      setPendingComments({});
       
-      // Об'єднуємо нотатку та її зображення
-      savedNote = {
-        ...savedNote,
-        images: noteImages || []
-      };
-      
-      console.log('Фінальна нотатка для повернення:', savedNote);
-      
+      // Викликаємо колбек для оновлення батьківського компонента
       if (typeof onSave === 'function') {
-        await onSave(savedNote);
+        console.log('Викликаємо onSave з нотаткою:', savedNote);
+        // Передаємо повний об'єкт нотатки, а не тільки ID
+        onSave(savedNote);
       }
       
+      // Закриваємо модальне вікно
+      resetForm();
       onClose();
     } catch (error) {
       console.error('Помилка збереження нотатки:', error);
@@ -737,6 +878,93 @@ const NoteModal = ({
     
     // Видаляємо зображення тільки з локального стану
     setImages(prevImages => prevImages.filter(img => img.id !== imageId));
+  };
+
+  const handleToggleComment = (imageId) => {
+    console.log('Перемикання коментаря для зображення з ID:', imageId);
+    
+    if (activeCommentId === imageId) {
+      // Якщо коментар вже активний, закриваємо його тільки якщо він порожній
+      const comment = imageComments[imageId] || '';
+      if (comment.trim() === '') {
+        setActiveCommentId(null);
+        setShowCommentHint(false);
+        setCommentHintId(null);
+      }
+    } else {
+      // Інакше активуємо коментар для цього зображення
+      setActiveCommentId(imageId);
+      
+      // Якщо коментар порожній, показуємо підказку
+      const comment = imageComments[imageId] || '';
+      if (comment.trim() === '') {
+        setShowCommentHint(true);
+        setCommentHintId(imageId);
+      } else {
+        setShowCommentHint(false);
+      }
+    }
+  };
+
+  const handleCommentChange = (imageId, comment) => {
+    console.log('Зміна коментаря для зображення з ID:', imageId, comment);
+    
+    // Оновлюємо стан коментарів
+    setImageComments(prev => ({
+      ...prev,
+      [imageId]: comment
+    }));
+    
+    // Додаємо коментар до списку відкладених змін
+    setPendingComments(prev => ({
+      ...prev,
+      [imageId]: comment
+    }));
+    
+    // Показуємо підказку, якщо коментар порожній, і тільки для активного поля
+    if (comment.trim() === '') {
+      setShowCommentHint(true);
+      setCommentHintId(imageId);
+    } else {
+      setShowCommentHint(false);
+    }
+  };
+
+  const handleCommentKeyDown = async (e, imageId) => {
+    // Якщо натиснуто Backspace і коментар порожній, закриваємо поле введення
+    if (e.key === 'Backspace' && !e.target.value.trim()) {
+      e.preventDefault();
+      
+      // Деактивуємо поле введення, але залишаємо коментар видимим, якщо він не порожній
+      setActiveCommentId(null);
+      setShowCommentHint(false);
+      setCommentHintId(null);
+      
+      // Видаляємо коментар зі стану
+      setImageComments(prev => {
+        const newComments = { ...prev };
+        delete newComments[imageId];
+        return newComments;
+      });
+      
+      // Додаємо видалення коментаря до списку відкладених змін
+      setPendingComments(prev => ({
+        ...prev,
+        [imageId]: null
+      }));
+    }
+  };
+
+  // Цей метод тепер використовується тільки при збереженні нотатки
+  const saveImageComment = async (imageId, comment) => {
+    if (!imageId) return;
+    
+    try {
+      await window.electronAPI.updateNoteImageComment(imageId, comment);
+      console.log('Коментар збережено в базі даних');
+    } catch (error) {
+      console.error('Помилка збереження коментаря:', error);
+    }
   };
 
   const getSourceText = (note) => {
@@ -803,8 +1031,13 @@ const NoteModal = ({
   };
 
   const openFullscreen = (src) => {
-    const imagePath = formatImagePath(src);
-    setFullscreenImage({ src: imagePath });
+    console.log('Відкриття зображення у повноекранному режимі:', src);
+    
+    // Зберігаємо поточну позицію прокрутки
+    setScrollY(window.scrollY);
+    
+    // Форматуємо шлях до зображення
+    setFullscreenImage(formatImagePath(src));
   };
 
   const closeFullscreen = () => {
@@ -817,37 +1050,83 @@ const NoteModal = ({
     
     console.log('Оригінальний шлях до зображення:', imagePath);
     
-    // Перевіряємо, чи шлях вже містить протокол file://
-    if (imagePath.startsWith('file://')) {
+    // Якщо це base64 зображення, повертаємо як є
+    if (imagePath && typeof imagePath === 'string' && imagePath.startsWith('data:')) {
+      return imagePath;
+    }
+    
+    // Якщо шлях вже містить протокол file://
+    if (imagePath && typeof imagePath === 'string' && imagePath.startsWith('file://')) {
       console.log('Шлях вже містить протокол file://', imagePath);
       return imagePath;
     }
     
-    // Якщо шлях містить лише ім'я файлу (без шляху)
-    if (!imagePath.includes('/') && !imagePath.includes('\\')) {
-      // Шукаємо зображення в папці screenshots
-      const screenshotsPath = `screenshots`;
-      const formattedPath = `${screenshotsPath}/${imagePath}`;
-      console.log('Сформований шлях до зображення:', formattedPath);
-      // Додаємо протокол file:// до шляху
-      return `file:///${formattedPath.replace(/\\/g, '/')}`;
+    // Якщо imagePath - це об'єкт з полем fullImagePath або image_path
+    if (imagePath && typeof imagePath === 'object') {
+      if (imagePath.fullImagePath) {
+        return imagePath.fullImagePath;
+      }
+      if (imagePath.image_path) {
+        // Перевіряємо, чи шлях до зображення є абсолютним
+        const path = imagePath.image_path;
+        if (path.startsWith('/') || path.includes(':\\') || path.includes(':/')) {
+          return path;
+        }
+        // Якщо шлях відносний, додаємо префікс screenshots/
+        if (!path.includes('screenshots/')) {
+          return `screenshots/${path}`;
+        }
+        return path;
+      }
     }
     
-    // Якщо шлях вже містить папку screenshots
-    if (imagePath.startsWith('screenshots/')) {
-      console.log('Шлях вже містить папку screenshots:', imagePath);
-      // Додаємо протокол file:// до шляху
-      return `file:///${imagePath.replace(/\\/g, '/')}`;
+    // Якщо imagePath - це рядок, але не містить повний шлях
+    if (imagePath && typeof imagePath === 'string') {
+      // Перевіряємо, чи шлях до зображення є абсолютним
+      if (imagePath.startsWith('/') || imagePath.includes(':\\') || imagePath.includes(':/')) {
+        return imagePath;
+      }
+      // Якщо шлях відносний, додаємо префікс screenshots/
+      if (!imagePath.includes('screenshots/')) {
+        return `screenshots/${imagePath}`;
+      }
     }
     
-    // Для інших випадків просто додаємо протокол file://
-    return `file:///${imagePath.replace(/\\/g, '/')}`;
+    // Для інших випадків повертаємо шлях як є
+    return imagePath;
   };
 
   // Додаємо обробник для кнопки Cancel
   const handleCancel = () => {
     console.log('Скасування змін');
+    
+    // Якщо це нова нотатка або редагування існуючої, скасовуємо всі зміни
+    if (!isReviewMode) {
+      // Скасовуємо зміни в коментарях до зображень
+      if (note && note.id) {
+        // Для існуючої нотатки - відновлюємо оригінальні дані з note
+        setTitle(note.title || '');
+        setContent(note.content || note.text || '');
+        
+        // Встановлюємо тег, якщо він є
+        if (note.tag_id || note.tagId) {
+          const tagId = note.tag_id || note.tagId;
+          setSelectedTag({ value: tagId, label: note.tag_name || 'Tag' });
+        } else {
+          setSelectedTag(null);
+        }
+        
+        // Відновлюємо оригінальні зображення та коментарі
+        loadImages(note.id);
+      } else {
+        // Для нової нотатки - просто очищаємо всі поля
     resetForm();
+      }
+      
+      // Очищаємо список відкладених коментарів
+      setPendingComments({});
+    }
+    
     onClose();
   };
 
@@ -886,9 +1165,20 @@ const NoteModal = ({
             <TextArea
               placeholder="Content"
               value={content}
-              onChange={e => setContent(e.target.value)}
+              onChange={(e) => {
+                setContent(e.target.value);
+                autoResizeTextarea(e.target);
+              }}
               onPaste={handlePaste}
+              onCut={(e) => {
+                // Дозволяємо стандартну поведінку вирізання
+                setTimeout(() => autoResizeTextarea(e.target), 0);
+              }}
+              onCopy={() => {
+                // Дозволяємо стандартну поведінку копіювання
+              }}
               readOnly={isReviewMode}
+              ref={textAreaRef}
             />
 
             {/* Відображення зображення для режиму редагування */}
@@ -915,29 +1205,37 @@ const NoteModal = ({
                         }}
                         onMouseEnter={(e) => {
                           const deleteButton = e.currentTarget.querySelector('.delete-button');
+                          const commentButton = e.currentTarget.querySelector('.comment-button');
                           if (deleteButton) {
                             deleteButton.style.opacity = '1';
+                          }
+                          if (commentButton) {
+                            commentButton.style.opacity = '1';
                           }
                         }}
                         onMouseLeave={(e) => {
                           const deleteButton = e.currentTarget.querySelector('.delete-button');
+                          const commentButton = e.currentTarget.querySelector('.comment-button');
                           if (deleteButton) {
                             deleteButton.style.opacity = '0';
+                          }
+                          if (commentButton) {
+                            commentButton.style.opacity = '0';
                           }
                         }}
                       >
                         <img 
-                          src={formatImagePath(images[0].image_path)} 
+                          src={formatImagePath(images[0])} 
                           alt="Note image" 
                           style={{ 
                             width: '100%', 
                             objectFit: 'cover',
-                            borderRadius: '4px',
+                            borderRadius: activeCommentId === images[0].id ? '4px 4px 0 0' : '4px',
                             boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
                           }}
                           onClick={(e) => {
                             e.stopPropagation();
-                            openFullscreen(images[0].image_path);
+                            openFullscreen(images[0]);
                           }}
                         />
                         <DeleteImageButtonOverlay 
@@ -950,9 +1248,62 @@ const NoteModal = ({
                             transition: 'opacity 0.3s ease'
                           }}
                           className="delete-button"
+                          title="Видалити зображення"
                         >
                           ×
                         </DeleteImageButtonOverlay>
+                        <CommentImageButtonOverlay 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleToggleComment(images[0].id);
+                          }}
+                          style={{ 
+                            opacity: 0,
+                            transition: 'opacity 0.3s ease'
+                          }}
+                          className="comment-button"
+                          title="Додати коментар до зображення"
+                        >
+                          <span style={{ fontSize: '14px' }}>💬</span>
+                        </CommentImageButtonOverlay>
+                        
+                        {(activeCommentId === images[0].id || imageComments[images[0].id]) && (
+                          <>
+                            <ImageCommentInput
+                              placeholder="Add a comment to the image..."
+                              value={imageComments[images[0].id] || ''}
+                              onChange={(e) => {
+                                handleCommentChange(images[0].id, e.target.value);
+                                autoResizeTextarea(e.target);
+                              }}
+                              onKeyDown={(e) => handleCommentKeyDown(e, images[0].id)}
+                              onPaste={(e) => {
+                                // Дозволяємо стандартну поведінку вставлення для текстових полів
+                                setTimeout(() => autoResizeTextarea(e.target), 0);
+                              }}
+                              onCut={(e) => {
+                                // Дозволяємо стандартну поведінку вирізання
+                                setTimeout(() => autoResizeTextarea(e.target), 0);
+                              }}
+                              onCopy={() => {
+                                // Дозволяємо стандартну поведінку копіювання
+                              }}
+                              onBlur={() => {
+                                // Більше не зберігаємо коментар при втраті фокусу
+                                // Коментарі будуть збережені тільки при натисканні кнопки "Save"
+                              }}
+                              autoFocus={activeCommentId === images[0].id}
+                              ref={(el) => {
+                                commentInputRefs.current[images[0].id] = el;
+                              }}
+                            />
+                            {showCommentHint && commentHintId === images[0].id && (
+                              <CommentHint>
+                                Press Backspace to cancel
+                              </CommentHint>
+                            )}
+                          </>
+                        )}
                       </div>
                       
                       {/* Додаткові зображення */}
@@ -965,29 +1316,37 @@ const NoteModal = ({
                           }}
                           onMouseEnter={(e) => {
                             const deleteButton = e.currentTarget.querySelector('.delete-button');
+                            const commentButton = e.currentTarget.querySelector('.comment-button');
                             if (deleteButton) {
                               deleteButton.style.opacity = '1';
+                            }
+                            if (commentButton) {
+                              commentButton.style.opacity = '1';
                             }
                           }}
                           onMouseLeave={(e) => {
                             const deleteButton = e.currentTarget.querySelector('.delete-button');
+                            const commentButton = e.currentTarget.querySelector('.comment-button');
                             if (deleteButton) {
                               deleteButton.style.opacity = '0';
+                            }
+                            if (commentButton) {
+                              commentButton.style.opacity = '0';
                             }
                           }}
                         >
                           <img 
-                            src={formatImagePath(image.image_path)} 
+                            src={formatImagePath(image)} 
                             alt={`Additional image ${index + 1}`} 
                             style={{ 
                               width: '100%', 
-                              borderRadius: '8px',
+                              borderRadius: activeCommentId === image.id ? '8px 8px 0 0' : '8px',
                               cursor: 'pointer',
                               boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
                             }}
                             onClick={(e) => {
                               e.stopPropagation();
-                              openFullscreen(image.image_path);
+                              openFullscreen(image);
                             }}
                           />
                           <DeleteImageButtonOverlay 
@@ -1000,9 +1359,62 @@ const NoteModal = ({
                               transition: 'opacity 0.3s ease'
                             }}
                             className="delete-button"
+                            title="Видалити зображення"
                           >
                             ×
                           </DeleteImageButtonOverlay>
+                          <CommentImageButtonOverlay 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleToggleComment(image.id);
+                            }}
+                            style={{ 
+                              opacity: 0,
+                              transition: 'opacity 0.3s ease'
+                            }}
+                            className="comment-button"
+                            title="Додати коментар до зображення"
+                          >
+                            <span style={{ fontSize: '14px' }}>💬</span>
+                          </CommentImageButtonOverlay>
+                          
+                          {(activeCommentId === image.id || imageComments[image.id]) && (
+                            <>
+                              <ImageCommentInput
+                                placeholder="Add a comment to the image..."
+                                value={imageComments[image.id] || ''}
+                                onChange={(e) => {
+                                  handleCommentChange(image.id, e.target.value);
+                                  autoResizeTextarea(e.target);
+                                }}
+                                onKeyDown={(e) => handleCommentKeyDown(e, image.id)}
+                                onPaste={(e) => {
+                                  // Дозволяємо стандартну поведінку вставлення для текстових полів
+                                  setTimeout(() => autoResizeTextarea(e.target), 0);
+                                }}
+                                onCut={(e) => {
+                                  // Дозволяємо стандартну поведінку вирізання
+                                  setTimeout(() => autoResizeTextarea(e.target), 0);
+                                }}
+                                onCopy={() => {
+                                  // Дозволяємо стандартну поведінку копіювання
+                                }}
+                                onBlur={() => {
+                                  // Більше не зберігаємо коментар при втраті фокусу
+                                  // Коментарі будуть збережені тільки при натисканні кнопки "Save"
+                                }}
+                                autoFocus={activeCommentId === image.id}
+                                ref={(el) => {
+                                  commentInputRefs.current[image.id] = el;
+                                }}
+                              />
+                              {showCommentHint && commentHintId === image.id && (
+                                <CommentHint>
+                                  Press Backspace to cancel
+                                </CommentHint>
+                              )}
+                            </>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -1028,27 +1440,43 @@ const NoteModal = ({
               <div style={{ marginTop: '20px' }}>
                 {images.map((image, index) => {
                   // Перевірка та конвертація шляху до зображення
-                  const imagePath = formatImagePath(image.image_path);
+                  const imagePath = formatImagePath(image);
                   console.log(`Відображення зображення ${index + 1} в режимі перегляду:`, {
                     шлях: imagePath,
                     зображення: image
                   });
                   
                   return (
+                    <div key={`review-image-${index}`} style={{ marginBottom: index < images.length - 1 ? '20px' : '0' }}>
                     <img 
-                      key={`review-image-${index}`}
                       src={imagePath} 
                       alt={`Note image ${index + 1}`} 
-                      onClick={() => openFullscreen(image.image_path)}
+                        onClick={() => openFullscreen(image)}
                       style={{ 
                         maxWidth: '100%',  
                         cursor: 'pointer',
-                        borderRadius: '8px',
+                          borderRadius: image.comment ? '8px 8px 0 0' : '8px',
                         border: '1px solid #5e2ca5',
-                        marginBottom: index < images.length - 1 ? '10px' : '0',
                         display: 'block'
                       }}
                     />
+                      {image.comment && (
+                        <div 
+                          style={{ 
+                            padding: '10px 15px',
+                            background: '#3e3e3e',
+                            borderRadius: '0 0 8px 8px',
+                            border: '1px solid #5e2ca5',
+                            borderTop: 'none',
+                            color: '#fff',
+                            fontSize: '0.9em',
+                            lineHeight: '1.4'
+                          }}
+                        >
+                          {image.comment}
+                        </div>
+                      )}
+                    </div>
                   );
                 })}
               </div>
@@ -1069,24 +1497,16 @@ const NoteModal = ({
 
             <ButtonGroup>
               <Button type="button" className="cancel" onClick={handleCancel}>
-                Close
+                Cancel
               </Button>
               {!isReviewMode && (
                 <Button 
                   type="button" 
                   className="save" 
-                  onClick={() => handleSave({
-                    id: note ? note.id : undefined,
-                    title,
-                    content,
-                    tagId: selectedTag ? selectedTag.value : null,
-                    sourceType,
-                    sourceId,
-                    images
-                  })}
-                  disabled={!title || !content}
+                  onClick={handleSave}
+                  disabled={!title.trim()}
                 >
-                  {note ? 'Save Changes' : 'Add Note'}
+                  {note && note.id ? 'Save Changes' : 'Add Note'}
                 </Button>
               )}
             </ButtonGroup>
@@ -1116,10 +1536,10 @@ const NoteModal = ({
           >
             <CloseButton onClick={closeFullscreen}>×</CloseButton>
             <img
-              src={fullscreenImage.src}
+              src={fullscreenImage}
               alt="Fullscreen preview"
               style={{
-                
+                maxWidth: '100%',
                 maxHeight: '100%',
                 objectFit: 'contain',
                 borderRadius: '8px',

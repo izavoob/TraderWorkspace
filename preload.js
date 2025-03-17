@@ -53,9 +53,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNotesBySource: (sourceType, sourceId) => ipcRenderer.invoke('getNotesBySource', sourceType, sourceId),
   getAllNotes: () => ipcRenderer.invoke('getAllNotes'),
   deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
-  addNoteImage: (noteId, imagePath) => ipcRenderer.invoke('addNoteImage', noteId, imagePath),
+  addNoteImage: (noteId, imagePath, comment) => ipcRenderer.invoke('addNoteImage', noteId, imagePath, comment),
   getNoteImages: (noteId) => ipcRenderer.invoke('getNoteImages', noteId),
   deleteNoteImage: (imageId) => ipcRenderer.invoke('deleteNoteImage', imageId),
+  updateNoteImageComment: (imageId, comment) => ipcRenderer.invoke('updateNoteImageComment', imageId, comment),
   updateNotesWithTradeData: (tradeId) => ipcRenderer.invoke('updateNotesWithTradeData', tradeId),
   updateNotesWithPresessionData: (presessionId) => ipcRenderer.invoke('updateNotesWithPresessionData', presessionId),
 });

@@ -932,103 +932,91 @@ ipcMain.handle('updateNotesWithTradeData', async (event, tradeId) => {
   }
 });
 
-ipcMain.handle('addNoteImage', async (event, noteId, imagePath) => {
+ipcMain.handle('addNoteImage', async (event, noteId, imagePath, comment) => {
   try {
-    console.log(`[main.js] Додавання зображення до нотатки ID=${noteId}`);
-    console.log(`[main.js] Шлях до зображення:`, imagePath);
+    console.log('Додавання зображення до нотатки ID:', noteId);
+    console.log('Шлях до зображення:', imagePath);
+    console.log('Коментар до зображення:', comment);
     
-    // Перевірка, чи існує файл
-    try {
-      await fs.access(imagePath);
-      console.log(`[main.js] Файл існує: ${imagePath}`);
-    } catch (fileError) {
-      console.error(`[main.js] Файл не знайдено: ${imagePath}`);
-      throw new Error(`File not found: ${imagePath}`);
+    // Перевіряємо, чи існує нотатка
+    const note = await notesDB.getNoteById(noteId);
+    if (!note) {
+      throw new Error(`Нотатка з ID=${noteId} не знайдена`);
     }
     
-    // Переконаємось, що ми зберігаємо відносний шлях у базі даних для переносимості
-    const screenshotsPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'screenshots');
-    let relativeImagePath = imagePath;
-    
-    // Якщо шлях містить директорію screenshots, вилучаємо тільки ім'я файлу
-    if (imagePath.includes('screenshots')) {
-      relativeImagePath = path.basename(imagePath);
-      console.log(`[main.js] Перетворено на відносний шлях: ${relativeImagePath}`);
-    }
-    
-    // Додаємо зображення до бази даних з відносним шляхом
-    const imageId = await notesDB.addNoteImage(noteId, relativeImagePath);
-    console.log(`[main.js] Зображення успішно додано з ID=${imageId}`);
-    
+    // Додаємо зображення до нотатки
+    const imageId = await notesDB.addNoteImage(noteId, imagePath, comment);
+    console.log('Зображення додано з ID:', imageId);
     return imageId;
   } catch (error) {
-    console.error('[main.js] Помилка додавання зображення нотатки:', error);
+    console.error('Помилка додавання зображення:', error);
     throw error;
   }
 });
 
 ipcMain.handle('getNoteImages', async (event, noteId) => {
   try {
-    console.log(`[main.js] Отримання зображень для нотатки ID=${noteId}`);
+    console.log('Отримання зображень для нотатки ID:', noteId);
+    
+    // Перевіряємо, чи існує нотатка
+    const note = await notesDB.getNoteById(noteId);
+    if (!note) {
+      console.warn(`Нотатка з ID=${noteId} не знайдена`);
+      return [];
+    }
+    
+    // Отримуємо зображення для нотатки
     const images = await notesDB.getNoteImages(noteId);
-    console.log(`[main.js] Отримано ${images.length} зображень з бази даних`);
+    console.log(`Знайдено ${images.length} зображень для нотатки ID=${noteId}`);
     
-    // Перевіряємо та нормалізуємо шляхи зображень
+    // Перетворюємо відносні шляхи на абсолютні
     const screenshotsPath = path.join(app.getPath('documents'), 'TraderWorkspaceVault', 'screenshots');
-    console.log('[main.js] Директорія зображень:', screenshotsPath);
     
-    const processedImages = await Promise.all(images.map(async (image, index) => {
-      // Якщо шлях не є абсолютним, додаємо повний шлях
-      let imagePath = image.image_path;
-      if (!path.isAbsolute(imagePath)) {
-        imagePath = path.join(screenshotsPath, path.basename(imagePath));
-        console.log(`[main.js] Нормалізований шлях для зображення ${index + 1}:`, imagePath);
+    const processedImages = images.map(img => {
+      // Якщо шлях вже містить повний шлях або це base64, залишаємо як є
+      if (img.image_path.startsWith('data:') || 
+          img.image_path.includes('://') || 
+          path.isAbsolute(img.image_path)) {
+        return {
+          ...img,
+          fullImagePath: img.image_path
+        };
       }
       
-      // Перевіряємо чи файл існує
-      try {
-        await fs.access(imagePath);
-        console.log(`[main.js] Файл існує: ${imagePath}`);
-        return {
-          ...image,
-          image_path: imagePath
-        };
-      } catch (fileError) {
-        console.warn(`[main.js] Файл не знайдено: ${imagePath}`);
-        // Спробуємо пошукати файл в директорії screenshots з використанням тільки базового імені
-        try {
-          const baseFilename = path.basename(imagePath);
-          const alternativePath = path.join(screenshotsPath, baseFilename);
-          await fs.access(alternativePath);
-          console.log(`[main.js] Знайдено альтернативний шлях: ${alternativePath}`);
-          return {
-            ...image,
-            image_path: alternativePath
-          };
-        } catch (altError) {
-          console.error(`[main.js] Файл не знайдено ні за оригінальним, ні за альтернативним шляхом:`, {
-            original: imagePath,
-            alternative: path.join(screenshotsPath, path.basename(imagePath))
-          });
-          return {
-            ...image,
-            image_path: imagePath, // Повертаємо оригінальний шлях, навіть якщо файл не знайдено
-            error: 'File not found'
-          };
-        }
-      }
-    }));
+      // Інакше додаємо шлях до папки screenshots
+      return {
+        ...img,
+        fullImagePath: path.join(screenshotsPath, img.image_path)
+      };
+    });
     
-    console.log('[main.js] Оброблені зображення для повернення:', processedImages);
     return processedImages;
   } catch (error) {
-    console.error('[main.js] Помилка отримання зображень нотатки:', error);
+    console.error('Помилка отримання зображень нотатки:', error);
     throw error;
   }
 });
 
 ipcMain.handle('deleteNoteImage', async (event, imageId) => {
-  return await notesDB.deleteNoteImage(imageId);
+  try {
+    console.log('Видалення зображення з ID:', imageId);
+    await notesDB.deleteNoteImage(imageId);
+    return true;
+  } catch (error) {
+    console.error('Помилка видалення зображення:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updateNoteImageComment', async (event, imageId, comment) => {
+  try {
+    console.log('Оновлення коментаря для зображення з ID:', imageId, comment);
+    await notesDB.updateNoteImageComment(imageId, comment);
+    return true;
+  } catch (error) {
+    console.error('Помилка оновлення коментаря до зображення:', error);
+    throw error;
+  }
 });
 
 ipcMain.handle('testUpdateNotes', async (event, tradeId) => {

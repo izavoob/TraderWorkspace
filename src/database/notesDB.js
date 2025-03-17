@@ -62,6 +62,7 @@ class NotesDB {
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           note_id INTEGER NOT NULL,
           image_path TEXT NOT NULL,
+          comment TEXT,
           created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
           FOREIGN KEY (note_id) REFERENCES notes(id) ON DELETE CASCADE
         )
@@ -459,10 +460,11 @@ class NotesDB {
   }
 
   // Методи для роботи з зображеннями
-  async addNoteImage(noteId, imagePath) {
+  async addNoteImage(noteId, imagePath, comment = null) {
     return new Promise((resolve, reject) => {
       console.log(`Додавання зображення до нотатки ID=${noteId}`);
       console.log(`Шлях до зображення:`, imagePath);
+      console.log(`Коментар до зображення:`, comment);
       
       // Перетворюємо шлях у відносний, щоб забезпечити переносимість
       let relativeImagePath = imagePath;
@@ -494,15 +496,29 @@ class NotesDB {
           }
           
           if (existingImage) {
-            console.log(`Зображення з шляхом ${relativeImagePath} вже існує для нотатки ID=${noteId}, повертаємо існуючий ID=${existingImage.id}`);
-            resolve(existingImage.id);
+            console.log(`Зображення з шляхом ${relativeImagePath} вже існує для нотатки ID=${noteId}, оновлюємо коментар`);
+            
+            // Оновлюємо коментар для існуючого зображення
+            this.db.run(
+              'UPDATE note_images SET comment = ? WHERE id = ?',
+              [comment, existingImage.id],
+              (err) => {
+                if (err) {
+                  console.error('Помилка оновлення коментаря до зображення:', err);
+                  reject(err);
+                } else {
+                  console.log(`Коментар до зображення ID=${existingImage.id} оновлено`);
+                  resolve(existingImage.id);
+                }
+              }
+            );
             return;
           }
           
           // Зображення не знайдено, додаємо нове
           this.db.run(
-            'INSERT INTO note_images (note_id, image_path) VALUES (?, ?)',
-            [noteId, relativeImagePath],
+            'INSERT INTO note_images (note_id, image_path, comment) VALUES (?, ?, ?)',
+            [noteId, relativeImagePath, comment],
             function(err) {
               if (err) {
                 console.error('Помилка додавання зображення:', err);
@@ -527,6 +543,7 @@ class NotesDB {
           id,
           note_id,
           image_path,
+          comment,
           created_at
         FROM note_images 
         WHERE note_id = ?
@@ -549,6 +566,7 @@ class NotesDB {
               id: row.id,
               note_id: row.note_id,
               image_path: row.image_path,
+              comment: row.comment,
               created_at: row.created_at
             });
           });
@@ -565,6 +583,26 @@ class NotesDB {
         if (err) reject(err);
         else resolve(true);
       });
+    });
+  }
+
+  async updateNoteImageComment(imageId, comment) {
+    return new Promise((resolve, reject) => {
+      console.log(`Оновлення коментаря для зображення ID=${imageId}:`, comment);
+      
+      this.db.run(
+        'UPDATE note_images SET comment = ? WHERE id = ?',
+        [comment, imageId],
+        (err) => {
+          if (err) {
+            console.error('Помилка оновлення коментаря до зображення:', err);
+            reject(err);
+          } else {
+            console.log(`Коментар до зображення ID=${imageId} успішно оновлено`);
+            resolve(true);
+          }
+        }
+      );
     });
   }
 

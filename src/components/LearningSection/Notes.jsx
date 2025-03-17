@@ -682,6 +682,7 @@ function Notes() {
         // ВАЖЛИВО: Зберігаємо оригінальні значення trade_no і trade_date
         // Отримуємо поточну нотатку з бази даних, щоб зберегти її значення source
         const existingNote = await window.electronAPI.getNoteById(noteData.id);
+        console.log('Отримано існуючу нотатку з бази даних:', existingNote);
         
         // Переконуємося, що ми зберігаємо оригінальні значення source
         const updatedNote = {
@@ -694,7 +695,8 @@ function Notes() {
         };
         
         console.log('Оновлена нотатка зі збереженими значеннями source:', updatedNote);
-        await window.electronAPI.updateNote(updatedNote);
+        const result = await window.electronAPI.updateNote(updatedNote);
+        console.log('Результат оновлення нотатки:', result);
         
         // Зберігаємо нові зображення
         if (noteData.images && noteData.images.length > 0) {
@@ -708,7 +710,8 @@ function Notes() {
       } else {
         // Створюємо нову нотатку
         console.log('Створюємо нову нотатку:', noteData);
-        const newNoteId = await window.electronAPI.saveNote(noteData);
+        const newNoteId = await window.electronAPI.addNote(noteData);
+        console.log('Нова нотатка створена з ID:', newNoteId);
         
         // Зберігаємо зображення для нової нотатки
         if (noteData.images && noteData.images.length > 0) {
@@ -722,7 +725,9 @@ function Notes() {
       }
       
       // Оновлюємо список нотаток
+      console.log('Оновлюємо список нотаток після збереження');
       await loadNotes();
+      console.log('Список нотаток оновлено');
       
       // Закриваємо модальне вікно
       setIsModalOpen(false);
