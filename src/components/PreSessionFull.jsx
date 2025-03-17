@@ -920,8 +920,15 @@ const RemoveImageButton = styled.button`
 `;
 
 // Компонент для таймфрейму
-const TimeframeBlock = ({ timeframe, data, onNotesChange, onImagePaste, onImageRemove, onImageClick }) => {
-  const [currentImage, setCurrentImage] = useState(data.charts[0] || null);
+const TimeframeBlock = ({ timeframe, data = { charts: [], notes: '' }, onNotesChange, onImagePaste, onImageRemove, onImageClick }) => {
+  const [currentImage, setCurrentImage] = useState(null);
+
+  useEffect(() => {
+    // Проверяем наличие данных перед установкой изображения
+    if (data && Array.isArray(data.charts)) {
+      setCurrentImage(data.charts[0] || null);
+    }
+  }, [data]);
 
   const handlePaste = (e) => {
     e.preventDefault();
@@ -933,10 +940,6 @@ const TimeframeBlock = ({ timeframe, data, onNotesChange, onImagePaste, onImageR
     e.stopPropagation();
     onImageRemove(timeframe, 0);
   };
-
-  useEffect(() => {
-    setCurrentImage(data.charts[0] || null);
-  }, [data.charts]);
 
   return (
     <div className="timeframe-block">
@@ -981,7 +984,7 @@ const TimeframeBlock = ({ timeframe, data, onNotesChange, onImagePaste, onImageR
 
       <TextArea
         placeholder={`Enter ${timeframe.toUpperCase()} analysis notes...`}
-        value={data.notes}
+        value={data?.notes || ''}
         onChange={(e) => onNotesChange(timeframe, e.target.value)}
       />
     </div>
@@ -1120,14 +1123,28 @@ function PreSessionFull() {
     topDownAnalysis: [],
     forex_factory_news: [],
     plans: {
-      narrative: { text: '' },
-      execution: { text: '' },
-      outcome: { text: '' }
+      planA: {
+        bias: '',
+        background: '',
+        what: '',
+        entry: '',
+        target: '',
+        invalidation: ''
+      },
+      planB: {
+        bias: '',
+        background: '',
+        what: '',
+        entry: '',
+        target: '',
+        invalidation: ''
+      },
+      adaptations: []
     },
     chart_processes: []
   });
 
-  // Стан для аналізу таймфреймів
+  // Исправляем инициализацию состояния analysisData
   const [analysisData, setAnalysisData] = useState({
     timeframes: {
       weekly: { charts: [], notes: '' },
@@ -1136,29 +1153,6 @@ function PreSessionFull() {
       h1: { charts: [], notes: '' }
     }
   });
-
-  // Стан для планів
-  const [plans, setPlans] = useState({
-    planA: {
-      bias: '',
-      background: '',
-      what: '',
-      entry: '',
-      target: '',
-      invalidation: ''
-    },
-    planB: {
-      bias: '',
-      background: '',
-      what: '',
-      entry: '',
-      target: '',
-      invalidation: ''
-    }
-  });
-
-  // Стан для адаптацій планів
-  const [adaptations, setAdaptations] = useState([]);
 
   // Завантаження даних при ініціалізації
   useEffect(() => {
@@ -1172,15 +1166,23 @@ function PreSessionFull() {
             return;
           }
 
-          // Ініціалізуємо дані з безпечними значеннями за замовчуванням
-          const timeframesData = {
+          // Исправляем загрузку данных таймфреймов
+          const timeframesData = safeParse(presession.topDownAnalysis, {
             weekly: { charts: [], notes: '' },
             daily: { charts: [], notes: '' },
             h4: { charts: [], notes: '' },
             h1: { charts: [], notes: '' }
+          });
+
+          // Проверяем и исправляем структуру данных
+          const validatedTimeframes = {
+            weekly: { charts: timeframesData.weekly?.charts || [], notes: timeframesData.weekly?.notes || '' },
+            daily: { charts: timeframesData.daily?.charts || [], notes: timeframesData.daily?.notes || '' },
+            h4: { charts: timeframesData.h4?.charts || [], notes: timeframesData.h4?.notes || '' },
+            h1: { charts: timeframesData.h1?.charts || [], notes: timeframesData.h1?.notes || '' }
           };
 
-          setAnalysisData({ timeframes: timeframesData });
+          setAnalysisData({ timeframes: validatedTimeframes });
 
           setSessionData({
             id: presession.id,
@@ -1206,9 +1208,23 @@ function PreSessionFull() {
             forex_factory_news: safeParse(presession.forex_factory_news, []),
             topDownAnalysis: safeParse(presession.topDownAnalysis, []),
             plans: safeParse(presession.plans, {
-              narrative: { text: '' },
-              execution: { text: '' },
-              outcome: { text: '' }
+              planA: {
+                bias: '',
+                background: '',
+                what: '',
+                entry: '',
+                target: '',
+                invalidation: ''
+              },
+              planB: {
+                bias: '',
+                background: '',
+                what: '',
+                entry: '',
+                target: '',
+                invalidation: ''
+              },
+              adaptations: []
             }),
             chart_processes: safeParse(presession.chart_processes, []),
             narrative: presession.narrative || '',
@@ -1518,15 +1534,21 @@ function PreSessionFull() {
     e.preventDefault();
     
     try {
-      console.log('Saving presession data:', sessionData);
+      // Объединяем данные сессии с данными анализа таймфреймов
+      const dataToSave = {
+        ...sessionData,
+        topDownAnalysis: analysisData.timeframes
+      };
       
-      // Зберігаємо або оновлюємо пресесію
+      console.log('Saving presession data:', dataToSave);
+      
+      // Сохраняем или обновляем пресессию
       let savedId;
       if (id) {
-        await window.electronAPI.updatePresession(sessionData);
+        await window.electronAPI.updatePresession(dataToSave);
         savedId = id;
       } else {
-        const result = await window.electronAPI.savePresession(sessionData);
+        const result = await window.electronAPI.savePresession(dataToSave);
         savedId = result.id || result;
         console.log('New presession saved with ID:', savedId);
       }
@@ -1629,8 +1651,8 @@ function PreSessionFull() {
   const handlePlanTableChange = (planType, aspect, value) => {
     if (planType.startsWith('adaptation')) {
       const adaptationIndex = parseInt(planType.replace('adaptation', ''));
-      setAdaptations(prev => {
-        const newAdaptations = [...prev];
+      setSessionData(prev => {
+        const newAdaptations = [...(prev.plans.adaptations || [])];
         if (!newAdaptations[adaptationIndex]) {
           newAdaptations[adaptationIndex] = {};
         }
@@ -1638,34 +1660,58 @@ function PreSessionFull() {
           ...newAdaptations[adaptationIndex],
           [aspect]: value
         };
-        return newAdaptations;
+        return {
+          ...prev,
+          plans: {
+            ...prev.plans,
+            adaptations: newAdaptations
+          }
+        };
       });
     } else {
-      setPlans(prev => ({
+      setSessionData(prev => ({
         ...prev,
-        [planType]: {
-          ...prev[planType],
-          [aspect]: value
+        plans: {
+          ...prev.plans,
+          [planType]: {
+            ...prev.plans[planType],
+            [aspect]: value
+          }
         }
       }));
     }
   };
 
-  // Функція для додавання адаптації плану
+  // Обновляем функцию handleAddAdaptation
   const handleAddAdaptation = () => {
-    setAdaptations(prev => [...prev, {
-      bias: '',
-      background: '',
-      what: '',
-      entry: '',
-      target: '',
-      invalidation: ''
-    }]);
+    setSessionData(prev => ({
+      ...prev,
+      plans: {
+        ...prev.plans,
+        adaptations: [
+          ...(prev.plans.adaptations || []),
+          {
+            bias: '',
+            background: '',
+            what: '',
+            entry: '',
+            target: '',
+            invalidation: ''
+          }
+        ]
+      }
+    }));
   };
 
-  // Функція для видалення адаптації плану
+  // Обновляем функцию handleRemoveAdaptation
   const handleRemoveAdaptation = (indexToRemove) => {
-    setAdaptations(prev => prev.filter((_, index) => index !== indexToRemove));
+    setSessionData(prev => ({
+      ...prev,
+      plans: {
+        ...prev.plans,
+        adaptations: prev.plans.adaptations.filter((_, index) => index !== indexToRemove)
+      }
+    }));
   };
 
   return (
@@ -2033,7 +2079,7 @@ function PreSessionFull() {
                           </TableCell>
                           <TableCell>
                             <PlanInput
-                              value={plans.planA[aspect]}
+                              value={sessionData.plans.planA[aspect]}
                               onChange={(e) => handlePlanTableChange('planA', aspect, e.target.value)}
                               placeholder={`Enter ${aspect}...`}
                             />
@@ -2059,7 +2105,7 @@ function PreSessionFull() {
                           </TableCell>
                           <TableCell>
                             <PlanInput
-                              value={plans.planB[aspect]}
+                              value={sessionData.plans.planB[aspect]}
                               onChange={(e) => handlePlanTableChange('planB', aspect, e.target.value)}
                               placeholder={`Enter ${aspect}...`}
                             />
@@ -2080,7 +2126,7 @@ function PreSessionFull() {
     
                 {/* План Adaptations */}
                 <PlansContainer style={{ flexDirection: 'column' }}>
-                  {adaptations.map((adaptation, index) => (
+                  {sessionData.plans.adaptations.map((adaptation, index) => (
                     <div key={`adaptation${index}`} style={{ position: 'relative', width: '100%' }}>
                       <Button 
                         type="button"

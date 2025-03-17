@@ -35,6 +35,7 @@ class RoutinesDB {
             mindset_preparation TEXT,
             the_zone TEXT,
             parentSessionId TEXT,
+            comment TEXT,
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (parentSessionId) REFERENCES presessions(id)
@@ -44,6 +45,16 @@ class RoutinesDB {
           console.error('Error creating presessions table:', err);
         } else {
           console.log('Presessions table created/verified successfully');
+        }
+      });
+
+      // Добавляем колонку comment, если она еще не существует
+      this.db.run(`
+        ALTER TABLE presessions 
+        ADD COLUMN comment TEXT;
+      `, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('Error adding comment column:', err);
         }
       });
 
@@ -85,7 +96,25 @@ class RoutinesDB {
       const processedSession = {
         ...preSession,
         topDownAnalysis: typeof preSession.topDownAnalysis === 'object' ? JSON.stringify(preSession.topDownAnalysis) : preSession.topDownAnalysis,
-        plans: typeof preSession.plans === 'object' ? JSON.stringify(preSession.plans) : preSession.plans,
+        plans: typeof preSession.plans === 'object' ? JSON.stringify({
+          planA: {
+            bias: preSession.plans.planA?.bias || '',
+            background: preSession.plans.planA?.background || '',
+            what: preSession.plans.planA?.what || '',
+            entry: preSession.plans.planA?.entry || '',
+            target: preSession.plans.planA?.target || '',
+            invalidation: preSession.plans.planA?.invalidation || ''
+          },
+          planB: {
+            bias: preSession.plans.planB?.bias || '',
+            background: preSession.plans.planB?.background || '',
+            what: preSession.plans.planB?.what || '',
+            entry: preSession.plans.planB?.entry || '',
+            target: preSession.plans.planB?.target || '',
+            invalidation: preSession.plans.planB?.invalidation || ''
+          },
+          adaptations: preSession.plans.adaptations || []
+        }) : preSession.plans,
         chart_processes: typeof preSession.chart_processes === 'object' ? JSON.stringify(preSession.chart_processes) : preSession.chart_processes,
         mindset_preparation: typeof preSession.mindset_preparation === 'object' ? JSON.stringify(preSession.mindset_preparation) : preSession.mindset_preparation,
         the_zone: typeof preSession.the_zone === 'object' ? JSON.stringify(preSession.the_zone) : preSession.the_zone,
@@ -104,8 +133,8 @@ class RoutinesDB {
       const sql = `INSERT INTO presessions (
         id, date, pair, narrative, execution, outcome, plan_outcome,
         forex_factory_news, topDownAnalysis, video_url, plans, chart_processes,
-        mindset_preparation, the_zone, parentSessionId, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+        mindset_preparation, the_zone, parentSessionId, comment, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
       
       const params = [
         processedSession.id,
@@ -122,7 +151,8 @@ class RoutinesDB {
         processedSession.chart_processes,
         processedSession.mindset_preparation,
         processedSession.the_zone,
-        processedSession.parentSessionId || null
+        processedSession.parentSessionId || null,
+        processedSession.comment || null
       ];
 
       console.log('Executing SQL:', sql);
@@ -174,6 +204,7 @@ class RoutinesDB {
         mindset_preparation = ?, 
         the_zone = ?,
         parentSessionId = ?,
+        comment = ?,
         updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?`;
       
@@ -192,6 +223,7 @@ class RoutinesDB {
         processedSession.mindset_preparation,
         processedSession.the_zone,
         processedSession.parentSessionId || null,
+        processedSession.comment || null,
         processedSession.id
       ];
 
