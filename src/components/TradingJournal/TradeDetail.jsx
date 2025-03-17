@@ -635,6 +635,7 @@ const CloseButton = styled.button`
   cursor: pointer;
   color: #fff;
   font-size: 1.2em;
+  opacity: 0;
 `;
 
 const ModalOverlay = styled.div`

@@ -657,6 +657,7 @@ const CloseButton = styled.button`
   justify-content: center;
   transition: transform 0.2s ease;
   z-index: 2001;
+  opacity: 0;
 
   &:hover {
     transform: scale(1.1);

@@ -243,7 +243,7 @@ const NoteCard = styled.div`
 `;
 
 const NoteContent = styled.div`
-  background: rgb(26, 26, 26));
+  background: rgb(26, 26, 26);
   border: 2px solid #5e2ca5;
   border-radius: 15px;
   padding: 20px;
@@ -559,17 +559,19 @@ function Notes() {
     try {
       switch (sourceType) {
         case 'presession':
+          // Перевіряємо існування пресесії, але не блокуємо створення посилання
           const presession = await window.electronAPI.getPresession(sourceId);
           if (!presession) {
-            console.error('Presession not found:', sourceId);
-            return null;
+            console.warn('Presession not found:', sourceId);
+            // Все одно повертаємо посилання, навіть якщо пресесія не знайдена
           }
           return `/daily-routine/pre-session/full/${sourceId}`;
         case 'trade':
+          // Перевіряємо існування трейду, але не блокуємо створення посилання
           const trade = await window.electronAPI.getTrade(sourceId);
           if (!trade) {
-            console.error('Trade not found:', sourceId);
-            return null;
+            console.warn('Trade not found:', sourceId);
+            // Все одно повертаємо посилання, навіть якщо трейд не знайдений
           }
           return `/trade/${sourceId}`;
         default:
@@ -577,17 +579,29 @@ function Notes() {
       }
     } catch (error) {
       console.error('Error checking source existence:', error);
+      // У випадку помилки все одно повертаємо посилання
+      if (sourceType === 'presession') {
+        return `/daily-routine/pre-session/full/${sourceId}`;
+      } else if (sourceType === 'trade') {
+        return `/trade/${sourceId}`;
+      }
       return null;
     }
   };
 
   const handleSourceClick = async (e, sourceType, sourceId) => {
     e.stopPropagation();
-    const link = await getSourceLink(sourceType, sourceId);
-    if (link) {
-      navigate(link);
-    } else {
-      alert('Source was deleted or not found');
+    try {
+      const link = await getSourceLink(sourceType, sourceId);
+      if (link) {
+        navigate(link);
+      } else {
+        console.warn('No link could be generated for source:', { sourceType, sourceId });
+        alert('Неможливо відкрити джерело. Тип джерела невідомий або ID не вказаний.');
+      }
+    } catch (error) {
+      console.error('Error navigating to source:', error);
+      alert('Помилка при спробі відкрити джерело.');
     }
   };
 
@@ -664,7 +678,23 @@ function Notes() {
       if (noteData.id) {
         // Оновлюємо існуючу нотатку
         console.log('Оновлюємо існуючу нотатку:', noteData);
-        await window.electronAPI.updateNote(noteData);
+        
+        // ВАЖЛИВО: Зберігаємо оригінальні значення trade_no і trade_date
+        // Отримуємо поточну нотатку з бази даних, щоб зберегти її значення source
+        const existingNote = await window.electronAPI.getNoteById(noteData.id);
+        
+        // Переконуємося, що ми зберігаємо оригінальні значення source
+        const updatedNote = {
+          ...noteData,
+          // Зберігаємо оригінальні значення, якщо вони існують
+          trade_no: existingNote.trade_no || noteData.trade_no,
+          trade_date: existingNote.trade_date || noteData.trade_date,
+          source_type: existingNote.source_type || noteData.source_type,
+          source_id: existingNote.source_id || noteData.source_id
+        };
+        
+        console.log('Оновлена нотатка зі збереженими значеннями source:', updatedNote);
+        await window.electronAPI.updateNote(updatedNote);
         
         // Зберігаємо нові зображення
         if (noteData.images && noteData.images.length > 0) {
@@ -792,7 +822,6 @@ function Notes() {
                             </TradeLink>
                           </div>
                         </NoteHeader>
-                        <NoteText>{note.content}</NoteText>
                       </NoteContent>
                     </NoteCard>
                   ))
@@ -830,7 +859,6 @@ function Notes() {
                             </TradeLink>
                           </div>
                         </NoteHeader>
-                        <NoteText>{note.content}</NoteText>
                       </NoteContent>
                     </NoteCard>
                   ))

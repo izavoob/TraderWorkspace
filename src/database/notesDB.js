@@ -7,7 +7,15 @@ class NotesDB {
         console.error('Could not connect to database', err);
       } else {
         console.log('Connected to notes database');
-        this.initializeDatabase();
+        // Включаємо підтримку зовнішніх ключів
+        this.db.run('PRAGMA foreign_keys = ON', (err) => {
+          if (err) {
+            console.error('Could not enable foreign keys:', err);
+          } else {
+            console.log('Foreign keys enabled');
+            this.initializeDatabase();
+          }
+        });
       }
     });
   }
@@ -346,25 +354,105 @@ class NotesDB {
 
   async deleteNote(id) {
     return new Promise((resolve, reject) => {
-      this.db.run('DELETE FROM notes WHERE id = ?', [id], (err) => {
-        if (err) reject(err);
-        else resolve(true);
+      // Спочатку видаляємо пов'язані зображення
+      console.log(`Видалення нотатки з ID=${id} та пов'язаних зображень`);
+      
+      // Використовуємо транзакцію для забезпечення атомарності операції
+      this.db.serialize(() => {
+        this.db.run('BEGIN TRANSACTION');
+        
+        // Видаляємо пов'язані зображення
+        this.db.run('DELETE FROM note_images WHERE note_id = ?', [id], (err) => {
+          if (err) {
+            console.error(`Помилка видалення зображень для нотатки ID=${id}:`, err);
+            this.db.run('ROLLBACK');
+            reject(err);
+            return;
+          }
+          
+          console.log(`Зображення для нотатки ID=${id} успішно видалені`);
+          
+          // Видаляємо саму нотатку
+          this.db.run('DELETE FROM notes WHERE id = ?', [id], (err) => {
+            if (err) {
+              console.error(`Помилка видалення нотатки ID=${id}:`, err);
+              this.db.run('ROLLBACK');
+              reject(err);
+              return;
+            }
+            
+            console.log(`Нотатка ID=${id} успішно видалена`);
+            this.db.run('COMMIT');
+            resolve(true);
+          });
+        });
       });
     });
   }
 
   async deleteNotesBySource(sourceType, sourceId) {
     return new Promise((resolve, reject) => {
-      this.db.run(
-        'DELETE FROM notes WHERE source_type = ? AND source_id = ?',
+      console.log(`Видалення нотаток за джерелом: тип=${sourceType}, id=${sourceId}`);
+      
+      // Спочатку отримуємо ID всіх нотаток, які будуть видалені
+      this.db.all(
+        'SELECT id FROM notes WHERE source_type = ? AND source_id = ?',
         [sourceType, sourceId],
-        (err) => {
+        (err, rows) => {
           if (err) {
-            console.error('Error deleting notes by source:', err);
+            console.error('Помилка отримання ID нотаток для видалення:', err);
             reject(err);
-          } else {
-            resolve(true);
+            return;
           }
+          
+          const noteIds = rows.map(row => row.id);
+          console.log(`Знайдено ${noteIds.length} нотаток для видалення:`, noteIds);
+          
+          if (noteIds.length === 0) {
+            console.log('Нотатки не знайдені, нічого видаляти');
+            resolve(true);
+            return;
+          }
+          
+          // Використовуємо транзакцію для забезпечення атомарності операції
+          this.db.serialize(() => {
+            this.db.run('BEGIN TRANSACTION');
+            
+            // Видаляємо пов'язані зображення для всіх нотаток
+            const placeholders = noteIds.map(() => '?').join(',');
+            this.db.run(
+              `DELETE FROM note_images WHERE note_id IN (${placeholders})`,
+              noteIds,
+              (err) => {
+                if (err) {
+                  console.error('Помилка видалення зображень для нотаток:', err);
+                  this.db.run('ROLLBACK');
+                  reject(err);
+                  return;
+                }
+                
+                console.log('Зображення для нотаток успішно видалені');
+                
+                // Видаляємо самі нотатки
+                this.db.run(
+                  'DELETE FROM notes WHERE source_type = ? AND source_id = ?',
+                  [sourceType, sourceId],
+                  (err) => {
+                    if (err) {
+                      console.error('Помилка видалення нотаток:', err);
+                      this.db.run('ROLLBACK');
+                      reject(err);
+                      return;
+                    }
+                    
+                    console.log('Нотатки успішно видалені');
+                    this.db.run('COMMIT');
+                    resolve(true);
+                  }
+                );
+              }
+            );
+          });
         }
       );
     });

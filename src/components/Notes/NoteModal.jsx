@@ -23,7 +23,6 @@ const ModalOverlay = styled.div`
   align-items: center;
   justify-content: center;
   z-index: 2000;
-  padding: 20px;
   box-sizing: border-box;
   transform: translateY(${props => props.scrollY}px);
   overflow: hidden;
@@ -135,6 +134,7 @@ const AddImageButton = styled.div`
   transition: all 0.3s ease;
   position: relative;
   min-height: 100px;
+  
 
   &:hover {
     background: rgba(94, 44, 165, 0.2);
@@ -147,8 +147,8 @@ const AddImageButton = styled.div`
   }
 
   img {
-   
-    max-height: 300px;
+    
+    border-radius: 4px;
     object-fit: contain;
   }
 `;
@@ -157,7 +157,7 @@ const DeleteImageButtonOverlay = styled.button`
   position: absolute;
   top: 10px;
   right: 10px;
-  background: rgba(244, 67, 54, 0.5);
+  background: rgba(244, 67, 54, 0.7);
   border: none;
   border-radius: 50%;
   width: 30px;
@@ -169,13 +169,13 @@ const DeleteImageButtonOverlay = styled.button`
   transition: all 0.3s ease;
   z-index: 10;
   opacity: 0;
-
-  ${AddImageButton}:hover & {
-    opacity: 1;
-  }
+  color: white;
+  font-size: 18px;
+  font-weight: bold;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
 
   &:hover {
-    background: rgba(244, 67, 54, 0.75);
+    background: rgba(244, 67, 54, 0.9);
     transform: scale(1.1);
   }
 `;
@@ -593,7 +593,8 @@ const NoteModal = ({
             return [...prev, { id: null, image_path: filePath }];
           });
           
-          break; // Only process one image at a time
+          // Видаляємо break, щоб обробити всі зображення з буфера обміну
+          // break; // Only process one image at a time
         } catch (error) {
           console.error('Error processing pasted image:', error);
         }
@@ -630,8 +631,44 @@ const NoteModal = ({
       if (noteToSave.id) {
         // ВАЖЛИВО: Оновлюємо існуючу нотатку, зберігаючи її ID
         console.log('Оновлення існуючої нотатки ID:', noteToSave.id);
-        await window.electronAPI.updateNote(noteToSave);
-        savedNoteId = noteToSave.id;
+        
+        // Отримуємо поточну нотатку з бази даних, щоб зберегти її значення source
+        const existingNote = await window.electronAPI.getNoteById(noteToSave.id);
+        
+        // Отримуємо всі зображення, які зараз є в базі даних для цієї нотатки
+        const existingImages = await window.electronAPI.getNoteImages(noteToSave.id);
+        console.log('Існуючі зображення в базі даних:', existingImages);
+        
+        // Знаходимо зображення, які були видалені (є в базі даних, але немає в поточному стані)
+        const imagesToDelete = existingImages.filter(existingImg => 
+          !images.some(currentImg => currentImg.id === existingImg.id)
+        );
+        
+        console.log('Зображення для видалення з бази даних:', imagesToDelete);
+        
+        // Видаляємо зображення з бази даних
+        for (const imageToDelete of imagesToDelete) {
+          try {
+            console.log('Видалення зображення з бази даних, ID:', imageToDelete.id);
+            await window.electronAPI.deleteNoteImage(imageToDelete.id);
+          } catch (error) {
+            console.error('Помилка видалення зображення з бази даних:', error);
+          }
+        }
+        
+        // Переконуємося, що ми зберігаємо оригінальні значення source
+        const updatedNote = {
+          ...noteToSave,
+          // Зберігаємо оригінальні значення, якщо вони існують
+          trade_no: existingNote.trade_no || noteToSave.trade_no,
+          trade_date: existingNote.trade_date || noteToSave.trade_date,
+          source_type: existingNote.source_type || noteToSave.source_type,
+          source_id: existingNote.source_id || noteToSave.source_id
+        };
+        
+        console.log('Оновлена нотатка зі збереженими значеннями source:', updatedNote);
+        await window.electronAPI.updateNote(updatedNote);
+        savedNoteId = updatedNote.id;
         console.log('Нотатка успішно оновлена, ID залишився:', savedNoteId);
       } else {
         // Створюємо нову нотатку
@@ -698,21 +735,7 @@ const NoteModal = ({
   const handleDeleteImage = async (imageId) => {
     console.log('Видалення зображення з ID:', imageId);
     
-    if (imageId) {
-      try {
-        // Якщо є ID, видаляємо з бази даних через callback
-        if (onImageDelete) {
-          await onImageDelete(imageId);
-        } else {
-          console.warn('onImageDelete не передано як проп, використовую прямий виклик API');
-        await window.electronAPI.deleteNoteImage(imageId);
-        }
-      } catch (error) {
-        console.error('Помилка видалення зображення з бази даних:', error);
-      }
-    }
-    
-    // Видаляємо зображення з локального стану
+    // Видаляємо зображення тільки з локального стану
     setImages(prevImages => prevImages.filter(img => img.id !== imageId));
   };
 
@@ -723,16 +746,23 @@ const NoteModal = ({
     const tradeNo = note.trade_no;
     const tradeDate = note.trade_date;
     
+    if (!sourceType) {
+      return 'Unknown Source';
+    }
+    
     switch (sourceType) {
       case 'presession':
         return `Pre-Session Analysis (${tradeDate ? new Date(tradeDate).toLocaleDateString() : 'N/A'})`;
       case 'trade':
+        if (!tradeNo && !tradeDate) {
+          return 'Trade not saved yet';
+        }
         if (tradeNo && tradeDate) {
           return `Trade #${tradeNo} (${new Date(tradeDate).toLocaleDateString()})`;
         }
-        return 'Trade';
+        return 'Trade was deleted';
       default:
-        return sourceType;
+        return `Source: ${sourceType}`;
     }
   };
 
@@ -740,7 +770,12 @@ const NoteModal = ({
     if (!note) return '#';
     
     const sourceType = note.source_type || note.sourceType;
-    const sourceId = note.source_id;
+    const sourceId = note.source_id || note.sourceId;
+    
+    if (!sourceType || !sourceId) {
+      console.warn('Missing sourceType or sourceId:', { sourceType, sourceId });
+      return '#';
+    }
     
     switch (sourceType) {
       case 'presession':
@@ -748,15 +783,22 @@ const NoteModal = ({
       case 'trade':
         return `/trade/${sourceId}`;
       default:
+        console.warn('Unknown sourceType:', sourceType);
         return '#';
     }
   };
 
   const handleSourceClick = (e, note) => {
     e.preventDefault();
-    const link = getSourceLink(note);
-    if (link !== '#') {
-      window.location.hash = link;
+    try {
+      const link = getSourceLink(note);
+      if (link !== '#') {
+        window.location.hash = link;
+      } else {
+        console.warn('No valid link could be generated for note:', note);
+      }
+    } catch (error) {
+      console.error('Error navigating to source:', error);
     }
   };
 
@@ -802,13 +844,20 @@ const NoteModal = ({
     return `file:///${imagePath.replace(/\\/g, '/')}`;
   };
 
+  // Додаємо обробник для кнопки Cancel
+  const handleCancel = () => {
+    console.log('Скасування змін');
+    resetForm();
+    onClose();
+  };
+
   if (!isOpen) return null;
 
   return (
     <>
-      <ModalOverlay onClick={onClose} scrollY={scrollY}>
+      <ModalOverlay onClick={handleCancel} scrollY={scrollY}>
         <Modal onClick={e => e.stopPropagation()}>
-          <Title>{isReviewMode ? 'Note Review' : (note ? 'Edit Note' : 'Add New Note')}</Title>
+          <Title>{isReviewMode ? 'Review' : (note ? 'Edit Note' : 'Add New Note')}</Title>
           <FormContainer>
             <Input
               type="text"
@@ -844,41 +893,134 @@ const NoteModal = ({
 
             {/* Відображення зображення для режиму редагування */}
             {!isReviewMode && (
-              <AddImageButton 
-                onPaste={handlePaste}
-                tabIndex={0}
-              >
-                {images.length > 0 ? (
-                  <>
-                    <img 
-                      src={formatImagePath(images[0].image_path)} 
-                      alt="Note image" 
-                      style={{ 
-                        width: '100%', 
-                        height: '100%', 
-                        objectFit: 'cover',
-                        borderRadius: '8px'
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openFullscreen(images[0].image_path);
-                      }}
-                    />
-                    <DeleteImageButtonOverlay 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleDeleteImage(images[0].id);
-                      }}
-                    >
-                      ×
-                    </DeleteImageButtonOverlay>
-                  </>
-                ) : (
-                  <>
-                    <span>Натисніть Ctrl+V для вставки зображення з буфера обміну</span>
-                  </>
-                )}
-              </AddImageButton>
+              <>
+                <AddImageButton 
+                  onPaste={handlePaste}
+                  tabIndex={0}
+                  style={{ padding: images.length > 0 ? '10px' : '20px' }}
+                >
+                  {images.length > 0 ? (
+                    <div style={{ 
+                      display: 'flex', 
+                      flexDirection: 'column', 
+                      gap: '15px', 
+                      width: '100%',
+                      padding: '5px'
+                    }}>
+                      {/* Перше зображення */}
+                      <div 
+                        style={{ 
+                          position: 'relative', 
+                          width: '100%' 
+                        }}
+                        onMouseEnter={(e) => {
+                          const deleteButton = e.currentTarget.querySelector('.delete-button');
+                          if (deleteButton) {
+                            deleteButton.style.opacity = '1';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          const deleteButton = e.currentTarget.querySelector('.delete-button');
+                          if (deleteButton) {
+                            deleteButton.style.opacity = '0';
+                          }
+                        }}
+                      >
+                        <img 
+                          src={formatImagePath(images[0].image_path)} 
+                          alt="Note image" 
+                          style={{ 
+                            width: '100%', 
+                            objectFit: 'cover',
+                            borderRadius: '4px',
+                            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                          }}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openFullscreen(images[0].image_path);
+                          }}
+                        />
+                        <DeleteImageButtonOverlay 
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDeleteImage(images[0].id);
+                          }}
+                          style={{ 
+                            opacity: 0,
+                            transition: 'opacity 0.3s ease'
+                          }}
+                          className="delete-button"
+                        >
+                          ×
+                        </DeleteImageButtonOverlay>
+                      </div>
+                      
+                      {/* Додаткові зображення */}
+                      {images.length > 1 && images.slice(1).map((image, index) => (
+                        <div 
+                          key={`additional-image-${index}`} 
+                          style={{ 
+                            position: 'relative', 
+                            width: '100%' 
+                          }}
+                          onMouseEnter={(e) => {
+                            const deleteButton = e.currentTarget.querySelector('.delete-button');
+                            if (deleteButton) {
+                              deleteButton.style.opacity = '1';
+                            }
+                          }}
+                          onMouseLeave={(e) => {
+                            const deleteButton = e.currentTarget.querySelector('.delete-button');
+                            if (deleteButton) {
+                              deleteButton.style.opacity = '0';
+                            }
+                          }}
+                        >
+                          <img 
+                            src={formatImagePath(image.image_path)} 
+                            alt={`Additional image ${index + 1}`} 
+                            style={{ 
+                              width: '100%', 
+                              borderRadius: '8px',
+                              cursor: 'pointer',
+                              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.2)'
+                            }}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openFullscreen(image.image_path);
+                            }}
+                          />
+                          <DeleteImageButtonOverlay 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDeleteImage(image.id);
+                            }}
+                            style={{ 
+                              opacity: 0,
+                              transition: 'opacity 0.3s ease'
+                            }}
+                            className="delete-button"
+                          >
+                            ×
+                          </DeleteImageButtonOverlay>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <>
+                      <span>Натисніть Ctrl+V для вставки зображення з буфера обміну</span>
+                      <span style={{ 
+                        fontSize: '0.8em', 
+                        marginTop: '5px', 
+                        opacity: 0.7,
+                        textAlign: 'center'
+                      }}>
+                        Ви можете вставити декілька зображень одне за одним
+                      </span>
+                    </>
+                  )}
+                </AddImageButton>
+              </>
             )}
 
             {/* Відображення зображення для режиму перегляду */}
@@ -926,7 +1068,7 @@ const NoteModal = ({
             )}
 
             <ButtonGroup>
-              <Button type="button" className="cancel" onClick={onClose}>
+              <Button type="button" className="cancel" onClick={handleCancel}>
                 Close
               </Button>
               {!isReviewMode && (
@@ -977,10 +1119,11 @@ const NoteModal = ({
               src={fullscreenImage.src}
               alt="Fullscreen preview"
               style={{
-                maxWidth: '100%',
+                
                 maxHeight: '100%',
                 objectFit: 'contain',
                 borderRadius: '8px',
+                border: '2px solid rgb(94, 44, 165)',
                 cursor: 'pointer'
               }}
               onClick={closeFullscreen}
