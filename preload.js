@@ -63,4 +63,18 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updatePostSession: (postSession) => ipcRenderer.invoke('updatePostSession', postSession),
   getPostSessionById: (id) => ipcRenderer.invoke('getPostSessionById', id),
   getAllPostSessions: () => ipcRenderer.invoke('getAllPostSessions'),
+  
+  // STER methods
+  getSTERAssessments: () => ipcRenderer.invoke('getSTERAssessments'),
+  addSTERAssessment: (assessment) => ipcRenderer.invoke('addSTERAssessment', assessment),
+  updateSTERAssessment: (id, assessment) => ipcRenderer.invoke('updateSTERAssessment', id, assessment),
+  deleteSTERAssessment: (id) => ipcRenderer.invoke('deleteSTERAssessment', id),
+  
+  // Demons methods
+  getAllDemons: () => ipcRenderer.invoke('getAllDemons'),
+  getDemonsByCategory: (category) => ipcRenderer.invoke('getDemonsByCategory', category),
+  getDemonById: (id) => ipcRenderer.invoke('getDemonById', id),
+  addDemon: (demon) => ipcRenderer.invoke('addDemon', demon),
+  updateDemon: (id, demon) => ipcRenderer.invoke('updateDemon', id, demon),
+  deleteDemon: (id) => ipcRenderer.invoke('deleteDemon', id)
 });
