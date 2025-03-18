@@ -960,7 +960,7 @@ function CreateWPA() {
       const periodTrades = await loadTrades(start, end) || [];
       const periodPresessions = await loadPreSessions(start, end) || [];
       
-      // Базові метрики
+      // Base metrics
       const totalTrades = periodTrades.length;
       const missedTrades = periodTrades.filter(t => t && t.result === 'Missed').length;
       const winTrades = periodTrades.filter(t => t && t.result === 'Win').length;
@@ -971,41 +971,65 @@ function CreateWPA() {
       // Execution Coefficient
       const executionCoefficient = totalTrades ? ((totalTrades - missedTrades) / totalTrades) * 100 : 0;
       
-      // Narrative Accuracy
+      // Narrative Accuracy - исправленный расчет
       const totalPresessions = periodPresessions.length;
       const successfulPresessions = periodPresessions.filter(p => p && p.plan_outcome === 1).length;
-      const narrativeAccuracy = totalPresessions ? (successfulPresessions / totalPresessions) * 100 : 0;
-      
-      // RR метрики
+      const narrativeAccuracy = totalPresessions > 0 ? (successfulPresessions / totalPresessions) * 100 : 0;
+
+      // Helper function to parse points/money values
+      const parseMoneyValue = (value) => {
+        if (!value) return 0;
+        return parseFloat(value.replace(/[^-0-9.]/g, '')) || 0;
+      };
+
+      // Gained RR
       const gainedRR = periodTrades.reduce((sum, t) => {
         if (!t) return sum;
-        if (t.result === 'Win') return sum + (parseFloat(t.rr) || 0);
-        if (t.result === 'Loss') return sum - (parseFloat(t.risk) || 0);
-        return sum;
+        const rr = parseFloat(t.rr) || 0;
+        if (t.result === 'Loss') {
+          return sum - Math.abs(parseFloat(t.profitLoss) || 0);
+        }
+        return sum + rr;
       }, 0);
       
-      // Potential RR (сума RR для пропущених трейдів)
+      // Potential RR
       const potentialRR = periodTrades
         .filter(t => t && t.result === 'Missed')
         .reduce((sum, t) => sum + (parseFloat(t.rr) || 0), 0);
       
-      // Average RR (тільки для Win та Loss трейдів)
+      // Average RR
       const tradeCount = winTrades + lossTrades;
       const averageRR = tradeCount ? gainedRR / tradeCount : 0;
       
-      // Profit та PnL метрики
-      const pl = periodTrades.reduce((sum, t) => {
+      // Profit
+      const profit = periodTrades.reduce((sum, t) => {
         if (!t) return sum;
         return sum + (parseFloat(t.profitLoss) || 0);
       }, 0);
       
-      const winTradesPL = periodTrades.filter(t => t && t.result === 'Win')
-        .reduce((sum, t) => sum + (parseFloat(t.profitLoss) || 0), 0);
+      // Realised P&L - fixed calculation
+      const realisedPL = periodTrades
+        .filter(t => t && (t.result === 'Win' || t.result === 'Loss'))
+        .reduce((sum, t) => sum + parseMoneyValue(t.gainedPoints), 0);
       
-      const lossTradesPL = periodTrades.filter(t => t && t.result === 'Loss')
-        .reduce((sum, t) => sum + (parseFloat(t.profitLoss) || 0), 0);
+      // Average P&L - fixed calculation
+      const totalWinPoints = periodTrades
+        .filter(t => t && t.result === 'Win')
+        .reduce((sum, t) => sum + parseMoneyValue(t.gainedPoints), 0);
+      const averagePL = winTrades ? totalWinPoints / winTrades : 0;
       
-      // Maximum Drawdown
+      // Average Loss - fixed calculation
+      const totalLossPoints = periodTrades
+        .filter(t => t && t.result === 'Loss')
+        .reduce((sum, t) => sum + parseMoneyValue(t.gainedPoints), 0);
+      const averageLoss = lossTrades ? Math.abs(totalLossPoints / lossTrades) : 0;
+      
+      // Win/Loss Ratio - fixed calculation
+      const avgWin = winTrades ? Math.abs(totalWinPoints / winTrades) : 0;
+      const avgLoss = lossTrades ? Math.abs(totalLossPoints / lossTrades) : 0;
+      const winLossRatio = avgLoss !== 0 ? avgWin / avgLoss : 0;
+
+      // Maximum Drawdown calculation
       let maxDrawdown = 0;
       let peak = 0;
       let currentBalance = 0;
@@ -1025,31 +1049,22 @@ function CreateWPA() {
         }
       });
       
-      // Trade Efficiency
-      const tradeEfficiency = potentialRR ? (gainedRR / potentialRR) * 100 : 0;
-      
-      // Average Win to Average Loss Ratio
-      const avgWin = winTrades ? winTradesPL / winTrades : 0;
-      const avgLoss = lossTrades ? Math.abs(lossTradesPL) / lossTrades : 0;
-      const winLossRatio = avgLoss ? avgWin / avgLoss : 0;
-      
       setMetrics({
         totalTrades,
         missedTrades,
         executionCoefficient,
         winRate: totalTrades ? (winTrades / totalTrades) * 100 : 0,
         followingPlan: totalTrades ? (followingPlanTrades / totalTrades) * 100 : 0,
-        narrativeAccuracy,
+        narrativeAccuracy: Math.round(narrativeAccuracy), // округляем до целого числа
         gainedRR,
         potentialRR,
         averageRR,
-        profit: pl,
-        profitFactor: Math.abs(lossTradesPL) ? Math.abs(winTradesPL / lossTradesPL) : 0,
-        realisedPL: pl,
-        averagePL: winTrades ? winTradesPL / winTrades : 0,
-        averageLoss: lossTrades ? Math.abs(lossTradesPL) / lossTrades : 0,
-        maxDrawdown,
-        tradeEfficiency,
+        profit,
+        profitFactor: Math.abs(totalLossPoints) ? Math.abs(totalWinPoints / totalLossPoints) : 0,
+        realisedPL,
+        averagePL,
+        averageLoss,
+        maxDrawdown, // Теперь maxDrawdown определен и может быть использован
         breakevenTrades,
         winLossRatio
       });
@@ -1438,7 +1453,7 @@ function CreateWPA() {
               <MetricCard>
                 <MetricTitle>Profit</MetricTitle>
                 <MetricValue color={metrics.profit >= 0 ? "#4caf50" : "#ff4444"}>
-                  ${metrics.profit ? metrics.profit.toFixed(2) : '0.00'}
+                  {metrics.profit ? `${metrics.profit.toFixed(2)}%` : '0.00%'}
                 </MetricValue>
               </MetricCard>
               <MetricCard>
@@ -1452,7 +1467,7 @@ function CreateWPA() {
                 </MetricValue>
               </MetricCard>
               <MetricCard>
-                <MetricTitle>Average P&L</MetricTitle>
+                <MetricTitle>Average Profit</MetricTitle>
                 <MetricValue color="#4caf50">${metrics.averagePL ? metrics.averagePL.toFixed(2) : '0.00'}</MetricValue>
               </MetricCard>
               <MetricCard>
@@ -1463,12 +1478,6 @@ function CreateWPA() {
                 <MetricTitle>Maximum Drawdown</MetricTitle>
                 <MetricValue color="#ff4444">
                   {metrics.maxDrawdown ? metrics.maxDrawdown.toFixed(2) : '0.00'}%
-                </MetricValue>
-              </MetricCard>
-              <MetricCard>
-                <MetricTitle>Trade Efficiency</MetricTitle>
-                <MetricValue color="#4caf50">
-                  {metrics.tradeEfficiency ? metrics.tradeEfficiency.toFixed(2) : '0.00'}%
                 </MetricValue>
               </MetricCard>
               <MetricCard>
@@ -1512,6 +1521,12 @@ function CreateWPA() {
                     <TradeInfo>
                       <TradeLabel>Result</TradeLabel>
                       <TradeValue result={trade.result}>{trade.result}</TradeValue>
+                    </TradeInfo>
+                    <TradeInfo>
+                      <TradeLabel>Profit</TradeLabel>
+                      <TradeValue style={{ color: parseFloat(trade.profitLoss) >= 0 ? '#4caf50' : '#ff4444' }}>
+                        {trade.profitLoss ? `${parseFloat(trade.profitLoss).toFixed(2)}%` : '0.00%'}
+                      </TradeValue>
                     </TradeInfo>
                   </TradeCard>
                 ))
@@ -1581,4 +1596,4 @@ function CreateWPA() {
   );
 }
 
-export default CreateWPA; 
+export default CreateWPA;

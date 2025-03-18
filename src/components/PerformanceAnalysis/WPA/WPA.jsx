@@ -102,7 +102,7 @@ const Subtitle = styled.h2`
   font-weight: normal;
 `;
 const Content = styled.div`
-  margin-top: 148px;
+  margin-top: 38px;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -639,12 +639,12 @@ function WPA() {
                       <MetricValue bold>{analysis.gainedRR ? analysis.gainedRR.toFixed(2) : '0.00'}</MetricValue>
                     </MetricRow>
                     <MetricRow>
-                      <MetricLabel>P&L</MetricLabel>
+                      <MetricLabel>Profit</MetricLabel>
                       <MetricValue 
-                        color={analysis.realisedPL >= 0 ? "#4caf50" : "#ff4444"}
+                        color={analysis.profit >= 0 ? "#4caf50" : "#ff4444"}
                         bold
                       >
-                        ${analysis.realisedPL ? analysis.realisedPL.toFixed(2) : '0.00'}
+                        {analysis.profit ? `${analysis.profit.toFixed(2)}%` : '0.00%'}
                       </MetricValue>
                     </MetricRow>
                   </MetricsContainer>
