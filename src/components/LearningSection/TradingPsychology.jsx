@@ -107,6 +107,41 @@ const Content = styled.div`
   margin-right: auto;
 `;
 
+const Container = styled.div`
+  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+`;
+
+const Card = styled(Link)`
+  background: #2a2a2a;
+  border-radius: 15px;
+  padding: 25px;
+  margin-bottom: 20px;
+  display: block;
+  text-decoration: none;
+  color: inherit;
+  border: 1px solid #5e2ca5;
+  transition: all 0.3s ease;
+
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 5px 15px rgba(94, 44, 165, 0.2);
+  }
+`;
+
+const CardTitle = styled.h3`
+  color: #5e2ca5;
+  margin-bottom: 15px;
+  font-size: 1.4em;
+`;
+
+const CardDescription = styled.p`
+  color: #ccc;
+  font-size: 1.1em;
+  line-height: 1.5;
+`;
+
 function TradingPsychology() {
   return (
     <PsychologyContainer>
@@ -116,7 +151,18 @@ function TradingPsychology() {
         <Subtitle>Let's learn about trading psychology!</Subtitle>
       </Header>
       <Content>
-        {/* Тут буде контент для розділу психології трейдингу */}
+        <Container>
+          <Card to="/learning-section/trading-psychology/mindset-tracker">
+            <CardTitle>Mindset Tracker</CardTitle>
+            <CardDescription>
+              Track your psychological state and progress in developing your trading mindset. 
+              Record insights, analyze emotions, and work on improving your psychological 
+              preparation.
+            </CardDescription>
+          </Card>
+          
+          {/* Здесь можно добавить другие карточки для других разделов */}
+        </Container>
       </Content>
     </PsychologyContainer>
   );

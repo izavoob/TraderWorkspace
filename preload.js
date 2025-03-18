@@ -63,4 +63,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updatePostSession: (postSession) => ipcRenderer.invoke('updatePostSession', postSession),
   getPostSessionById: (id) => ipcRenderer.invoke('getPostSessionById', id),
   getAllPostSessions: () => ipcRenderer.invoke('getAllPostSessions'),
+  
+  // STER methods
+  getSTERAssessments: () => ipcRenderer.invoke('getSTERAssessments'),
+  addSTERAssessment: (assessment) => ipcRenderer.invoke('addSTERAssessment', assessment),
+  updateSTERAssessment: (id, assessment) => ipcRenderer.invoke('updateSTERAssessment', id, assessment),
+  deleteSTERAssessment: (id) => ipcRenderer.invoke('deleteSTERAssessment', id)
 });

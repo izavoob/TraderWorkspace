@@ -9,6 +9,7 @@ const NotesDB = require('./src/database/notesDB');
 const RoutinesDB = require('./src/database/routinesDB');
 const PerformanceDB = require('./src/database/performanceDB');
 const { migrateDatabase } = require('./migration');
+const STERDB = require('./src/database/sterDB');
 
 let db = null;
 let accountsDB = null;
@@ -18,6 +19,7 @@ let vaultPath = null;
 let mainWindow = null;
 let notesDB;
 let routinesDB;
+let sterDB = null;
 
 async function reorderTradeNumbers() {
   return new Promise((resolve, reject) => {
@@ -52,6 +54,7 @@ async function initializeDatabase() {
   const performanceDbPath = path.join(vaultPath, 'performance.db');
   const notesDbPath = path.join(vaultPath, 'notes.db');
   const routinesDbPath = path.join(vaultPath, 'routines.db');
+  const sterDbPath = path.join(vaultPath, 'ster.db');
   
   console.log('Database paths:');
   console.log('- trades.db:', dbPath);
@@ -60,6 +63,7 @@ async function initializeDatabase() {
   console.log('- performance.db:', performanceDbPath);
   console.log('- notes.db:', notesDbPath);
   console.log('- routines.db:', routinesDbPath);
+  console.log('- ster.db:', sterDbPath);
   
   try {
     await fs.mkdir(vaultPath, { recursive: true });
@@ -141,6 +145,11 @@ async function initializeDatabase() {
     }
     console.log('routines.db initialized at:', routinesDbPath);
     console.log('routinesDB:', routinesDB); // Added this line to log routinesDB
+
+    // Initialize STER database
+    sterDB = new STERDB(sterDbPath);
+    console.log('ster.db initialized at:', sterDbPath);
+
   } catch (error) {
     console.error('Error initializing database:', error);
     throw error;
@@ -1375,4 +1384,25 @@ ipcMain.handle('getAllPostSessions', async () => {
     console.error('Error getting all post sessions:', error);
     throw error;
   }
+});
+
+// STER Assessment handlers
+ipcMain.handle('getSTERAssessments', async () => {
+  await ensureDatabaseInitialized();
+  return sterDB.getAllAssessments();
+});
+
+ipcMain.handle('addSTERAssessment', async (event, assessment) => {
+  await ensureDatabaseInitialized();
+  return sterDB.addAssessment(assessment);
+});
+
+ipcMain.handle('updateSTERAssessment', async (event, id, assessment) => {
+  await ensureDatabaseInitialized();
+  return sterDB.updateAssessment(id, assessment);
+});
+
+ipcMain.handle('deleteSTERAssessment', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return sterDB.deleteAssessment(id);
 });

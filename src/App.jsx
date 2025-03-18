@@ -28,6 +28,7 @@ import RiskManagement from './components/RiskManagement.jsx';
 import ReportingSystem from './components/ReportingSystem.jsx';
 import Settings from './components/Settings.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
+import MindsetTracker from './components/LearningSection/TradingPsychology/MindsetTracker.jsx';
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -279,6 +280,7 @@ function App() {
             <Route path="/learning-section" element={<LearningSection />} />
             <Route path="/learning-section/strategy" element={<Strategy />} />
             <Route path="/learning-section/trading-psychology" element={<TradingPsychology />} />
+            <Route path="/learning-section/trading-psychology/mindset-tracker" element={<MindsetTracker />} />
             <Route path="/learning-section/notes" element={<Notes />} />
             <Route path="/performance-analysis" element={<PerformanceAnalysis />} />
             <Route path="/performance-analysis/wpa" element={<WPA />} />
