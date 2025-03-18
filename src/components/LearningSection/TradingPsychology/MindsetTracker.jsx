@@ -317,7 +317,7 @@ const MindsetTracker = () => {
 
   const handleDeleteAssessment = async (id, e) => {
     e.stopPropagation();
-    if (window.confirm('Вы уверены, что хотите удалить эту оценку?')) {
+    if (window.confirm('Are you sure you want to delete this assessment?')) {
       try {
         await window.electronAPI.deleteSTERAssessment(id);
         await loadAssessments();
@@ -328,7 +328,7 @@ const MindsetTracker = () => {
   };
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('ru-RU', {
+    return new Date(dateString).toLocaleDateString('en-US', {
       year: 'numeric',
       month: 'long',
       day: 'numeric'
@@ -336,7 +336,7 @@ const MindsetTracker = () => {
   };
 
   if (isLoading) {
-    return <div>Загрузка...</div>;
+    return <div>Loading...</div>;
   }
 
   return (
@@ -349,9 +349,8 @@ const MindsetTracker = () => {
 
       <Content>
         <Description>
-          Отслеживайте своё психологическое состояние, записывайте инсайты и работайте над улучшением 
-          своего торгового мышления. Используйте этот инструмент для документирования прогресса и 
-          определения областей для улучшения.
+          Track your psychological state, record insights and work on improving your trading mindset. 
+          Use this tool to document your progress and identify areas for improvement.
         </Description>
 
         <TrackerSection>
@@ -359,7 +358,7 @@ const MindsetTracker = () => {
           
           <AddButton onClick={handleAddAssessment}>
             <AddIcon>+</AddIcon>
-            <AddText>Добавить STER оценку</AddText>
+            <AddText>Add STER Assessment</AddText>
           </AddButton>
 
           <AssessmentsGrid>
@@ -376,25 +375,25 @@ const MindsetTracker = () => {
                 <AssessmentDate>{formatDate(assessment.date)}</AssessmentDate>
                 <AssessmentRatings>
                   <RatingItem>
-                    <RatingLabel>Ситуация</RatingLabel>
+                    <RatingLabel>Situation</RatingLabel>
                     <RatingValue value={assessment.situationRating}>
                       {assessment.situationRating}/5
                     </RatingValue>
                   </RatingItem>
                   <RatingItem>
-                    <RatingLabel>Мысли</RatingLabel>
+                    <RatingLabel>Thoughts</RatingLabel>
                     <RatingValue value={assessment.thoughtsRating}>
                       {assessment.thoughtsRating}/5
                     </RatingValue>
                   </RatingItem>
                   <RatingItem>
-                    <RatingLabel>Эмоции</RatingLabel>
+                    <RatingLabel>Emotions</RatingLabel>
                     <RatingValue value={assessment.emotionsRating}>
                       {assessment.emotionsRating}/5
                     </RatingValue>
                   </RatingItem>
                   <RatingItem>
-                    <RatingLabel>Реакция</RatingLabel>
+                    <RatingLabel>Reaction</RatingLabel>
                     <RatingValue value={assessment.reactionRating}>
                       {assessment.reactionRating}/5
                     </RatingValue>

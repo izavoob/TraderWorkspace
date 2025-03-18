@@ -161,6 +161,14 @@ function TradingPsychology() {
             </CardDescription>
           </Card>
           
+          <Card to="/learning-section/trading-psychology/demons">
+            <CardTitle>Trading Demons</CardTitle>
+            <CardDescription>
+              A catalog of common psychological barriers in trading. Learn to recognize your 
+              "demons" and develop strategies to overcome them.
+            </CardDescription>
+          </Card>
+          
           {/* Здесь можно добавить другие карточки для других разделов */}
         </Container>
       </Content>

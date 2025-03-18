@@ -10,6 +10,7 @@ const RoutinesDB = require('./src/database/routinesDB');
 const PerformanceDB = require('./src/database/performanceDB');
 const { migrateDatabase } = require('./migration');
 const STERDB = require('./src/database/sterDB');
+const DemonsDB = require('./src/database/demonsDB');
 
 let db = null;
 let accountsDB = null;
@@ -20,6 +21,7 @@ let mainWindow = null;
 let notesDB;
 let routinesDB;
 let sterDB = null;
+let demonsDB = null;
 
 async function reorderTradeNumbers() {
   return new Promise((resolve, reject) => {
@@ -55,6 +57,7 @@ async function initializeDatabase() {
   const notesDbPath = path.join(vaultPath, 'notes.db');
   const routinesDbPath = path.join(vaultPath, 'routines.db');
   const sterDbPath = path.join(vaultPath, 'ster.db');
+  const demonsDbPath = path.join(vaultPath, 'demons.db');
   
   console.log('Database paths:');
   console.log('- trades.db:', dbPath);
@@ -64,6 +67,7 @@ async function initializeDatabase() {
   console.log('- notes.db:', notesDbPath);
   console.log('- routines.db:', routinesDbPath);
   console.log('- ster.db:', sterDbPath);
+  console.log('- demons.db:', demonsDbPath);
   
   try {
     await fs.mkdir(vaultPath, { recursive: true });
@@ -149,6 +153,10 @@ async function initializeDatabase() {
     // Initialize STER database
     sterDB = new STERDB(sterDbPath);
     console.log('ster.db initialized at:', sterDbPath);
+
+    // Initialize demons database
+    demonsDB = new DemonsDB(demonsDbPath);
+    console.log('demons.db initialized at:', demonsDbPath);
 
   } catch (error) {
     console.error('Error initializing database:', error);
@@ -1405,4 +1413,35 @@ ipcMain.handle('updateSTERAssessment', async (event, id, assessment) => {
 ipcMain.handle('deleteSTERAssessment', async (event, id) => {
   await ensureDatabaseInitialized();
   return sterDB.deleteAssessment(id);
+});
+
+// Trading Demons handlers
+ipcMain.handle('getAllDemons', async () => {
+  await ensureDatabaseInitialized();
+  return demonsDB.getAllDemons();
+});
+
+ipcMain.handle('getDemonsByCategory', async (event, category) => {
+  await ensureDatabaseInitialized();
+  return demonsDB.getDemonsByCategory(category);
+});
+
+ipcMain.handle('getDemonById', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return demonsDB.getDemonById(id);
+});
+
+ipcMain.handle('addDemon', async (event, demon) => {
+  await ensureDatabaseInitialized();
+  return demonsDB.addDemon(demon);
+});
+
+ipcMain.handle('updateDemon', async (event, id, demon) => {
+  await ensureDatabaseInitialized();
+  return demonsDB.updateDemon(id, demon);
+});
+
+ipcMain.handle('deleteDemon', async (event, id) => {
+  await ensureDatabaseInitialized();
+  return demonsDB.deleteDemon(id);
 });
