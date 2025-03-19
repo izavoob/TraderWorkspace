@@ -23,6 +23,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getAllNotes: () => ipcRenderer.invoke('getAllNotes'),
   deleteNote: (id) => ipcRenderer.invoke('deleteNote', id),
   
+  // Trade-Presession linking methods
+  linkTradeToPresession: (tradeId, presessionId) => ipcRenderer.invoke('linkTradeToPresession', tradeId, presessionId),
+  unlinkTradeFromPresession: (tradeId) => ipcRenderer.invoke('unlinkTradeFromPresession', tradeId),
+  getLinkedPresession: (tradeId) => ipcRenderer.invoke('getLinkedPresession', tradeId),
+  
   // Account management methods
   getAllAccounts: () => ipcRenderer.invoke('getAllAccounts'),
   addAccount: (account) => ipcRenderer.invoke('addAccount', account),

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
-import DeleteIcon from '../../assets/icons/delete-icon.svg';;
+import DeleteIcon from '../../assets/icons/delete-icon.svg';
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -9,6 +9,7 @@ import { registerLocale } from 'react-datepicker';
 import uk from 'date-fns/locale/uk';
 import NotesList from '../Notes/NotesList.jsx';
 import NoteModal from '../Notes/NoteModal.jsx';
+import PreSessionLinkComponent from '../PreSessionLink/PreSessionLinkComponent.jsx';
 
 registerLocale('uk', uk);
 
@@ -97,7 +98,6 @@ const shineEffect = keyframes`
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -117,9 +117,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -127,6 +127,7 @@ const Header = styled.header`
   justify-content: center;
   align-items: center;
 `;
+
 
 const BackButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
@@ -152,7 +153,7 @@ const BackButton = styled.button`
   }
 
   &:before {
-    content: 'Back';
+    content: "Back";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -174,13 +175,9 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
-const Subtitle = styled.h2`
-  margin: 5px auto 0;
-  font-size: 1.2em;
+const Subtitle = styled.p`
   color: #ff8c00;
-  text-align: center;
-  z-index: 1;
-  font-weight: normal;
+  margin-top: 10px;
 `;
 
 const TradeNumber = styled.p`
@@ -390,10 +387,8 @@ const ConfirmButton = styled.button`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
-  margin: 20px 0 10px;
-  font-size: 2em;
-  text-align: center;
+  color: rgb(230, 243, 255);
+  margin-bottom: 10px;
 `;
 
 const TimeframeHeader = styled.div`
@@ -921,6 +916,7 @@ function CreateTrade() {
     slPosition: '',
     score: '',
     category: '',
+    presession_id: null,
     topDownAnalysis: [
       { title: 'Daily Timeframe', screenshot: '', text: '' },
       { title: '4h Timeframe', screenshot: '', text: '' },
@@ -983,6 +979,15 @@ function CreateTrade() {
               tagId: note.tag_id,
               tagName: note.tag_name
             }))
+          }));
+        }
+
+        // Перевіряємо чи є зв'язок з пресесією
+        const linkedPresession = await window.electronAPI.getLinkedPresession(tradeId);
+        if (linkedPresession && linkedPresession.id) {
+          setTrade(prev => ({
+            ...prev,
+            presession_id: linkedPresession.id
           }));
         }
       } catch (error) {
@@ -1220,10 +1225,24 @@ function CreateTrade() {
       const trades = await window.electronAPI.getTrades();
       const tradeNo = trades.length + 1;
       
+      // Перевіряємо чи є зв'язок з пресесією перед збереженням трейду
+      let linkedPresession = null;
+      try {
+        linkedPresession = await window.electronAPI.getLinkedPresession(tradeId);
+        console.log("Перевірка зв'язку з пресесією:", linkedPresession);
+      } catch (presessionError) {
+        console.error("Помилка при перевірці зв'язку з пресесією:", presessionError);
+      }
+      
+      // Використовуємо presession_id зі стану trade, якщо він є
+      const presessionId = trade.presession_id || (linkedPresession && linkedPresession.id) || null;
+      console.log("Використовуємо presession_id:", presessionId);
+      
       const tradeData = {
         ...trade,
         no: tradeNo,
-        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
+        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : [],
+        presession_id: presessionId
       };
       
       console.log('Зберігаємо трейд з даними:', tradeData);
@@ -1231,6 +1250,20 @@ function CreateTrade() {
       // Зберігаємо трейд
       await window.electronAPI.saveTrade(tradeData);
       console.log('Трейд успішно збережено');
+
+      // Додатково гарантуємо зв'язок з пресесією, якщо він є
+      if (presessionId) {
+        try {
+          console.log("Підтверджуємо зв'язок з пресесією:", presessionId);
+          // Переприв'язуємо пресесію до трейду щоб гарантувати збереження зв'язку
+          await window.electronAPI.linkTradeToPresession(tradeData.id, presessionId);
+          console.log("Зв'язок з пресесією збережено");
+        } catch (presessionError) {
+          console.error("Помилка при збереженні зв'язку з пресесією:", presessionError);
+        }
+      } else {
+        console.log("Немає зв'язку з пресесією для збереження");
+      }
 
       // Отримуємо всі нотатки для цього трейду з бази даних
       const notes = await window.electronAPI.getNotesBySource('trade', tradeData.id);
@@ -1268,19 +1301,35 @@ function CreateTrade() {
   };
 
   const handleBack = () => {
-    navigate(-1); // Повернення назад по історії
+    // Перша спроба - використати window.history.back()
+    try {
+      window.history.back();
+    } catch (error) {
+      console.error("Помилка при спробі використати window.history.back():", error);
+      // Запасний варіант - використовуємо navigate(-1)
+      navigate(-1);
+    }
   };
 
   return (
     <CreateTradeContainer>
       <DatePickerStyles />
       <Header>
-        <BackButton onClick={handleBack} />
-        <Title>New Trade</Title>
-        <Subtitle>Let's add a new trade!</Subtitle>
+            <BackButton onClick={handleBack} />
+          <Title>New Trade #{tradeCount}</Title>
+          <Subtitle>Let's add a new trade!</Subtitle>
+          <PreSessionLinkComponent 
+            tradeId={tradeId} 
+            onPresessionChange={(presession) => {
+              console.log("PreSession changed:", presession);
+              setTrade(prev => ({
+                ...prev,
+                presession_id: presession ? presession.id : null
+              }));
+            }}
+          />
       </Header>
       <TradeContent>
-        <TradeNumber>Trade number: {tradeCount}</TradeNumber>
         <TablesContainer>
           <TradeTable>
             <FormRow>

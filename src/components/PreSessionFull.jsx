@@ -163,9 +163,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -1526,7 +1526,14 @@ function PreSessionFull() {
 
   // Функція для повернення на сторінку журналу
   const handleBack = () => {
-    navigate('/daily-routine/pre-session');
+    // Перша спроба - використати window.history.back()
+    try {
+      window.history.back();
+    } catch (error) {
+      console.error("Помилка при спробі використати window.history.back():", error);
+      // Запасний варіант - використовуємо navigate(-1)
+      navigate(-1);
+    }
   };
 
   // Функція для збереження пресесії
