@@ -552,7 +552,11 @@ const PlanInfo = styled.div`
 `;
 
 const PlanValue = styled.span`
-  color: #ff4444;
+  color: ${props => {
+    if (props.plan === 'Bullish') return '#4caf50';
+    if (props.plan === 'Bearish') return '#ff4444';
+    return '#ff4444';
+  }};
   font-weight: normal;
 `;
 
@@ -589,7 +593,11 @@ const OutcomeInfo = styled.div`
 `;
 
 const OutcomeValue = styled.span`
-  color: #4caf50;
+  color: ${props => {
+    if (props.outcome === 'Bullish') return '#4caf50';
+    if (props.outcome === 'Bearish') return '#ff4444';
+    return '#4caf50';
+  }};
   font-weight: normal;
 `;
 
@@ -957,10 +965,33 @@ function CreateWPA() {
 
   const loadMetrics = async (start, end) => {
     try {
-      const periodTrades = await loadTrades(start, end) || [];
-      const periodPresessions = await loadPreSessions(start, end) || [];
+      // Спочатку завантажуємо всі пре-сесії та трейди
+      const allPreSessions = await window.electronAPI.getAllPresessions();
+      const allTrades = await window.electronAPI.getTrades();
       
-      // Базові метрики
+      // Фільтруємо по даті
+      const endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+      
+      const periodPresessions = allPreSessions.filter(session => {
+        const sessionDate = new Date(session.date);
+        return sessionDate >= start && sessionDate <= endDate;
+      });
+      
+      const periodTrades = allTrades.filter(trade => {
+        const tradeDate = new Date(trade.date);
+        return tradeDate >= start && tradeDate <= endDate;
+      });
+      
+      console.log(`Фільтровані пре-сесії (${periodPresessions.length}):`, periodPresessions);
+      console.log(`Фільтровані трейди (${periodTrades.length}):`, periodTrades);
+      
+      // Зберігаємо відфільтровані дані
+      setPreSessions(periodPresessions);
+      setTrades(periodTrades);
+      
+      // Решта коду для розрахунку метрик
+      // Base metrics
       const totalTrades = periodTrades.length;
       const missedTrades = periodTrades.filter(t => t && t.result === 'Missed').length;
       const winTrades = periodTrades.filter(t => t && t.result === 'Win').length;
@@ -971,41 +1002,104 @@ function CreateWPA() {
       // Execution Coefficient
       const executionCoefficient = totalTrades ? ((totalTrades - missedTrades) / totalTrades) * 100 : 0;
       
-      // Narrative Accuracy
+      // Narrative Accuracy - абсолютно новий підхід до розрахунку
       const totalPresessions = periodPresessions.length;
-      const successfulPresessions = periodPresessions.filter(p => p && p.plan_outcome === 1).length;
-      const narrativeAccuracy = totalPresessions ? (successfulPresessions / totalPresessions) * 100 : 0;
+      console.log('Pre-sessions for Narrative Accuracy:', periodPresessions);
       
-      // RR метрики
+      // Проходимо кожну пре-сесію і рахуємо її як "активну", якщо для неї встановлено будь-яке truthy значення
+      let activeCount = 0;
+      
+      periodPresessions.forEach(session => {
+        // Виводимо детальну інформацію по кожній сесії для дебагу
+        console.log('Detailed session info:', {
+          id: session.id,
+          date: session.date,
+          narrative: session.narrative,
+          plan_outcome: session.plan_outcome,
+          plan_outcome_type: typeof session.plan_outcome,
+          plan_outcome_toString: String(session.plan_outcome)
+        });
+        
+        // Вважаємо сесію активною, якщо plan_outcome має будь-яке з наступних значень:
+        // - число 1
+        // - boolean true
+        // - рядок "1" або "true"
+        if (
+          session.plan_outcome === 1 || 
+          session.plan_outcome === true || 
+          session.plan_outcome === "1" || 
+          session.plan_outcome === "true"
+        ) {
+          activeCount++;
+          console.log(`Session ${session.id} is ACTIVE ✓`);
+        } else {
+          console.log(`Session ${session.id} is INACTIVE ✗`);
+        }
+      });
+      
+      // Розраховуємо процент активних сесій
+      const narrativeAccuracy = totalPresessions > 0 ? Math.round((activeCount / totalPresessions) * 100) : 0;
+      
+      console.log('Final Narrative Accuracy calculation:', {
+        totalPresessions,
+        activeCount,
+        narrativeAccuracy
+      });
+
+      // Helper function to parse points/money values
+      const parseMoneyValue = (value) => {
+        if (!value) return 0;
+        return parseFloat(value.replace(/[^-0-9.]/g, '')) || 0;
+      };
+
+      // Gained RR
       const gainedRR = periodTrades.reduce((sum, t) => {
         if (!t) return sum;
-        if (t.result === 'Win') return sum + (parseFloat(t.rr) || 0);
-        if (t.result === 'Loss') return sum - (parseFloat(t.risk) || 0);
-        return sum;
+        const rr = parseFloat(t.rr) || 0;
+        if (t.result === 'Loss') {
+          return sum - Math.abs(parseFloat(t.profitLoss) || 0);
+        }
+        return sum + rr;
       }, 0);
       
-      // Potential RR (сума RR для пропущених трейдів)
+      // Potential RR
       const potentialRR = periodTrades
         .filter(t => t && t.result === 'Missed')
         .reduce((sum, t) => sum + (parseFloat(t.rr) || 0), 0);
       
-      // Average RR (тільки для Win та Loss трейдів)
+      // Average RR
       const tradeCount = winTrades + lossTrades;
       const averageRR = tradeCount ? gainedRR / tradeCount : 0;
       
-      // Profit та PnL метрики
-      const pl = periodTrades.reduce((sum, t) => {
+      // Profit
+      const profit = periodTrades.reduce((sum, t) => {
         if (!t) return sum;
         return sum + (parseFloat(t.profitLoss) || 0);
       }, 0);
       
-      const winTradesPL = periodTrades.filter(t => t && t.result === 'Win')
-        .reduce((sum, t) => sum + (parseFloat(t.profitLoss) || 0), 0);
+      // Realised P&L - fixed calculation
+      const realisedPL = periodTrades
+        .filter(t => t && (t.result === 'Win' || t.result === 'Loss'))
+        .reduce((sum, t) => sum + parseMoneyValue(t.gainedPoints), 0);
       
-      const lossTradesPL = periodTrades.filter(t => t && t.result === 'Loss')
-        .reduce((sum, t) => sum + (parseFloat(t.profitLoss) || 0), 0);
+      // Average P&L - fixed calculation
+      const totalWinPoints = periodTrades
+        .filter(t => t && t.result === 'Win')
+        .reduce((sum, t) => sum + parseMoneyValue(t.gainedPoints), 0);
+      const averagePL = winTrades ? totalWinPoints / winTrades : 0;
       
-      // Maximum Drawdown
+      // Average Loss - fixed calculation
+      const totalLossPoints = periodTrades
+        .filter(t => t && t.result === 'Loss')
+        .reduce((sum, t) => sum + parseMoneyValue(t.gainedPoints), 0);
+      const averageLoss = lossTrades ? Math.abs(totalLossPoints / lossTrades) : 0;
+      
+      // Win/Loss Ratio - fixed calculation
+      const avgWin = winTrades ? Math.abs(totalWinPoints / winTrades) : 0;
+      const avgLoss = lossTrades ? Math.abs(totalLossPoints / lossTrades) : 0;
+      const winLossRatio = avgLoss !== 0 ? avgWin / avgLoss : 0;
+
+      // Maximum Drawdown calculation
       let maxDrawdown = 0;
       let peak = 0;
       let currentBalance = 0;
@@ -1025,31 +1119,22 @@ function CreateWPA() {
         }
       });
       
-      // Trade Efficiency
-      const tradeEfficiency = potentialRR ? (gainedRR / potentialRR) * 100 : 0;
-      
-      // Average Win to Average Loss Ratio
-      const avgWin = winTrades ? winTradesPL / winTrades : 0;
-      const avgLoss = lossTrades ? Math.abs(lossTradesPL) / lossTrades : 0;
-      const winLossRatio = avgLoss ? avgWin / avgLoss : 0;
-      
       setMetrics({
         totalTrades,
         missedTrades,
         executionCoefficient,
         winRate: totalTrades ? (winTrades / totalTrades) * 100 : 0,
         followingPlan: totalTrades ? (followingPlanTrades / totalTrades) * 100 : 0,
-        narrativeAccuracy,
+        narrativeAccuracy: Math.round(narrativeAccuracy), // округляем до целого числа
         gainedRR,
         potentialRR,
         averageRR,
-        profit: pl,
-        profitFactor: Math.abs(lossTradesPL) ? Math.abs(winTradesPL / lossTradesPL) : 0,
-        realisedPL: pl,
-        averagePL: winTrades ? winTradesPL / winTrades : 0,
-        averageLoss: lossTrades ? Math.abs(lossTradesPL) / lossTrades : 0,
-        maxDrawdown,
-        tradeEfficiency,
+        profit,
+        profitFactor: Math.abs(totalLossPoints) ? Math.abs(totalWinPoints / totalLossPoints) : 0,
+        realisedPL,
+        averagePL,
+        averageLoss,
+        maxDrawdown, // Теперь maxDrawdown определен и может быть использован
         breakevenTrades,
         winLossRatio
       });
@@ -1062,8 +1147,10 @@ function CreateWPA() {
     try {
       if (!startDate || !endDate) return;
 
+      console.log('Saving analysis with metrics:', metrics);
+
       const analysisData = {
-        id: id,
+        id: id || uuidv4(),
         type: 'weekly',
         startDate: startDate.toISOString().split('T')[0],
         endDate: new Date(endDate.setHours(23, 59, 59, 999)).toISOString().split('T')[0],
@@ -1090,10 +1177,23 @@ function CreateWPA() {
         }))
       };
 
-      await window.electronAPI.updatePerformanceAnalysis(id, analysisData);
+      console.log('Saving analysis data:', analysisData);
+
+      if (id) {
+        console.log('Updating existing analysis with ID:', id);
+        await window.electronAPI.updatePerformanceAnalysis(id, analysisData);
+      } else {
+        console.log('Creating new analysis');
+        await window.electronAPI.savePerformanceAnalysis(analysisData);
+      }
+
+      // Очищаємо localStorage після успішного збереження
+      localStorage.removeItem('wpaStartDate');
+      localStorage.removeItem('wpaEndDate');
+
       navigate('/performance-analysis/wpa');
     } catch (error) {
-      console.error('Error updating analysis:', error);
+      console.error('Error saving analysis:', error);
     }
   };
 
@@ -1213,9 +1313,9 @@ function CreateWPA() {
             <PreSessionCard key={session.id} onClick={() => handlePreSessionClick(session.id)}>
               <DayOfWeek>{getDayOfWeek(session.date)}</DayOfWeek>
               <DateInfo>{new Date(session.date).toLocaleDateString()}</DateInfo>
-              <PlanInfo>Plan: <PlanValue>{session.narrative || 'No plan'}</PlanValue></PlanInfo>
+              <PlanInfo>Plan: <PlanValue plan={session.narrative}>{session.narrative || 'No plan'}</PlanValue></PlanInfo>
               <ExecutionInfo>Execution: <ExecutionValue execution={session.execution}>{session.execution || 'No trades'}</ExecutionValue></ExecutionInfo>
-              <OutcomeInfo>Outcome: <OutcomeValue>{session.outcome || 'No Trades'}</OutcomeValue></OutcomeInfo>
+              <OutcomeInfo>Outcome: <OutcomeValue outcome={session.outcome}>{session.outcome || 'No Trades'}</OutcomeValue></OutcomeInfo>
               <PlanOutcomeInfo>
                 Plan = <CheckIcon checked={session.plan_outcome === 1}>{session.plan_outcome === 1 ? '✓' : '✗'}</CheckIcon>
               </PlanOutcomeInfo>
@@ -1438,7 +1538,7 @@ function CreateWPA() {
               <MetricCard>
                 <MetricTitle>Profit</MetricTitle>
                 <MetricValue color={metrics.profit >= 0 ? "#4caf50" : "#ff4444"}>
-                  ${metrics.profit ? metrics.profit.toFixed(2) : '0.00'}
+                  {metrics.profit ? `${metrics.profit.toFixed(2)}%` : '0.00%'}
                 </MetricValue>
               </MetricCard>
               <MetricCard>
@@ -1452,7 +1552,7 @@ function CreateWPA() {
                 </MetricValue>
               </MetricCard>
               <MetricCard>
-                <MetricTitle>Average P&L</MetricTitle>
+                <MetricTitle>Average Profit</MetricTitle>
                 <MetricValue color="#4caf50">${metrics.averagePL ? metrics.averagePL.toFixed(2) : '0.00'}</MetricValue>
               </MetricCard>
               <MetricCard>
@@ -1463,12 +1563,6 @@ function CreateWPA() {
                 <MetricTitle>Maximum Drawdown</MetricTitle>
                 <MetricValue color="#ff4444">
                   {metrics.maxDrawdown ? metrics.maxDrawdown.toFixed(2) : '0.00'}%
-                </MetricValue>
-              </MetricCard>
-              <MetricCard>
-                <MetricTitle>Trade Efficiency</MetricTitle>
-                <MetricValue color="#4caf50">
-                  {metrics.tradeEfficiency ? metrics.tradeEfficiency.toFixed(2) : '0.00'}%
                 </MetricValue>
               </MetricCard>
               <MetricCard>
@@ -1512,6 +1606,12 @@ function CreateWPA() {
                     <TradeInfo>
                       <TradeLabel>Result</TradeLabel>
                       <TradeValue result={trade.result}>{trade.result}</TradeValue>
+                    </TradeInfo>
+                    <TradeInfo>
+                      <TradeLabel>Profit</TradeLabel>
+                      <TradeValue style={{ color: parseFloat(trade.profitLoss) >= 0 ? '#4caf50' : '#ff4444' }}>
+                        {trade.profitLoss ? `${parseFloat(trade.profitLoss).toFixed(2)}%` : '0.00%'}
+                      </TradeValue>
                     </TradeInfo>
                   </TradeCard>
                 ))
@@ -1581,4 +1681,4 @@ function CreateWPA() {
   );
 }
 
-export default CreateWPA; 
+export default CreateWPA;

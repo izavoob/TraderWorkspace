@@ -102,7 +102,7 @@ const Subtitle = styled.h2`
   font-weight: normal;
 `;
 const Content = styled.div`
-  margin-top: 148px;
+  margin-top: 38px;
   padding: 20px;
   display: flex;
   flex-direction: column;
@@ -553,17 +553,13 @@ function WPA() {
       const endDateTime = new Date(endDate);
       endDateTime.setHours(23, 59, 59, 999);
 
-      const analysisData = {
-        id: uuidv4(),
-        type: 'weekly',
-        startDate: startDate.toISOString().split('T')[0],
-        endDate: endDateTime.toISOString().split('T')[0],
-        weekNumber: getWeekNumber(startDate)
-      };
-
-      const result = await window.electronAPI.savePerformanceAnalysis(analysisData);
+      // Замість збереження в БД, зберігаємо дати в localStorage
+      localStorage.setItem('wpaStartDate', startDate.toISOString());
+      localStorage.setItem('wpaEndDate', endDateTime.toISOString());
+      
+      // Переходимо на сторінку створення без збереження в БД
       setShowCreateModal(false);
-      navigate(`/performance-analysis/wpa/create/${result.id || result}`);
+      navigate('/performance-analysis/wpa/create');
     } catch (error) {
       console.error('Error creating analysis:', error);
     }
@@ -632,19 +628,23 @@ function WPA() {
                     </MetricRow>
                     <MetricRow>
                       <MetricLabel>Winrate</MetricLabel>
-                      <MetricValue color="#4caf50">{analysis.winRate ? analysis.winRate.toFixed(2) : '0.00'}%</MetricValue>
+                      <MetricValue color="#4caf50">
+                        {(analysis.winRate !== null && analysis.winRate !== undefined) ? analysis.winRate.toFixed(2) : '0.00'}%
+                      </MetricValue>
                     </MetricRow>
                     <MetricRow>
                       <MetricLabel>Gained RR</MetricLabel>
-                      <MetricValue bold>{analysis.gainedRR ? analysis.gainedRR.toFixed(2) : '0.00'}</MetricValue>
+                      <MetricValue bold>
+                        {(analysis.gainedRR !== null && analysis.gainedRR !== undefined) ? analysis.gainedRR.toFixed(2) : '0.00'}
+                      </MetricValue>
                     </MetricRow>
                     <MetricRow>
-                      <MetricLabel>P&L</MetricLabel>
+                      <MetricLabel>Profit</MetricLabel>
                       <MetricValue 
-                        color={analysis.realisedPL >= 0 ? "#4caf50" : "#ff4444"}
+                        color={(analysis.profit || 0) >= 0 ? "#4caf50" : "#ff4444"}
                         bold
                       >
-                        ${analysis.realisedPL ? analysis.realisedPL.toFixed(2) : '0.00'}
+                        {(analysis.profit !== null && analysis.profit !== undefined) ? `${analysis.profit.toFixed(2)}%` : '0.00%'}
                       </MetricValue>
                     </MetricRow>
                   </MetricsContainer>
