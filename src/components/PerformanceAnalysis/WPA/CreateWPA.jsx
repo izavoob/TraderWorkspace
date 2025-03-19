@@ -552,7 +552,11 @@ const PlanInfo = styled.div`
 `;
 
 const PlanValue = styled.span`
-  color: #ff4444;
+  color: ${props => {
+    if (props.plan === 'Bullish') return '#4caf50';
+    if (props.plan === 'Bearish') return '#ff4444';
+    return '#ff4444';
+  }};
   font-weight: normal;
 `;
 
@@ -589,7 +593,11 @@ const OutcomeInfo = styled.div`
 `;
 
 const OutcomeValue = styled.span`
-  color: #4caf50;
+  color: ${props => {
+    if (props.outcome === 'Bullish') return '#4caf50';
+    if (props.outcome === 'Bearish') return '#ff4444';
+    return '#4caf50';
+  }};
   font-weight: normal;
 `;
 
@@ -957,9 +965,32 @@ function CreateWPA() {
 
   const loadMetrics = async (start, end) => {
     try {
-      const periodTrades = await loadTrades(start, end) || [];
-      const periodPresessions = await loadPreSessions(start, end) || [];
+      // Спочатку завантажуємо всі пре-сесії та трейди
+      const allPreSessions = await window.electronAPI.getAllPresessions();
+      const allTrades = await window.electronAPI.getTrades();
       
+      // Фільтруємо по даті
+      const endDate = new Date(end);
+      endDate.setHours(23, 59, 59, 999);
+      
+      const periodPresessions = allPreSessions.filter(session => {
+        const sessionDate = new Date(session.date);
+        return sessionDate >= start && sessionDate <= endDate;
+      });
+      
+      const periodTrades = allTrades.filter(trade => {
+        const tradeDate = new Date(trade.date);
+        return tradeDate >= start && tradeDate <= endDate;
+      });
+      
+      console.log(`Фільтровані пре-сесії (${periodPresessions.length}):`, periodPresessions);
+      console.log(`Фільтровані трейди (${periodTrades.length}):`, periodTrades);
+      
+      // Зберігаємо відфільтровані дані
+      setPreSessions(periodPresessions);
+      setTrades(periodTrades);
+      
+      // Решта коду для розрахунку метрик
       // Base metrics
       const totalTrades = periodTrades.length;
       const missedTrades = periodTrades.filter(t => t && t.result === 'Missed').length;
@@ -971,10 +1002,49 @@ function CreateWPA() {
       // Execution Coefficient
       const executionCoefficient = totalTrades ? ((totalTrades - missedTrades) / totalTrades) * 100 : 0;
       
-      // Narrative Accuracy - исправленный расчет
+      // Narrative Accuracy - абсолютно новий підхід до розрахунку
       const totalPresessions = periodPresessions.length;
-      const successfulPresessions = periodPresessions.filter(p => p && p.plan_outcome === 1).length;
-      const narrativeAccuracy = totalPresessions > 0 ? (successfulPresessions / totalPresessions) * 100 : 0;
+      console.log('Pre-sessions for Narrative Accuracy:', periodPresessions);
+      
+      // Проходимо кожну пре-сесію і рахуємо її як "активну", якщо для неї встановлено будь-яке truthy значення
+      let activeCount = 0;
+      
+      periodPresessions.forEach(session => {
+        // Виводимо детальну інформацію по кожній сесії для дебагу
+        console.log('Detailed session info:', {
+          id: session.id,
+          date: session.date,
+          narrative: session.narrative,
+          plan_outcome: session.plan_outcome,
+          plan_outcome_type: typeof session.plan_outcome,
+          plan_outcome_toString: String(session.plan_outcome)
+        });
+        
+        // Вважаємо сесію активною, якщо plan_outcome має будь-яке з наступних значень:
+        // - число 1
+        // - boolean true
+        // - рядок "1" або "true"
+        if (
+          session.plan_outcome === 1 || 
+          session.plan_outcome === true || 
+          session.plan_outcome === "1" || 
+          session.plan_outcome === "true"
+        ) {
+          activeCount++;
+          console.log(`Session ${session.id} is ACTIVE ✓`);
+        } else {
+          console.log(`Session ${session.id} is INACTIVE ✗`);
+        }
+      });
+      
+      // Розраховуємо процент активних сесій
+      const narrativeAccuracy = totalPresessions > 0 ? Math.round((activeCount / totalPresessions) * 100) : 0;
+      
+      console.log('Final Narrative Accuracy calculation:', {
+        totalPresessions,
+        activeCount,
+        narrativeAccuracy
+      });
 
       // Helper function to parse points/money values
       const parseMoneyValue = (value) => {
@@ -1077,8 +1147,10 @@ function CreateWPA() {
     try {
       if (!startDate || !endDate) return;
 
+      console.log('Saving analysis with metrics:', metrics);
+
       const analysisData = {
-        id: id,
+        id: id || uuidv4(),
         type: 'weekly',
         startDate: startDate.toISOString().split('T')[0],
         endDate: new Date(endDate.setHours(23, 59, 59, 999)).toISOString().split('T')[0],
@@ -1105,10 +1177,23 @@ function CreateWPA() {
         }))
       };
 
-      await window.electronAPI.updatePerformanceAnalysis(id, analysisData);
+      console.log('Saving analysis data:', analysisData);
+
+      if (id) {
+        console.log('Updating existing analysis with ID:', id);
+        await window.electronAPI.updatePerformanceAnalysis(id, analysisData);
+      } else {
+        console.log('Creating new analysis');
+        await window.electronAPI.savePerformanceAnalysis(analysisData);
+      }
+
+      // Очищаємо localStorage після успішного збереження
+      localStorage.removeItem('wpaStartDate');
+      localStorage.removeItem('wpaEndDate');
+
       navigate('/performance-analysis/wpa');
     } catch (error) {
-      console.error('Error updating analysis:', error);
+      console.error('Error saving analysis:', error);
     }
   };
 
@@ -1228,9 +1313,9 @@ function CreateWPA() {
             <PreSessionCard key={session.id} onClick={() => handlePreSessionClick(session.id)}>
               <DayOfWeek>{getDayOfWeek(session.date)}</DayOfWeek>
               <DateInfo>{new Date(session.date).toLocaleDateString()}</DateInfo>
-              <PlanInfo>Plan: <PlanValue>{session.narrative || 'No plan'}</PlanValue></PlanInfo>
+              <PlanInfo>Plan: <PlanValue plan={session.narrative}>{session.narrative || 'No plan'}</PlanValue></PlanInfo>
               <ExecutionInfo>Execution: <ExecutionValue execution={session.execution}>{session.execution || 'No trades'}</ExecutionValue></ExecutionInfo>
-              <OutcomeInfo>Outcome: <OutcomeValue>{session.outcome || 'No Trades'}</OutcomeValue></OutcomeInfo>
+              <OutcomeInfo>Outcome: <OutcomeValue outcome={session.outcome}>{session.outcome || 'No Trades'}</OutcomeValue></OutcomeInfo>
               <PlanOutcomeInfo>
                 Plan = <CheckIcon checked={session.plan_outcome === 1}>{session.plan_outcome === 1 ? '✓' : '✗'}</CheckIcon>
               </PlanOutcomeInfo>
