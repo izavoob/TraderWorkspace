@@ -1445,3 +1445,23 @@ ipcMain.handle('deleteDemon', async (event, id) => {
   await ensureDatabaseInitialized();
   return demonsDB.deleteDemon(id);
 });
+
+ipcMain.handle('get-all-post-sessions', async () => {
+  return await routinesDB.getAllPostSessions();
+});
+
+ipcMain.handle('get-post-session-by-id', async (event, id) => {
+  return await routinesDB.getPostSessionById(id);
+});
+
+ipcMain.handle('update-post-session', async (event, postSession) => {
+  if (postSession.id) {
+    return await routinesDB.updatePostSession(postSession);
+  } else {
+    return await routinesDB.addPostSession(postSession);
+  }
+});
+
+ipcMain.handle('delete-post-session', async (event, id) => {
+  return await routinesDB.deletePostSession(id);
+});
