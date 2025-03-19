@@ -344,6 +344,28 @@ class RoutinesDB {
   // Пост-сесії
   async addPostSession(postSession) {
     return new Promise((resolve, reject) => {
+      console.log('Adding new post-session to database:', postSession);
+      
+      // Преобразуем объекты в JSON-строки
+      const processedSession = {
+        ...postSession,
+        timeframeAnalysis: typeof postSession.timeframeAnalysis === 'object' 
+          ? JSON.stringify(postSession.timeframeAnalysis) 
+          : postSession.timeframeAnalysis,
+        planAnalysis: typeof postSession.planAnalysis === 'object' 
+          ? JSON.stringify(postSession.planAnalysis) 
+          : postSession.planAnalysis,
+        performanceAnalysis: typeof postSession.performanceAnalysis === 'object' 
+          ? JSON.stringify(postSession.performanceAnalysis) 
+          : postSession.performanceAnalysis
+      };
+
+      // Генерируем ID, если он не предоставлен
+      if (!processedSession.id) {
+        processedSession.id = Date.now().toString(36) + Math.random().toString(36).substr(2);
+        console.log('Generated new ID for post-session:', processedSession.id);
+      }
+      
       const sql = `
         INSERT INTO postsessions (
           id, date, pair, narrative, execution, outcome,
@@ -352,25 +374,31 @@ class RoutinesDB {
         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
       `;
       
-      this.db.run(sql, [
-        postSession.id,
-        postSession.date,
-        postSession.pair,
-        postSession.narrative,
-        postSession.execution,
-        postSession.outcome,
-        postSession.routineExecution,
-        postSession.planOutcome,
-        postSession.videoUrl,
-        postSession.timeframeAnalysis,
-        postSession.planAnalysis,
-        postSession.performanceAnalysis
-      ], function(err) {
+      const params = [
+        processedSession.id,
+        processedSession.date,
+        processedSession.pair,
+        processedSession.narrative,
+        processedSession.execution,
+        processedSession.outcome,
+        processedSession.routineExecution ? 1 : 0,
+        processedSession.planOutcome ? 1 : 0,
+        processedSession.videoUrl,
+        processedSession.timeframeAnalysis,
+        processedSession.planAnalysis,
+        processedSession.performanceAnalysis
+      ];
+      
+      console.log('Executing SQL:', sql);
+      console.log('With parameters:', params);
+      
+      this.db.run(sql, params, function(err) {
         if (err) {
           console.error('Error adding post session:', err);
           reject(err);
         } else {
-          resolve(postSession.id);
+          console.log('Post-session saved successfully with ID:', processedSession.id);
+          resolve(processedSession.id);
         }
       });
     });
@@ -378,6 +406,22 @@ class RoutinesDB {
 
   async updatePostSession(postSession) {
     return new Promise((resolve, reject) => {
+      console.log('Updating post-session in database:', postSession);
+      
+      // Преобразуем объекты в JSON-строки
+      const processedSession = {
+        ...postSession,
+        timeframeAnalysis: typeof postSession.timeframeAnalysis === 'object' 
+          ? JSON.stringify(postSession.timeframeAnalysis) 
+          : postSession.timeframeAnalysis,
+        planAnalysis: typeof postSession.planAnalysis === 'object' 
+          ? JSON.stringify(postSession.planAnalysis) 
+          : postSession.planAnalysis,
+        performanceAnalysis: typeof postSession.performanceAnalysis === 'object' 
+          ? JSON.stringify(postSession.performanceAnalysis) 
+          : postSession.performanceAnalysis
+      };
+      
       const sql = `
         UPDATE postsessions SET
           date = ?,
@@ -395,26 +439,50 @@ class RoutinesDB {
         WHERE id = ?
       `;
       
-      this.db.run(sql, [
-        postSession.date,
-        postSession.pair,
-        postSession.narrative,
-        postSession.execution,
-        postSession.outcome,
-        postSession.routineExecution,
-        postSession.planOutcome,
-        postSession.videoUrl,
-        postSession.timeframeAnalysis,
-        postSession.planAnalysis,
-        postSession.performanceAnalysis,
-        postSession.id
-      ], function(err) {
+      const params = [
+        processedSession.date,
+        processedSession.pair,
+        processedSession.narrative,
+        processedSession.execution,
+        processedSession.outcome,
+        processedSession.routineExecution ? 1 : 0,
+        processedSession.planOutcome ? 1 : 0,
+        processedSession.videoUrl,
+        processedSession.timeframeAnalysis,
+        processedSession.planAnalysis,
+        processedSession.performanceAnalysis,
+        processedSession.id
+      ];
+      
+      console.log('Executing SQL:', sql);
+      console.log('With parameters:', params);
+      
+      // Сначала проверяем, существует ли запись
+      this.db.get('SELECT id FROM postsessions WHERE id = ?', [processedSession.id], (err, row) => {
         if (err) {
-          console.error('Error updating post session:', err);
+          console.error('Error checking post-session existence:', err);
           reject(err);
-        } else {
-          resolve(true);
+          return;
         }
+
+        if (!row) {
+          console.log('Post-session not found, creating new record instead');
+          this.addPostSession(postSession)
+            .then(resolve)
+            .catch(reject);
+          return;
+        }
+
+        // Запись существует, обновляем её
+        this.db.run(sql, params, (err) => {
+          if (err) {
+            console.error('Error updating post-session:', err);
+            reject(err);
+          } else {
+            console.log('Post-session updated successfully');
+            resolve(true);
+          }
+        });
       });
     });
   }

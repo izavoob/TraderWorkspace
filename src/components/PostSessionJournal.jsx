@@ -658,16 +658,19 @@ function PostSessionJournal() {
   const loadData = async () => {
       setIsLoading(true);
       try {
-          const currentDate = new Date().toISOString().split('T')[0];
-          const routine = await window.electronAPI.getDailyRoutine(currentDate);
+          // Вместо запроса "рутины" текущего дня, запрашиваем все постсессии
+          const postSessions = await window.electronAPI.getAllPostSessions();
           
-          if (routine && routine.postSession) {
-              const processedData = Array.isArray(routine.postSession) 
-              ? routine.postSession.map(entry => ({
+          if (postSessions && Array.isArray(postSessions)) {
+              // Обрабатываем все постсессии
+              const processedData = postSessions.map(entry => ({
                   ...entry,
-                  id: String(entry.id || Date.now())
-              }))
-              : [];
+                  id: String(entry.id || Date.now()),
+                  dayNarrative: entry.narrative, // Сопоставление полей
+                  realization: entry.execution, // Сопоставление полей
+                  // Добавляем weekDay, если его нет
+                  weekDay: entry.weekDay || new Date(entry.date).toLocaleString('en-US', { weekday: 'long' })
+              }));
               
               setData(processedData);
           } else {
@@ -682,22 +685,25 @@ function PostSessionJournal() {
   };
 
   const handleAdd = () => {
+      const newId = Date.now().toString(36) + Math.random().toString(36).substr(2);
+      
       const newRecord = {
-          id: String(Date.now()),
-          date: new Date().toISOString().split('T')[0],
-          weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
-          pair: '',
-          dayNarrative: '',
-          realization: '',
-          routineExecution: '',
-          planOutcome: false
+        id: newId,
+        date: new Date().toISOString().split('T')[0],
+        weekDay: new Date().toLocaleString('en-US', { weekday: 'long' }),
+        pair: '',
+        dayNarrative: '',
+        realization: '',
+        routineExecution: false,
+        planOutcome: false
       };
 
-      setData(prevData => [newRecord, ...prevData]);
-      
-      window.electronAPI.saveDailyRoutine({
-          date: new Date().toISOString().split('T')[0],
-          postSession: [...data, newRecord]
+      // Перенаправляем на страницу создания с новым ID
+      navigate(`/daily-routine/post-session/${newId}`, { 
+        state: { 
+          sessionData: newRecord,
+          timestamp: Date.now()
+        } 
       });
   };
 
@@ -707,14 +713,8 @@ function PostSessionJournal() {
 
 const confirmDelete = async (id) => {
     try {
-        const updatedData = data.filter(entry => entry.id !== id);
-        setData(updatedData);
-        
-        await window.electronAPI.saveDailyRoutine({
-            date: new Date().toISOString().split('T')[0],
-            postSession: updatedData
-        });
-
+        await window.electronAPI.deletePostSession(id);
+        loadData();
         setDeletePopup(null);
     } catch (error) {
         console.error('Error deleting entry:', error);
@@ -741,13 +741,10 @@ const confirmDelete = async (id) => {
 
   const handleDeleteSelected = async () => {
       try {
-          const updatedData = data.filter(entry => !selectedEntries.includes(entry.id));
-          await window.electronAPI.saveDailyRoutine({
-              date: new Date().toISOString().split('T')[0],
-              postSession: updatedData
-          });
-
-          setData(updatedData);
+          for (const id of selectedEntries) {
+              await window.electronAPI.deletePostSession(id);
+          }
+          loadData();
           setSelectedEntries([]);
           setShowDeleteConfirmation(false);
       } catch (error) {
@@ -803,6 +800,29 @@ const confirmDelete = async (id) => {
       }
   };
 
+  const handleTableFieldChange = async (id, field, value) => {
+    try {
+      const entryToUpdate = data.find(entry => entry.id === id);
+      if (!entryToUpdate) return;
+      
+      const updatedEntry = { ...entryToUpdate };
+      
+      if (field === 'pair') updatedEntry.pair = value;
+      else if (field === 'dayNarrative') updatedEntry.narrative = value;
+      else if (field === 'realization') updatedEntry.execution = value;
+      else if (field === 'routineExecution') updatedEntry.routineExecution = value;
+      else if (field === 'planOutcome') updatedEntry.planOutcome = value;
+      
+      await window.electronAPI.updatePostSession(updatedEntry);
+      
+      setData(prevData => 
+        prevData.map(item => item.id === id ? { ...item, [field]: value } : item)
+      );
+    } catch (error) {
+      console.error('Error updating field:', error);
+    }
+  };
+
   const filteredEntries = React.useMemo(() => {
       return data.filter((entry) => {
           if (!entry) return false;
@@ -842,8 +862,10 @@ const confirmDelete = async (id) => {
           <ButtonsContainer>
               <Checkbox
               checked={selectedEntries.includes(row.original.id)}
-              onChange={() => handleSelectEntry(row.original.id)}
-              onClick={(e) => e.stopPropagation()}
+              onChange={(e) => {
+                  e.stopPropagation();
+                  handleSelectEntry(row.original.id);
+              }}
               />
               <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
                 <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
@@ -864,19 +886,7 @@ const confirmDelete = async (id) => {
         Cell: ({ row, value }) => (
           <EditableSelect
             value={value || ''}
-            onChange={(e) => {
-              const updatedData = data.map(item => {
-                if (item.id === row.original.id) {
-                  return { ...item, pair: e.target.value };
-                }
-                return item;
-              });
-              setData(updatedData);
-              window.electronAPI.saveDailyRoutine({
-                date: new Date().toISOString().split('T')[0],
-                postSession: updatedData,
-              });
-            }}
+            onChange={(e) => handleTableFieldChange(row.original.id, 'pair', e.target.value)}
           >
             <option value="">Select</option>
             {pairOptions.map(pair => (
@@ -894,19 +904,7 @@ const confirmDelete = async (id) => {
           Cell: ({ row, value }) => (
           <EditableSelect
               value={value || ''}
-              onChange={(e) => {
-              const updatedData = data.map(item => {
-                  if (item.id === row.original.id) {
-                  return { ...item, dayNarrative: e.target.value };
-                  }
-                  return item;
-              });
-              setData(updatedData);
-              window.electronAPI.saveDailyRoutine({
-                  date: new Date().toISOString().split('T')[0],
-                  postSession: updatedData,
-              });
-              }}
+              onChange={(e) => handleTableFieldChange(row.original.id, 'dayNarrative', e.target.value)}
           >
               <option value="">Select</option>
               <option value="Bullish">Bullish</option>
@@ -923,19 +921,7 @@ const confirmDelete = async (id) => {
           Cell: ({ row, value }) => (
           <EditableSelect
               value={value || ''}
-              onChange={(e) => {
-              const updatedData = data.map(item => {
-                  if (item.id === row.original.id) {
-                  return { ...item, realization: e.target.value };
-                  }
-                  return item;
-              });
-              setData(updatedData);
-              window.electronAPI.saveDailyRoutine({
-                  date: new Date().toISOString().split('T')[0],
-                  postSession: updatedData,
-              });
-              }}
+              onChange={(e) => handleTableFieldChange(row.original.id, 'realization', e.target.value)}
           >
               <option value="">Not Provided</option>
               <option value="Good">Good</option>
@@ -954,21 +940,7 @@ const confirmDelete = async (id) => {
               checked={row.original.routineExecution || false}
               disabled={false}
               onChange={(e) => {
-              const updatedData = data.map(item => {
-                  if (item.id === row.original.id) {
-                  return { 
-                      ...item, 
-                      routineExecution: e.target.checked
-                  };
-                  }
-                  return item;
-              });
-              
-              setData(updatedData);
-              window.electronAPI.saveDailyRoutine({
-                  date: new Date().toISOString().split('T')[0],
-                  postSession: updatedData,
-              });
+                  handleTableFieldChange(row.original.id, 'routineExecution', e.target.checked);
               }}
           />
           ),
@@ -984,21 +956,7 @@ const confirmDelete = async (id) => {
               checked={row.original.planOutcome || false}
               disabled={false}
               onChange={(e) => {
-                  const updatedData = data.map(item => {
-                  if (item.id === row.original.id) {
-                      return { 
-                      ...item, 
-                      planOutcome: e.target.checked
-                      };
-                  }
-                  return item;
-                  });
-                  
-                  setData(updatedData);
-                  window.electronAPI.saveDailyRoutine({
-                  date: new Date().toISOString().split('T')[0],
-                  postSession: updatedData,
-                  });
+                  handleTableFieldChange(row.original.id, 'planOutcome', e.target.checked);
               }}
               />
           );

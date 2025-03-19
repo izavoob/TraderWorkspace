@@ -835,20 +835,81 @@ function PostSessionFull() {
 
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
 
+  const [isSaved, setIsSaved] = useState(false);
+
   useEffect(() => {
     loadPairOptions();
-    if (sessionData) {
+    // Если есть id, но нет sessionData, загружаем данные по ID
+    if (id && !sessionData) {
+      const loadSessionById = async () => {
+        try {
+          const loadedSession = await window.electronAPI.getPostSessionById(id);
+          if (loadedSession) {
+            // Устанавливаем данные в состояния компонента
+            setFormData({
+              id: loadedSession.id,
+              date: loadedSession.date ? new Date(loadedSession.date) : new Date(),
+              pair: loadedSession.pair || '',
+              dayNarrative: loadedSession.narrative || '',
+              realization: loadedSession.execution || '',
+              outcome: loadedSession.outcome || '',
+              routineExecution: !!loadedSession.routineExecution,
+              planOutcome: !!loadedSession.planOutcome,
+              videoUrl: loadedSession.videoUrl || ''
+            });
+            
+            // Устанавливаем анализ таймфреймов
+            if (loadedSession.timeframeAnalysis) {
+              setTimeframeData(loadedSession.timeframeAnalysis);
+            }
+            
+            // Устанавливаем анализ плана
+            if (loadedSession.planAnalysis) {
+              setPlanAnalysis(loadedSession.planAnalysis);
+            }
+            
+            // Устанавливаем анализ производительности
+            if (loadedSession.performanceAnalysis) {
+              setPerformanceAnalysis(loadedSession.performanceAnalysis);
+            }
+          }
+        } catch (error) {
+          console.error('Error loading session by ID:', error);
+        }
+      };
+      
+      loadSessionById();
+    } 
+    // Если есть sessionData, инициализируем с её помощью
+    else if (sessionData) {
       setFormData({
-        ...sessionData,
-        date: sessionData.date ? new Date(sessionData.date) : new Date()
+        id: sessionData.id,
+        date: sessionData.date ? new Date(sessionData.date) : new Date(),
+        pair: sessionData.pair || '',
+        dayNarrative: sessionData.narrative || '',
+        realization: sessionData.execution || '',
+        outcome: sessionData.outcome || '',
+        routineExecution: !!sessionData.routineExecution,
+        planOutcome: !!sessionData.planOutcome,
+        videoUrl: sessionData.videoUrl || ''
       });
       
-      // Load timeframe data if exists
+      // Инициализация timeframeData
       if (sessionData.timeframeAnalysis) {
         setTimeframeData(sessionData.timeframeAnalysis);
       }
+      
+      // Инициализация planAnalysis
+      if (sessionData.planAnalysis) {
+        setPlanAnalysis(sessionData.planAnalysis);
+      }
+      
+      // Инициализация performanceAnalysis
+      if (sessionData.performanceAnalysis) {
+        setPerformanceAnalysis(sessionData.performanceAnalysis);
+      }
     }
-  }, [sessionData]);
+  }, [id, sessionData]);
 
   useEffect(() => {
     if (formData.date) {
@@ -967,32 +1028,47 @@ function PostSessionFull() {
   };
 
   const handleSubmit = async (e) => {
-    e.preventDefault();
+    if (e) e.preventDefault();
+    
     try {
-      const postSessionData = {
-        id: id || Date.now().toString(36) + Math.random().toString(36).substr(2),
-        date: currentDate,
+      // Проверка наличия необходимых данных
+      if (!formData.date) {
+        console.error('Date is required');
+        return;
+      }
+      
+      // Подготовка данных для сохранения из всех состояний компонента
+      const sessionToSave = {
+        id: formData.id,
+        date: formData.date instanceof Date ? formData.date.toISOString().split('T')[0] : formData.date,
         pair: formData.pair,
         narrative: formData.dayNarrative,
         execution: formData.realization,
-        outcome: formData.planOutcome ? 1 : 0,
-        routineExecution: formData.routineExecution ? 1 : 0,
-        planOutcome: formData.planOutcome ? 1 : 0,
-        videoUrl: formData.videoUrl,
-        timeframeAnalysis: JSON.stringify(timeframeData),
-        planAnalysis: JSON.stringify(planAnalysis),
-        performanceAnalysis: JSON.stringify(performanceAnalysis)
+        outcome: formData.outcome || 0,
+        routineExecution: !!formData.routineExecution,
+        planOutcome: !!formData.planOutcome,
+        videoUrl: formData.videoUrl || '',
+        timeframeAnalysis: timeframeData,
+        planAnalysis: planAnalysis,
+        performanceAnalysis: performanceAnalysis
       };
-
-      if (id) {
-        await window.electronAPI.updatePostSession(postSessionData);
-      } else {
-        await window.electronAPI.addPostSession(postSessionData);
+      
+      console.log('Saving post session data:', sessionToSave);
+      
+      // Здесь используем updatePostSession вместо saveDailyRoutine
+      const result = await window.electronAPI.updatePostSession(sessionToSave);
+      
+      console.log('Save result:', result);
+      
+      if (result) {
+        setIsSaved(true);
+        // Редирект после успешного сохранения
+        setTimeout(() => {
+          navigate('/daily-routine/post-session');
+        }, 500);
       }
-
-      navigate('/daily-routine/post-session');
     } catch (error) {
-      console.error('Error saving post session:', error);
+      console.error('Error saving data:', error);
     }
   };
 

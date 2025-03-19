@@ -76,5 +76,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getDemonById: (id) => ipcRenderer.invoke('getDemonById', id),
   addDemon: (demon) => ipcRenderer.invoke('addDemon', demon),
   updateDemon: (id, demon) => ipcRenderer.invoke('updateDemon', id, demon),
-  deleteDemon: (id) => ipcRenderer.invoke('deleteDemon', id)
+  deleteDemon: (id) => ipcRenderer.invoke('deleteDemon', id),
+  
+  // Методы для работы с постсессиями напрямую
+  getAllPostSessions: () => ipcRenderer.invoke('get-all-post-sessions'),
+  getPostSessionById: (id) => ipcRenderer.invoke('get-post-session-by-id', id),
+  updatePostSession: (postSession) => ipcRenderer.invoke('update-post-session', postSession),
+  deletePostSession: (id) => ipcRenderer.invoke('delete-post-session', id)
 });
