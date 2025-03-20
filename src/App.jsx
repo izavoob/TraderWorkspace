@@ -93,7 +93,6 @@ const AppContainer = styled.div`
   background-color: #1a1a1a;
   color: #fff;
   margin: 0;
-  padding: 20px;
   min-height: 100vh;
   box-sizing: border-box;
   width: 100%;
@@ -106,6 +105,7 @@ const AppContainer = styled.div`
 
 const NavigationButtons = styled.div`
   position: absolute;
+  opacity: 0;
   top: 10px;
   left: 10px;
   display: flex;
@@ -155,6 +155,7 @@ const NavButton = styled.button`
 
 const PageTitle = styled.h2`
   color: #5e2ca5;
+  opacity: 0;
   margin-bottom: 30px;
   font-size: 24px;
   text-transform: uppercase;
@@ -251,22 +252,7 @@ function App() {
         <LoadingScreen />
       ) : (
         <AppContainer isLoading={isLoading} isHome={isHome}>
-          {!isHome && (
-            <PageTitle>{getSectionTitle(location.pathname)}</PageTitle>
-          )}
 
-          <NavigationButtons className={isHome ? 'hidden' : ''}>
-            <NavButton 
-              onClick={handleBack} 
-              className="back" 
-              aria-label="Back"
-            />
-            <NavButton 
-              onClick={handleForward} 
-              className="forward" 
-              aria-label="Forward"
-            />
-          </NavigationButtons>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/trade-journal" element={<TradeJournal />} />

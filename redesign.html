@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trade Journal - Redesign Aligned with TradeJournal.jsx</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      width: 100%;
+      background-color: #1a1a1a;
+      font-family: 'Roboto', sans-serif;
+      color: #fff;
+      overflow: visible;
+    }
+
+    /* Глобальні стилі скролбара з TradeJournal.jsx */
+    ::-webkit-scrollbar {
+      width: 4px;
+    }
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #7425C9;
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #5e2ca5;
+    }
+
+    /* TradeJournalContainer */
+    .TradeJournalContainer {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      width: 100%;
+      box-sizing: border-box;
+    }
+
+    /* Header */
+    .Header {
+      background: linear-gradient(45deg, #7425c9, #b886ee, #7425c9);
+      background-size: 200% 200%;
+      animation: gradientAnimation 5s ease infinite;
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      position: relative;
+      box-sizing: border-box;
+    }
+    .Title {
+      margin: 0;
+      font-size: 2em;
+      color: #fff;
+      text-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+    }
+    .Subtitle {
+      color: #ff8c00;
+      font-size: 1.1em;
+      margin-top: 5px;
+    }
+    .BackButton {
+      background: conic-gradient(from 45deg, #7425C9, #B886EE);
+      border: none;
+      padding: 0;
+      width: 100px;
+      height: 100%;
+      border-radius: 0;
+      cursor: pointer;
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      transition: all 0.3s ease;
+    }
+    .BackButton:hover {
+      opacity: 1;
+      transform: scale(1.1);
+    }
+    .BackButton:active {
+      transform: scale(0.98);
+    }
+    .BackButton:before {
+      content: 'Back';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 1.2em;
+      color: rgba(255, 255, 255, 0);
+      transition: color 0.3s ease;
+    }
+    .BackButton:hover:before {
+      color: #fff;
+    }
+
+    /* TradeCalendar */
+    .TradeCalendar {
+      display: flex;
+      gap: 5px;
+      margin-bottom: 30px;
+      width: 100%;
+    }
+    .CalendarDay {
+      flex: 1;
+      background-color: #252525;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+      height: 130px;
+      position: relative;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+      opacity: 0.6;
+      transition: opacity 0.3s ease;
+      box-sizing: border-box;
+    }
+    .CalendarDay.trade-win,
+    .CalendarDay.trade-loss,
+    .CalendarDay.trade-breakeven,
+    .CalendarDay.trade-missed {
+      opacity: 1;
+    }
+    .CalendarDay.today {
+      border: 2px solid transparent;
+      background: linear-gradient(#252525, #252525) padding-box,
+                  linear-gradient(45deg, #7425c9, #b886ee) border-box;
+    }
+    .CalendarDay.trade-win::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0, 230, 118, 0.2), transparent);
+      border-radius: 8px;
+    }
+    .CalendarDay.trade-loss::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 82, 82, 0.2), transparent);
+      border-radius: 8px;
+    }
+    .CalendarDay.trade-breakeven::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 147, 0, 0.2), transparent);
+      border-radius: 8px;
+    }
+    .CalendarDay.trade-missed::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(147, 112, 219, 0.2), transparent);
+      border-radius: 8px;
+    }
+    .CalendarDay .header {
+      font-size: 14px;
+      font-weight: bold;
+      color: #b886ee;
+      margin-bottom: 8px;
+    }
+    .CalendarDay .metrics {
+      font-size: 12px;
+      position: relative;
+      z-index: 1;
+      color: #e0e0e0;
+    }
+    .CalendarDay .profit { color: #00e676; font-weight: bold; }
+    .CalendarDay .loss { color: #ff5252; font-weight: bold; }
+    .CalendarDay .breakeven { color: #ff9300; font-weight: bold; }
+    .CalendarDay .missed { color: #9370db; font-weight: bold; }
+
+    /* JournalHeader */
+    .JournalHeader {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .ButtonGroup {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+    .ActionButton {
+      background-color: #5e2ca5;
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 1.1em;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      transition: all 0.3s ease;
+      position: relative;
+      isolation: isolate;
+    }
+    .ActionButton::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      background-size: 200% 100%;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .ActionButton:hover {
+      background-color: #4a1a8d;
+      transform: scale(1.05);
+    }
+    .ActionButton:hover::before {
+      opacity: 1;
+      animation: shineEffect 1.5s linear infinite;
+    }
+    .ActionButton:active {
+      transform: scale(0.95);
+    }
+
+    /* SelectAllContainer */
+    .SelectAllContainer {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      width: 100%;
+    }
+    .Checkbox {
+      width: 16px;
+      height: 16px;
+      border: 2px solid #b886ee;
+      border-radius: 4px;
+      background: transparent;
+      cursor: pointer;
+    }
+    .AddSubtradeButton {
+      background: #5C9DF5;
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 1.1em;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      transition: all 0.3s ease;
+      position: relative;
+      isolation: isolate;
+    }
+    .AddSubtradeButton::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      background-size: 200% 100%;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .AddSubtradeButton:hover {
+      background-color: #4a8de0;
+      transform: scale(1.05);
+    }
+    .AddSubtradeButton:hover::before {
+      opacity: 1;
+      animation: shineEffect 1.5s linear infinite;
+    }
+    .DeleteSelectedButton {
+      background: #ff4757;
+      color: #fff;
+      border: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 1.1em;
+      display: flex;
+      align-items: center;
+      justify-content: flex-start;
+      transition: all 0.3s ease;
+      position: relative;
+      isolation: isolate;
+    }
+    .DeleteSelectedButton::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(
+        90deg,
+        transparent,
+        rgba(255, 255, 255, 0.2),
+        transparent
+      );
+      background-size: 200% 100%;
+      border-radius: 8px;
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+    .DeleteSelectedButton:hover {
+      background-color: #e63946;
+      transform: scale(1.05);
+    }
+    .DeleteSelectedButton:hover::before {
+      opacity: 1;
+      animation: shineEffect 1.5s linear infinite;
+    }
+
+    /* TradeTable */
+    .TradeTable {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: #1e1e1e;
+      color: #e0e0e0;
+      font-size: 14px;
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      box-sizing: border-box;
+    }
+    .TradeTable thead {
+      background: linear-gradient(45deg, #7425c9, #b886ee, #7425c9);
+      background-size: 200% 200%;
+      animation: gradientAnimation 5s ease infinite;
+    }
+    .TradeTable th,
+    .TradeTable td {
+      padding: 12px 16px;
+      text-align: left;
+      border-bottom: 1px solid #2f2f2f;
+    }
+    .TradeTable th {
+      color: #fff;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .TradeTable tr {
+      transition: background-color 0.3s ease, transform 0.2s ease;
+    }
+    .TradeTable tr:hover {
+      background-color: rgba(116, 37, 201, 0.2);
+      transform: scale(1.01);
+    }
+    .TradeTable tr:nth-child(even) {
+      background-color: #252525;
+    }
+    .TradeTable .profit { color: #00d1b2; font-weight: bold; }
+    .TradeTable .loss { color: #ff4560; font-weight: bold; }
+    .TradeTable .result-win { color: #00e676; font-weight: bold; }
+    .TradeTable .result-loss { color: #ff5252; font-weight: bold; }
+    .TradeTable .result-breakeven { color: #ff9300; font-weight: bold; }
+    .TradeTable .result-missed { color: #9370db; font-weight: bold; }
+
+    /* IconButton для колонки Action */
+    .IconButton {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .IconButton:hover {
+      opacity: 0.8;
+    }
+    .IconButton img {
+      width: 20px;
+      height: 20px;
+    }
+
+    @keyframes gradientAnimation {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes shineEffect {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+  </style>
+</head>
+<body>
+  <div class="TradeJournalContainer">
+    <!-- Header -->
+    <header class="Header">
+      <button class="BackButton"></button>
+      <div>
+        <h1 class="Title">Trading Journal</h1>
+        <p class="Subtitle">Let's analyze your trades!</p>
+      </div>
+      <div></div> <!-- Порожній div для вирівнювання -->
+    </header>
+
+    <!-- TradeCalendar -->
+    <div class="TradeCalendar">
+      <div class="CalendarDay">
+        <div class="header">Mon, Mar 17</div>
+      </div>
+      <div class="CalendarDay trade-win">
+        <div class="header">Tue, Mar 18</div>
+        <div class="metrics">USD/JPY<br><span class="profit">+75</span></div>
+      </div>
+      <div class="CalendarDay">
+        <div class="header">Wed, Mar 19</div>
+      </div>
+      <div class="CalendarDay trade-loss today">
+        <div class="header">Thu, Mar 20</div>
+        <div class="metrics">GBP/USD<br><span class="loss">-20</span></div>
+      </div>
+      <div class="CalendarDay trade-breakeven">
+        <div class="header">Fri, Mar 21</div>
+        <div class="metrics">EUR/USD<br><span class="breakeven">0</span></div>
+      </div>
+      <div class="CalendarDay trade-missed">
+        <div class="header">Sat, Mar 22</div>
+        <div class="metrics">AUD/USD<br><span class="missed">0</span></div>
+      </div>
+      <div class="CalendarDay">
+        <div class="header">Sun, Mar 23</div>
+      </div>
+    </div>
+
+    <!-- JournalHeader -->
+    <div class="JournalHeader">
+      <div class="ButtonGroup">
+        <button class="ActionButton">Add new Trade</button>
+      </div>
+      <div class="ButtonGroup">
+        <button class="ActionButton">Range</button>
+        <button class="ActionButton">Filter</button>
+        <button class="ActionButton">Sort</button>
+      </div>
+    </div>
+
+    <!-- SelectAllContainer -->
+    <div class="SelectAllContainer">
+      <div>
+        <input type="checkbox" class="Checkbox">
+        <span>Select All Trades</span>
+      </div>
+      <div class="ButtonGroup">
+        <!-- Кнопки AddSubtradeButton і DeleteSelectedButton видимі лише коли є вибрані трейди -->
+        <!-- У React це контролюється умовою selectedTrades.length > 0 -->
+        <button class="AddSubtradeButton">Add Subtrade</button>
+        <button class="DeleteSelectedButton">Delete Selected (0)</button>
+      </div>
+    </div>
+
+    <!-- TradeTable -->
+    <table class="TradeTable">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Pair</th>
+          <th>Session</th>
+          <th>Direction</th>
+          <th>Profit/Loss</th>
+          <th>Profit %</th>
+          <th>Profit $</th>
+          <th>Result</th>
+          <th>Action</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>2025-03-18</td>
+          <td>USD/JPY</td>
+          <td>London</td>
+          <td>Long</td>
+          <td class="profit">+75</td>
+          <td class="profit">+2.5%</td>
+          <td class="profit">$75.00</td>
+          <td class="result-win">Win</td>
+          <td>
+            <button class="IconButton"><img src="edit-icon.svg" alt="Edit"></button>
+            <button class="IconButton"><img src="delete-icon.svg" alt="Delete"></button>
+          </td>
+        </tr>
+        <tr>
+          <td>2025-03-20</td>
+          <td>GBP/USD</td>
+          <td>New York</td>
+          <td>Short</td>
+          <td class="loss">-20</td>
+          <td class="loss">-1.0%</td>
+          <td class="loss">-$20.00</td>
+          <td class="result-loss">Loss</td>
+          <td>
+            <button class="IconButton"><img src="edit-icon.svg" alt="Edit"></button>
+            <button class="IconButton"><img src="delete-icon.svg" alt="Delete"></button>
+          </td>
+        </tr>
+        <tr>
+          <td>2025-03-21</td>
+          <td>EUR/USD</td>
+          <td>Asia</td>
+          <td>Long</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0.00</td>
+          <td class="result-breakeven">Breakeven</td>
+          <td>
+            <button class="IconButton"><img src="edit-icon.svg" alt="Edit"></button>
+            <button class="IconButton"><img src="delete-icon.svg" alt="Delete"></button>
+          </td>
+        </tr>
+        <tr>
+          <td>2025-03-22</td>
+          <td>AUD/USD</td>
+          <td>Asia</td>
+          <td>Short</td>
+          <td>0</td>
+          <td>0%</td>
+          <td>$0.00</td>
+          <td class="result-missed">Missed</td>
+          <td>
+            <button class="IconButton"><img src="edit-icon.svg" alt="Edit"></button>
+            <button class="IconButton"><img src="delete-icon.svg" alt="Delete"></button>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</body>
+</html>

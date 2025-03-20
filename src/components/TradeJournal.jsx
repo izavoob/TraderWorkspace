@@ -97,9 +97,9 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
@@ -174,6 +174,7 @@ const JournalContent = styled.div`
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
+  
 `;
 
 const JournalHeader = styled.div`
@@ -400,7 +401,7 @@ const TableContainer = styled.div`
   }
   
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 3px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -654,6 +655,99 @@ const ConfirmationPopup = styled(Popup)`
     color: #ff4757;
     font-weight: bold;
   }
+`;
+
+const TradeCalendarContainer = styled.div`
+  display: flex;
+  gap: 5px;
+  margin: 20px 0;
+  width: 100%;
+`;
+
+const CalendarDay = styled.div`
+  flex: 1;
+  background-color: #252525;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  height: 130px;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+  box-sizing: border-box;
+
+  ${props => props.hasData && `
+    opacity: 1;
+  `}
+
+  ${props => props.isToday && `
+    border: 2px solid transparent;
+    background: linear-gradient(#252525, #252525) padding-box,
+                linear-gradient(45deg, #7425c9, #b886ee) border-box;
+  `}
+
+  ${props => props.result === 'Win' && `
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(0, 230, 118, 0.2), transparent);
+      border-radius: 8px;
+    }
+  `}
+
+  ${props => props.result === 'Loss' && `
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 82, 82, 0.2), transparent);
+      border-radius: 8px;
+    }
+  `}
+
+  ${props => props.result === 'Breakeven' && `
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 147, 0, 0.2), transparent);
+      border-radius: 8px;
+    }
+  `}
+
+  ${props => props.result === 'Missed' && `
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(147, 112, 219, 0.2), transparent);
+      border-radius: 8px;
+    }
+  `}
+`;
+
+const CalendarDayHeader = styled.div`
+  font-size: 1.2em;
+  font-weight: bold;
+  color: #b886ee;
+  margin-bottom: 8px;
+`;
+
+const CalendarDayMetrics = styled.div`
+  font-size: 1em;
+  position: relative;
+  z-index: 1;
+  color: #e0e0e0;
+`;
+
+const MetricsValue = styled.span`
+  ${props => props.type === 'profit' && `color: #00e676;`}
+  ${props => props.type === 'loss' && `color: #ff5252;`}
+  ${props => props.type === 'breakeven' && `color: #ff9300;`}
+  ${props => props.type === 'missed' && `color: #9370db;`}
+  font-weight: bold;
 `;
 
 function TradeJournal() {
@@ -999,6 +1093,77 @@ function TradeJournal() {
     }
   };
 
+  const TradeCalendar = () => {
+    // Get current week dates
+    const getCurrentWeekDates = () => {
+      const curr = new Date();
+      const week = [];
+      
+      // Starting Monday
+      curr.setDate(curr.getDate() - curr.getDay() + 1);
+      
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+      
+      return week;
+    };
+  
+    const weekDates = getCurrentWeekDates();
+    const today = new Date();
+  
+    // Get trades for specific date
+    const getTradeForDate = (date) => {
+      return trades.find(trade => {
+        const tradeDate = new Date(trade.date);
+        return tradeDate.toDateString() === date.toDateString();
+      });
+    };
+  
+    const formatDate = (date) => {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+    };
+  
+    return (
+      <TradeCalendarContainer>
+        {weekDates.map((date, index) => {
+          const trade = getTradeForDate(date);
+          const isToday = date.toDateString() === today.toDateString();
+  
+          return (
+            <CalendarDay 
+              key={index}
+              hasData={!!trade}
+              isToday={isToday}
+              result={trade?.result}
+            >
+              <CalendarDayHeader>{formatDate(date)}</CalendarDayHeader>
+              {trade && (
+                <CalendarDayMetrics>
+                  {trade.pair}<br/>
+                  <MetricsValue 
+                    type={
+                      trade.result === 'Win' ? 'profit' :
+                      trade.result === 'Loss' ? 'loss' :
+                      trade.result === 'Breakeven' ? 'breakeven' : 'missed'
+                    }
+                  >
+                    {trade.result === 'Win' ? `+${trade.profitLoss}` :
+                     trade.result === 'Loss' ? `-${trade.profitLoss}` :
+                     '0'}
+                  </MetricsValue>
+                </CalendarDayMetrics>
+              )}
+            </CalendarDay>
+          );
+        })}
+      </TradeCalendarContainer>
+    );
+  };
+
   return (
     <>
       <GlobalStyle />
@@ -1010,6 +1175,7 @@ function TradeJournal() {
           <Subtitle>Let's analyze your trades!</Subtitle>
         </Header>
         <JournalContent>
+          <TradeCalendar />
           <JournalHeader>
             <ButtonGroup>
               <ActionButton primary onClick={handleAddTrade}>Add new Trade</ActionButton>
