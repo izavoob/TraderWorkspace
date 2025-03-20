@@ -1540,3 +1540,21 @@ ipcMain.handle('getLinkedPresession', async (event, tradeId) => {
     });
   });
 });
+
+ipcMain.handle('getLinkedTrades', async (event, presessionId) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    console.log('Getting linked trades for presession', presessionId);
+    
+    db.all('SELECT * FROM trades WHERE presession_id = ?', [presessionId], (err, trades) => {
+      if (err) {
+        console.error('Error getting linked trades:', err);
+        reject(err);
+        return;
+      }
+      
+      console.log(`Found ${trades.length} linked trades`);
+      resolve(trades);
+    });
+  });
+});

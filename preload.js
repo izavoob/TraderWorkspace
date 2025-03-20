@@ -27,6 +27,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   linkTradeToPresession: (tradeId, presessionId) => ipcRenderer.invoke('linkTradeToPresession', tradeId, presessionId),
   unlinkTradeFromPresession: (tradeId) => ipcRenderer.invoke('unlinkTradeFromPresession', tradeId),
   getLinkedPresession: (tradeId) => ipcRenderer.invoke('getLinkedPresession', tradeId),
+  getLinkedTrades: (presessionId) => ipcRenderer.invoke('getLinkedTrades', presessionId),
   
   // Account management methods
   getAllAccounts: () => ipcRenderer.invoke('getAllAccounts'),

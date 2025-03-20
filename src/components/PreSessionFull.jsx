@@ -1,5 +1,5 @@
 // PreSessionFull.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useLocation, useParams, useNavigate } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import DatePicker from 'react-datepicker';
@@ -8,6 +8,7 @@ import NotesList from './Notes/NotesList.jsx';
 import NoteModal from './Notes/NoteModal.jsx';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import EditIcon from '../assets/icons/edit-icon.svg';
+import TradeLinkComponent from './PreSession/TradeLinkComponent.jsx';
 
 // Перехоплюємо оригінальний JSON.parse
 const originalJSONParse = JSON.parse;
@@ -1081,6 +1082,12 @@ function PreSessionFull() {
   const [currencyPairs, setCurrencyPairs] = useState([]);
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
+  const [saveTimeout, setSaveTimeout] = useState(null);
+  
+  // Створюємо унікальний id для нової пресесії
+  const generateId = () => {
+    return Date.now().toString(36) + Math.random().toString(36).substr(2);
+  };
   
   // Безпечний парсинг JSON
   const safeParse = (jsonString, defaultValue) => {
@@ -1096,7 +1103,7 @@ function PreSessionFull() {
   
   // Стан для даних пресесії
   const [sessionData, setSessionData] = useState({
-    id: id || crypto.randomUUID(),
+    id: id || generateId(), // Використовуємо існуючий id або генеруємо новий
     date: new Date().toISOString().split('T')[0],
     pair: '',
     narrative: '',
@@ -1232,6 +1239,9 @@ function PreSessionFull() {
             outcome: presession.outcome || '',
             plan_outcome: presession.plan_outcome === 1
           });
+        } else {
+          // Якщо це нова пресесія, зберігаємо її одразу
+          await window.electronAPI.savePresession(sessionData);
         }
 
         // Завантажуємо валютні пари з execution.db
@@ -1246,7 +1256,7 @@ function PreSessionFull() {
     };
 
     loadData();
-  }, [id, navigate]);
+  }, [id, navigate, sessionData.id]);
 
   const handleForexFactoryNewsChange = (index, field, value) => {
     const updatedForexFactoryNews = [...sessionData.forex_factory_news];
@@ -1271,7 +1281,7 @@ function PreSessionFull() {
     }
   };
 
-  // Функція для обробки зміни полів вводу
+  // Функція для обробки зміни полів вводу з дебаунсом
   const handleInputChange = (e) => {
     const { name, value, type, checked } = e.target;
     const newValue = type === 'checkbox' ? checked : value;
@@ -1293,6 +1303,56 @@ function PreSessionFull() {
     }
     
     setSessionData(newSessionData);
+    
+    // Автоматично зберігаємо пресесію при зміні execution з дебаунсом
+    if (name === 'execution') {
+      // Очищаємо попередній таймаут
+      if (saveTimeout) clearTimeout(saveTimeout);
+      
+      // Встановлюємо новий таймаут
+      const timeoutId = setTimeout(() => {
+        savePresession(newSessionData);
+      }, 500); // 500 мс дебаунс
+      
+      setSaveTimeout(timeoutId);
+    }
+  };
+
+  // Функція для збереження пресесії
+  const savePresession = async (data) => {
+    try {
+      // Об'єднуємо дані сесії з даними аналізу таймфреймів
+      const dataToSave = {
+        ...data,
+        topDownAnalysis: data.topDownAnalysis
+      };
+      
+      console.log('Saving presession data:', dataToSave);
+      
+      // Зберігаємо або оновлюємо пресесію
+      let savedId;
+      if (id) {
+        await window.electronAPI.updatePresession(dataToSave);
+        savedId = id;
+      } else {
+        const result = await window.electronAPI.savePresession(dataToSave);
+        savedId = result.id || result || dataToSave.id;
+        console.log('New presession saved with ID:', savedId);
+      }
+
+      // Оновлюємо нотатки з датою пресесії
+      try {
+        await window.electronAPI.updateNotesWithPresessionData(savedId);
+        console.log('Notes updated with presession data successfully');
+      } catch (noteError) {
+        console.error('Error updating notes with presession data:', noteError);
+      }
+      
+      return savedId;
+    } catch (error) {
+      console.error('Error saving presession:', error);
+      throw error;
+    }
   };
 
   // Функція для обробки чекбоксів у розділі Mindset Preparation
@@ -1541,37 +1601,17 @@ function PreSessionFull() {
     e.preventDefault();
     
     try {
-      // Объединяем данные сессии с данными анализа таймфреймов
-      const dataToSave = {
-        ...sessionData,
-        topDownAnalysis: analysisData.timeframes
-      };
+      setIsLoading(true);
       
-      console.log('Saving presession data:', dataToSave);
+      // Викликаємо функцію збереження
+      await savePresession(sessionData);
       
-      // Сохраняем или обновляем пресессию
-      let savedId;
-      if (id) {
-        await window.electronAPI.updatePresession(dataToSave);
-        savedId = id;
-      } else {
-        const result = await window.electronAPI.savePresession(dataToSave);
-        savedId = result.id || result;
-        console.log('New presession saved with ID:', savedId);
-      }
-
-      // Оновлюємо нотатки з датою пресесії
-      try {
-        await window.electronAPI.updateNotesWithPresessionData(savedId);
-        console.log('Notes updated with presession data successfully');
-      } catch (error) {
-        console.error('Error updating notes with presession data:', error);
-      }
-      
-      // Повертаємося на сторінку журналу
+      // Переходимо назад на сторінку журналу
       navigate('/daily-routine/pre-session');
     } catch (error) {
-      console.error('Error saving presession:', error);
+      console.error('Error saving pre-session:', error);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -1587,10 +1627,25 @@ function PreSessionFull() {
         }
       }
     }));
+
+    // Оновлюємо дані сесії
+    setSessionData(prev => ({
+      ...prev,
+      topDownAnalysis: {
+        weekly: analysisData.timeframes.weekly,
+        daily: analysisData.timeframes.daily,
+        h4: analysisData.timeframes.h4,
+        h1: analysisData.timeframes.h1,
+        [timeframe]: {
+          ...analysisData.timeframes[timeframe],
+          notes: value
+        }
+      }
+    }));
   };
 
   // Функція для обробки вставки зображення з буфера обміну
-  const handlePasteImage = (e, type, processId = null) => {
+  const handlePasteImage = async (e, timeframe) => {
     const items = e.clipboardData?.items;
     if (!items) return;
     
@@ -1602,36 +1657,28 @@ function PreSessionFull() {
         reader.onload = () => {
           const imageData = reader.result;
           
-          if (processId) {
-            // Для Chart Process
-            const processes = safeParse(sessionData.chart_processes, []);
-            const updatedProcesses = processes.map(process => 
-              process.id === processId ? { ...process, image: imageData } : process
-            );
-            
-            setSessionData(prev => ({
-              ...prev,
-              chart_processes: updatedProcesses
-            }));
-          } else if (type === 'news') {
-            // Для News Screenshots
-            setSessionData(prev => ({
-              ...prev,
-              forex_factory_news: [imageData]
-            }));
-          } else {
-            // Для таймфреймів
-            setAnalysisData(prev => ({
-              ...prev,
-              timeframes: {
-                ...prev.timeframes,
-                [type]: {
-                  ...prev.timeframes[type],
-                  charts: [...prev.timeframes[type].charts, imageData]
-                }
+          setAnalysisData(prev => ({
+            ...prev,
+            timeframes: {
+              ...prev.timeframes,
+              [timeframe]: {
+                ...prev.timeframes[timeframe],
+                charts: [imageData]
               }
-            }));
-          }
+            }
+          }));
+
+          // Оновлюємо дані сесії
+          setSessionData(prev => ({
+            ...prev,
+            topDownAnalysis: {
+              ...prev.topDownAnalysis,
+              [timeframe]: {
+                ...prev.topDownAnalysis[timeframe],
+                charts: [imageData]
+              }
+            }
+          }));
         };
         
         reader.readAsDataURL(blob);
@@ -1720,6 +1767,13 @@ function PreSessionFull() {
       }
     }));
   };
+
+  // Очищаємо таймаут при розмонтуванні компонента
+  useEffect(() => {
+    return () => {
+      if (saveTimeout) clearTimeout(saveTimeout);
+    };
+  }, [saveTimeout]);
 
   return (
     <>
@@ -1844,66 +1898,78 @@ function PreSessionFull() {
                 </FormGroup>
               </SectionBlock>
 
-              {/* PRE-SESSION Mindset Preparation */}
-              <SectionBlock>
-                <SectionTitle>PRE-SESSION Mindset Preparation</SectionTitle>
-                <FormGroup style={{ textAlign: 'left' }}>
-                  {sessionData.mindset_preparation.anythingCanHappen !== undefined && (
-                    <CheckboxLabel>
-                      <Checkbox
-                        type="checkbox"
-                        checked={sessionData.mindset_preparation.anythingCanHappen}
-                        onChange={() => handleMindsetChange('anythingCanHappen')}
-                      />
-                      Anything can happen in the markets
-                    </CheckboxLabel>
-                  )}
-                  
-                  {sessionData.mindset_preparation.futureKnowledge !== undefined && (
-                    <CheckboxLabel>
-                      <Checkbox
-                        type="checkbox"
-                        checked={sessionData.mindset_preparation.futureKnowledge}
-                        onChange={() => handleMindsetChange('futureKnowledge')}
-                      />
-                      You don't need to know what will happen next to make money
-                    </CheckboxLabel>
-                  )}
-                  
-                  {sessionData.mindset_preparation.randomDistribution !== undefined && (
-                    <CheckboxLabel>
-                      <Checkbox
-                        type="checkbox"
-                        checked={sessionData.mindset_preparation.randomDistribution}
-                        onChange={() => handleMindsetChange('randomDistribution')}
-                      />
-                      There is a random distribution between wins and losses for any given set of variables
-                    </CheckboxLabel>
-                  )}
-                  
-                  {sessionData.mindset_preparation.edgeDefinition !== undefined && (
-                    <CheckboxLabel>
-                      <Checkbox
-                        type="checkbox"
-                        checked={sessionData.mindset_preparation.edgeDefinition}
-                        onChange={() => handleMindsetChange('edgeDefinition')}
-                      />
-                      An edge is nothing more than an indication of a higher probability of one thing happening over another
-                    </CheckboxLabel>
-                  )}
-                  
-                  {sessionData.mindset_preparation.uniqueMoments !== undefined && (
-                    <CheckboxLabel>
-                      <Checkbox
-                        type="checkbox"
-                        checked={sessionData.mindset_preparation.uniqueMoments}
-                        onChange={() => handleMindsetChange('uniqueMoments')}
-                      />
-                      Every moment in the market is unique
-                    </CheckboxLabel>
-                  )}
-                </FormGroup>
-              </SectionBlock>
+              <div>
+                {/* PRE-SESSION Mindset Preparation */}
+                <SectionBlock>
+                  <SectionTitle>PRE-SESSION Mindset Preparation</SectionTitle>
+                  <FormGroup style={{ textAlign: 'left' }}>
+                    {sessionData.mindset_preparation.anythingCanHappen !== undefined && (
+                      <CheckboxLabel>
+                        <Checkbox
+                          type="checkbox"
+                          checked={sessionData.mindset_preparation.anythingCanHappen}
+                          onChange={() => handleMindsetChange('anythingCanHappen')}
+                        />
+                        Anything can happen in the markets
+                      </CheckboxLabel>
+                    )}
+                    
+                    {sessionData.mindset_preparation.futureKnowledge !== undefined && (
+                      <CheckboxLabel>
+                        <Checkbox
+                          type="checkbox"
+                          checked={sessionData.mindset_preparation.futureKnowledge}
+                          onChange={() => handleMindsetChange('futureKnowledge')}
+                        />
+                        You don't need to know what will happen next to make money
+                      </CheckboxLabel>
+                    )}
+                    
+                    {sessionData.mindset_preparation.randomDistribution !== undefined && (
+                      <CheckboxLabel>
+                        <Checkbox
+                          type="checkbox"
+                          checked={sessionData.mindset_preparation.randomDistribution}
+                          onChange={() => handleMindsetChange('randomDistribution')}
+                        />
+                        There is a random distribution between wins and losses for any given set of variables
+                      </CheckboxLabel>
+                    )}
+                    
+                    {sessionData.mindset_preparation.edgeDefinition !== undefined && (
+                      <CheckboxLabel>
+                        <Checkbox
+                          type="checkbox"
+                          checked={sessionData.mindset_preparation.edgeDefinition}
+                          onChange={() => handleMindsetChange('edgeDefinition')}
+                        />
+                        An edge is nothing more than an indication of a higher probability of one thing happening over another
+                      </CheckboxLabel>
+                    )}
+                    
+                    {sessionData.mindset_preparation.uniqueMoments !== undefined && (
+                      <CheckboxLabel>
+                        <Checkbox
+                          type="checkbox"
+                          checked={sessionData.mindset_preparation.uniqueMoments}
+                          onChange={() => handleMindsetChange('uniqueMoments')}
+                        />
+                        Every moment in the market is unique
+                      </CheckboxLabel>
+                    )}
+                  </FormGroup>
+                </SectionBlock>
+
+                {/* TradeLinkComponent */}
+                {['Win', 'Loss', 'BE', 'Missed'].includes(sessionData.execution) && (
+                  <SectionBlock style={{ marginTop: '20px' }}>
+                    <TradeLinkComponent 
+                      presessionId={sessionData.id} 
+                      execution={sessionData.execution}
+                    />
+                  </SectionBlock>
+                )}
+              </div>
             </TwoColumnSection>
 
             {/* Друга секція: The Zone та Video Analysis URL + Notes & Mistakes */}

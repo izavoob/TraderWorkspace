@@ -36,6 +36,7 @@ class RoutinesDB {
             the_zone TEXT,
             parentSessionId TEXT,
             comment TEXT,
+            linked_trades TEXT DEFAULT '[]',
             created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (parentSessionId) REFERENCES presessions(id)
@@ -55,6 +56,16 @@ class RoutinesDB {
       `, (err) => {
         if (err && !err.message.includes('duplicate column')) {
           console.error('Error adding comment column:', err);
+        }
+      });
+
+      // Додаємо колонку linked_trades, якщо вона ще не існує
+      this.db.run(`
+        ALTER TABLE presessions 
+        ADD COLUMN linked_trades TEXT DEFAULT '[]';
+      `, (err) => {
+        if (err && !err.message.includes('duplicate column')) {
+          console.error('Error adding linked_trades column:', err);
         }
       });
 
@@ -92,10 +103,19 @@ class RoutinesDB {
       console.log('Adding new pre-session to database:', this.dbPath);
       console.log('Pre-session data:', preSession);
 
-      // Stringify objects before saving
+      // Встановлюємо правильний початковий формат для topDownAnalysis
+      const defaultTopDownAnalysis = {
+        weekly: { charts: [], notes: '' },
+        daily: { charts: [], notes: '' },
+        h4: { charts: [], notes: '' },
+        h1: { charts: [], notes: '' }
+      };
+
       const processedSession = {
         ...preSession,
-        topDownAnalysis: typeof preSession.topDownAnalysis === 'object' ? JSON.stringify(preSession.topDownAnalysis) : preSession.topDownAnalysis,
+        topDownAnalysis: typeof preSession.topDownAnalysis === 'object' && Object.keys(preSession.topDownAnalysis).length > 0
+          ? JSON.stringify(preSession.topDownAnalysis)
+          : JSON.stringify(defaultTopDownAnalysis),
         plans: typeof preSession.plans === 'object' ? JSON.stringify({
           planA: {
             bias: preSession.plans.planA?.bias || '',
@@ -118,7 +138,8 @@ class RoutinesDB {
         chart_processes: typeof preSession.chart_processes === 'object' ? JSON.stringify(preSession.chart_processes) : preSession.chart_processes,
         mindset_preparation: typeof preSession.mindset_preparation === 'object' ? JSON.stringify(preSession.mindset_preparation) : preSession.mindset_preparation,
         the_zone: typeof preSession.the_zone === 'object' ? JSON.stringify(preSession.the_zone) : preSession.the_zone,
-        forex_factory_news: typeof preSession.forex_factory_news === 'object' ? JSON.stringify(preSession.forex_factory_news) : preSession.forex_factory_news
+        forex_factory_news: typeof preSession.forex_factory_news === 'object' ? JSON.stringify(preSession.forex_factory_news) : preSession.forex_factory_news,
+        linked_trades: Array.isArray(preSession.linked_trades) ? JSON.stringify(preSession.linked_trades) : '[]'
       };
 
       console.log('Processed session data:', processedSession);
@@ -133,8 +154,8 @@ class RoutinesDB {
       const sql = `INSERT INTO presessions (
         id, date, pair, narrative, execution, outcome, plan_outcome,
         forex_factory_news, topDownAnalysis, video_url, plans, chart_processes,
-        mindset_preparation, the_zone, parentSessionId, comment, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
+        mindset_preparation, the_zone, parentSessionId, comment, linked_trades, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)`;
       
       const params = [
         processedSession.id,
@@ -152,7 +173,8 @@ class RoutinesDB {
         processedSession.mindset_preparation,
         processedSession.the_zone,
         processedSession.parentSessionId || null,
-        processedSession.comment || null
+        processedSession.comment || null,
+        processedSession.linked_trades
       ];
 
       console.log('Executing SQL:', sql);
@@ -178,12 +200,18 @@ class RoutinesDB {
       // Stringify objects before saving
       const processedSession = {
         ...preSession,
-        topDownAnalysis: typeof preSession.topDownAnalysis === 'object' ? JSON.stringify(preSession.topDownAnalysis) : preSession.topDownAnalysis,
+        topDownAnalysis: typeof preSession.topDownAnalysis === 'object' ? JSON.stringify(preSession.topDownAnalysis) : JSON.stringify({
+          weekly: { charts: [], notes: '' },
+          daily: { charts: [], notes: '' },
+          h4: { charts: [], notes: '' },
+          h1: { charts: [], notes: '' }
+        }),
         plans: typeof preSession.plans === 'object' ? JSON.stringify(preSession.plans) : preSession.plans,
         chart_processes: typeof preSession.chart_processes === 'object' ? JSON.stringify(preSession.chart_processes) : preSession.chart_processes,
         mindset_preparation: typeof preSession.mindset_preparation === 'object' ? JSON.stringify(preSession.mindset_preparation) : preSession.mindset_preparation,
         the_zone: typeof preSession.the_zone === 'object' ? JSON.stringify(preSession.the_zone) : preSession.the_zone,
-        forex_factory_news: typeof preSession.forex_factory_news === 'object' ? JSON.stringify(preSession.forex_factory_news) : preSession.forex_factory_news
+        forex_factory_news: typeof preSession.forex_factory_news === 'object' ? JSON.stringify(preSession.forex_factory_news) : preSession.forex_factory_news,
+        linked_trades: typeof preSession.linked_trades === 'object' ? JSON.stringify(preSession.linked_trades) : '[]'
       };
 
       console.log('Processed session data:', processedSession);
@@ -205,6 +233,7 @@ class RoutinesDB {
         the_zone = ?,
         parentSessionId = ?,
         comment = ?,
+        linked_trades = ?,
         updated_at = CURRENT_TIMESTAMP 
       WHERE id = ?`;
       
@@ -224,6 +253,7 @@ class RoutinesDB {
         processedSession.the_zone,
         processedSession.parentSessionId || null,
         processedSession.comment || null,
+        processedSession.linked_trades,
         processedSession.id
       ];
 
