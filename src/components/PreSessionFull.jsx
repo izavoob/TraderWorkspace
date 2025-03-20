@@ -1083,6 +1083,7 @@ function PreSessionFull() {
   const [showVideoModal, setShowVideoModal] = useState(false);
   const [isDragActive, setIsDragActive] = useState(false);
   const [saveTimeout, setSaveTimeout] = useState(null);
+  const [error, setError] = useState(null);
   
   // Створюємо унікальний id для нової пресесії
   const generateId = () => {
@@ -1601,7 +1602,7 @@ function PreSessionFull() {
     e.preventDefault();
     try {
       // Отримуємо пов'язані трейди
-      const linkedTrades = await window.electronAPI.getLinkedTrades(presessionId);
+      const linkedTrades = await window.electronAPI.getLinkedTrades(sessionData.id);
       console.log('Linked trades before save:', linkedTrades);
       
       // Формуємо масив ID трейдів
@@ -1609,7 +1610,7 @@ function PreSessionFull() {
       
       // Оновлюємо дані пресесії з новим масивом linked_trades
       const updatedPresession = {
-        ...presession,
+        ...sessionData,
         linked_trades: tradeIds
       };
       
@@ -1619,9 +1620,12 @@ function PreSessionFull() {
       await window.electronAPI.updatePresession(updatedPresession);
       
       // Оновлюємо нотатки з даними пресесії
-      await window.electronAPI.updateNotesWithPresessionData(presessionId);
+      await window.electronAPI.updateNotesWithPresessionData(sessionData.id);
       
       console.log('Presession and notes updated successfully');
+
+      // Змінюємо навігацію на правильний шлях
+      navigate('/daily-routine/pre-session');
     } catch (error) {
       console.error('Error saving presession:', error);
       setError(error.message);
@@ -2412,4 +2416,4 @@ function PreSessionFull() {
   );
 }
 
-export default PreSessionFull; 
+export default PreSessionFull;

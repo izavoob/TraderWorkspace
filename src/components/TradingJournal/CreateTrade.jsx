@@ -1423,14 +1423,8 @@ function CreateTrade() {
   };
 
   const handleBack = () => {
-    // Перша спроба - використати window.history.back()
-    try {
-      window.history.back();
-    } catch (error) {
-      console.error("Помилка при спробі використати window.history.back():", error);
-      // Запасний варіант - використовуємо navigate(-1)
-      navigate(-1);
-    }
+    // Використовуємо history.back() замість navigate
+    window.history.back();
   };
 
   useEffect(() => {
@@ -1888,8 +1882,8 @@ function CreateTrade() {
         )}
 
         <ButtonGroup>
-          <ActionButton onClick={handleSubmit} disabled={isSubmitting}>Save Trade</ActionButton>
           <ActionButton onClick={handleBack}>Cancel</ActionButton>
+          <ActionButton onClick={handleSubmit} disabled={isSubmitting}>Save Trade</ActionButton>
         </ButtonGroup>
       </TradeContent>
     </CreateTradeContainer>

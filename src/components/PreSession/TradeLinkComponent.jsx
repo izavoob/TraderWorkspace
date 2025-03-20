@@ -424,6 +424,10 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
     try {
       console.log('Attempting to link trade', trade.id, 'to presession', presessionId);
       
+      if (selectedTrade) {
+        await window.electronAPI.unlinkTradeFromPresession(selectedTrade.id);
+      }
+      
       let presession = await window.electronAPI.getPresession(presessionId);
       
       if (!presession) {
@@ -453,40 +457,15 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
         };
         
         await window.electronAPI.savePresession(newPresession);
-        
         presession = await window.electronAPI.getPresession(presessionId);
         console.log('Created new presession:', presession);
       }
 
-      let currentLinkedTrades = [];
-      try {
-        currentLinkedTrades = Array.isArray(presession.linked_trades) 
-          ? presession.linked_trades 
-          : JSON.parse(presession.linked_trades || '[]');
-        console.log('Current linked trades:', currentLinkedTrades);
-      } catch (e) {
-        console.error('Error parsing linked_trades:', e);
-        currentLinkedTrades = [];
-      }
-
-      if (!currentLinkedTrades.includes(trade.id)) {
-        currentLinkedTrades.push(trade.id);
-        console.log('Added trade to linked_trades:', currentLinkedTrades);
-      }
-
-      const updatedPresession = {
-        ...presession,
-        linked_trades: currentLinkedTrades
-      };
-
-      console.log('Updating presession with trades:', updatedPresession);
-      await window.electronAPI.updatePresession(updatedPresession);
-      console.log('Presession updated successfully');
-      
-      console.log('Linking trade in trades table');
       await window.electronAPI.linkTradeToPresession(trade.id, presessionId);
+      console.log('Trade linked successfully');
       
       setIsModalOpen(false);
+      setSelectedTrade(null);
       console.log('Reloading linked trades');
       await loadLinkedTrades();
     } catch (error) {

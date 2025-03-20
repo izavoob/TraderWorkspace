@@ -195,7 +195,7 @@ const LinkedPresessionContainer = styled.div`
   flex-direction: row;
   align-items: center;
   gap: 12px;
-  cursor: pointer;
+  cursor: default;
   justify-content: center;
   position: relative;
   transition: all 0.3s ease;
@@ -490,16 +490,38 @@ const PreSessionLinkComponent = ({ tradeId, presessionId, selectedPresession: in
             <button onClick={() => setError(null)}>Dismiss</button>
           </ErrorMessage>
         ) : selectedPresession ? (
-          <LinkedPresessionContainer onClick={handlePresessionClick}>
+          <LinkedPresessionContainer>
             <ButtonsContainer>
-              <ActionButton onClick={handleOpenDropdown} />
-              <ActionButton isRemove onClick={handleRemoveLink} />
+              <ActionButton 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleOpenDropdown();
+                }} 
+              />
+              <ActionButton 
+                isRemove 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleRemoveLink();
+                }} 
+              />
             </ButtonsContainer>
-            <PresessionIcon />
-            <LinkedDetails>
-              {formatDate(selectedPresession.date)}
-              {selectedPresession.pair && ` - ${selectedPresession.pair}`}
-            </LinkedDetails>
+            <div 
+              onClick={handlePresessionClick}
+              style={{ 
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '12px',
+                flex: 1
+              }}
+            >
+              <PresessionIcon />
+              <LinkedDetails>
+                {formatDate(selectedPresession.date)}
+                {selectedPresession.pair && ` - ${selectedPresession.pair}`}
+              </LinkedDetails>
+            </div>
           </LinkedPresessionContainer>
         ) : (
           <AddPresessionButton onClick={handleOpenDropdown}>
