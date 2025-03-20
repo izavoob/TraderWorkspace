@@ -317,14 +317,17 @@ const ErrorMessage = styled.div`
   font-size: 14px;
 `;
 
-const PreSessionLinkComponent = ({ tradeId, onPresessionChange }) => {
+const PreSessionLinkComponent = ({ tradeId, presessionId, selectedPresession: initialSelectedPresession, onPresessionChange }) => {
   const [presessions, setPresessions] = useState([]);
-  const [selectedPresession, setSelectedPresession] = useState(null);
+  const [trades, setTrades] = useState([]);
+  const [linkedTrades, setLinkedTrades] = useState([]);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedPresession, setSelectedPresession] = useState(initialSelectedPresession);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
-  const [searchTerm, setSearchTerm] = useState('');
   const dropdownRef = useRef(null);
+  const modalRef = useRef(null);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -344,6 +347,32 @@ const PreSessionLinkComponent = ({ tradeId, onPresessionChange }) => {
       document.body.style.overflow = 'auto';
     };
   }, [isModalOpen]);
+
+  // Додаємо ефект для оновлення selectedPresession при зміні пропса
+  useEffect(() => {
+    if (initialSelectedPresession) {
+      setSelectedPresession(initialSelectedPresession);
+    }
+  }, [initialSelectedPresession]);
+
+  // Додаємо ефект для завантаження пресесії, якщо є presessionId, але немає selectedPresession
+  useEffect(() => {
+    const loadPresession = async () => {
+      if (presessionId && !selectedPresession) {
+        try {
+          const presession = await window.electronAPI.getPresession(presessionId);
+          if (presession) {
+            setSelectedPresession(presession);
+            onPresessionChange && onPresessionChange(presession);
+          }
+        } catch (error) {
+          console.error('Error loading presession:', error);
+          setError('Failed to load presession');
+        }
+      }
+    };
+    loadPresession();
+  }, [presessionId, selectedPresession, onPresessionChange]);
 
   const handleSelectPresession = async (presession) => {
     try {
@@ -456,7 +485,10 @@ const PreSessionLinkComponent = ({ tradeId, onPresessionChange }) => {
         {loading ? (
           <LoadingSpinner />
         ) : error ? (
-          <ErrorMessage>{error}</ErrorMessage>
+          <ErrorMessage>
+            {error}
+            <button onClick={() => setError(null)}>Dismiss</button>
+          </ErrorMessage>
         ) : selectedPresession ? (
           <LinkedPresessionContainer onClick={handlePresessionClick}>
             <ButtonsContainer>

@@ -25,14 +25,26 @@ const fadeIn = keyframes`
   }
 `;
 
+const slideUp = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const TradeLinkContainer = styled.div`
   display: flex;
   flex-direction: column;
   gap: 10px;
   width: 100%;
   position: relative;
+  padding-bottom: ${props => props.hasLinkedTrades ? '45px' : '0'};
   
-  &:hover ${AddTradeButton}[transparent] {
+  &:hover .hidden-add-button {
     opacity: 1;
     transform: translateY(0);
   }
@@ -54,14 +66,19 @@ const AddTradeButton = styled.button`
   justify-content: center;
   transition: all 0.3s ease;
   animation: ${buttonHoverAnimation} 1s ease infinite;
-  opacity: ${props => props.transparent ? 0 : 1};
-  transform: ${props => props.transparent ? 'translateY(-100%)' : 'translateY(0)'};
-  position: ${props => props.transparent ? 'absolute' : 'relative'};
-  bottom: ${props => props.transparent ? '-10px' : 'auto'};
+
+  &.hidden-add-button {
+    position: absolute;
+    bottom: -15px;
+    left: 0;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: opacity 0.3s ease, transform 0.3s ease;
+  }
 
   &:hover {
     background: rgba(255, 140, 0, 0.2);
-    transform: ${props => props.transparent ? 'translateY(0) scale(1.05)' : 'scale(1.05)'};
+    transform: scale(1.05);
   }
 `;
 
@@ -245,7 +262,7 @@ const ActionButton = styled.button`
   cursor: pointer;
   opacity: 0;
   transition: all 0.3s ease;
-  z-index: 1;
+  z-index: 10;
 
   &:hover {
     background: ${props => props.isRemove ? 'rgba(244, 67, 54, 0.8)' : 'rgba(94, 44, 165, 0.8)'};
@@ -275,6 +292,31 @@ const AddNewTradeButton = styled(TradeItem)`
   }
 `;
 
+const ErrorMessage = styled.div`
+  background-color: rgba(255, 0, 0, 0.1);
+  border: 1px solid #ff4444;
+  color: #ff4444;
+  padding: 10px;
+  margin: 10px 0;
+  border-radius: 4px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+
+  button {
+    background: none;
+    border: 1px solid #ff4444;
+    color: #ff4444;
+    padding: 5px 10px;
+    border-radius: 4px;
+    cursor: pointer;
+    
+    &:hover {
+      background: rgba(255, 0, 0, 0.1);
+    }
+  }
+`;
+
 const TradeLinkComponent = ({ presessionId, execution }) => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [trades, setTrades] = useState([]);
@@ -283,13 +325,14 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
   const modalRef = useRef(null);
   const navigate = useNavigate();
   const [selectedTrade, setSelectedTrade] = useState(null);
+  const [selectedPresession, setSelectedPresession] = useState(null);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     loadTrades();
     loadLinkedTrades();
   }, [presessionId]);
 
-  // Додатковий ефект для перезавантаження трейдів при зміні execution
   useEffect(() => {
     if (['Win', 'Loss', 'BE', 'Missed'].includes(execution)) {
       loadLinkedTrades();
@@ -308,6 +351,23 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
     };
   }, [isModalOpen]);
 
+  useEffect(() => {
+    const loadPresession = async () => {
+      if (presessionId) {
+        try {
+          const presession = await window.electronAPI.getPresession(presessionId);
+          if (presession) {
+            setSelectedPresession(presession);
+          }
+        } catch (error) {
+          console.error('Error loading presession:', error);
+          setError('Failed to load presession');
+        }
+      }
+    };
+    loadPresession();
+  }, [presessionId]);
+
   const loadTrades = async () => {
     try {
       const allTrades = await window.electronAPI.getTrades();
@@ -319,7 +379,6 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
 
   const loadLinkedTrades = async () => {
     try {
-      // Спробуємо завантажити пов'язані трейди з бази trades за presession_id
       const linkedTradesFromDb = await window.electronAPI.getLinkedTrades(presessionId);
       
       if (linkedTradesFromDb && linkedTradesFromDb.length > 0) {
@@ -327,7 +386,6 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
         return;
       }
       
-      // Якщо немає трейдів у базі trades, спробуємо з пресесії
       const presession = await window.electronAPI.getPresession(presessionId);
       if (presession && presession.linked_trades) {
         try {
@@ -341,7 +399,6 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
             const filteredTrades = linkedTradesData.filter(Boolean);
             console.log('Loaded linked trades from presession:', filteredTrades);
             
-            // Оновимо також зв'язки в базі даних trades
             for (const trade of filteredTrades) {
               await window.electronAPI.linkTradeToPresession(trade.id, presessionId);
             }
@@ -367,14 +424,11 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
     try {
       console.log('Attempting to link trade', trade.id, 'to presession', presessionId);
       
-      // Отримуємо пресесію
       let presession = await window.electronAPI.getPresession(presessionId);
       
-      // Якщо пресесія не існує, створюємо її
       if (!presession) {
         console.log('Presession not found, creating new one with ID:', presessionId);
         
-        // Створюємо базову пресесію з мінімальними даними
         const newPresession = {
           id: presessionId,
           date: new Date().toISOString().split('T')[0],
@@ -398,15 +452,12 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
           ]
         };
         
-        // Зберігаємо нову пресесію
         await window.electronAPI.savePresession(newPresession);
         
-        // Отримуємо збережену пресесію
         presession = await window.electronAPI.getPresession(presessionId);
         console.log('Created new presession:', presession);
       }
 
-      // Парсимо поточні пов'язані трейди
       let currentLinkedTrades = [];
       try {
         currentLinkedTrades = Array.isArray(presession.linked_trades) 
@@ -418,27 +469,23 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
         currentLinkedTrades = [];
       }
 
-      // Додаємо новий трейд, якщо його ще немає
       if (!currentLinkedTrades.includes(trade.id)) {
         currentLinkedTrades.push(trade.id);
         console.log('Added trade to linked_trades:', currentLinkedTrades);
       }
 
-      // Оновлюємо пресесію з новим списком трейдів
       const updatedPresession = {
         ...presession,
-        linked_trades: currentLinkedTrades // Передаємо як масив, конвертація в JSON відбудеться в routinesDB
+        linked_trades: currentLinkedTrades
       };
 
       console.log('Updating presession with trades:', updatedPresession);
       await window.electronAPI.updatePresession(updatedPresession);
       console.log('Presession updated successfully');
       
-      // Оновлюємо зв'язок в таблиці trades
       console.log('Linking trade in trades table');
       await window.electronAPI.linkTradeToPresession(trade.id, presessionId);
       
-      // Оновлюємо локальний стан
       setIsModalOpen(false);
       console.log('Reloading linked trades');
       await loadLinkedTrades();
@@ -449,18 +496,14 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
 
   const handleUnlinkTrade = async (tradeId) => {
     try {
-      // Отримуємо поточну пресесію
       const presession = await window.electronAPI.getPresession(presessionId);
       
-      // Парсимо та оновлюємо список пов'язаних трейдів
       let currentLinkedTrades = Array.isArray(presession.linked_trades)
         ? presession.linked_trades
         : JSON.parse(presession.linked_trades || '[]');
       
-      // Видаляємо трейд зі списку
       currentLinkedTrades = currentLinkedTrades.filter(id => id !== tradeId);
       
-      // Оновлюємо пресесію
       const updatedPresession = {
         ...presession,
         linked_trades: currentLinkedTrades
@@ -469,7 +512,6 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
       await window.electronAPI.updatePresession(updatedPresession);
       await window.electronAPI.unlinkTradeFromPresession(tradeId);
       
-      // Оновлюємо список трейдів
       loadLinkedTrades();
     } catch (error) {
       console.error('Error unlinking trade:', error);
@@ -505,21 +547,72 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
     setIsModalOpen(true);
   };
 
-  const handleAddNewTrade = () => {
-    // Зберігаємо presessionId в localStorage для тимчасового зберігання
-    localStorage.setItem('tempPresessionId', presessionId);
-    // Використовуємо window.history.push замість navigate
-    window.history.pushState(null, '', '/create-trade');
-    window.location.href = '/create-trade';
+  const handleAddNewTrade = async () => {
+    try {
+      if (!presessionId) {
+        throw new Error('No presession ID available');
+      }
+
+      let fullPresession = selectedPresession;
+      if (!fullPresession) {
+        fullPresession = await window.electronAPI.getPresession(presessionId);
+        if (!fullPresession) {
+          throw new Error('Failed to load presession data');
+        }
+        setSelectedPresession(fullPresession);
+      }
+
+      console.log('Starting handleAddNewTrade with presession:', fullPresession);
+
+      const newTradeId = crypto.randomUUID();
+      console.log('Generated new trade ID:', newTradeId);
+      
+      const tradeInfo = {
+        tradeId: newTradeId,
+        presession: fullPresession,
+        presessionId: fullPresession.id,
+        pair: fullPresession.pair
+      };
+      console.log('Preparing to save trade info:', tradeInfo);
+
+      localStorage.setItem('newTradeInfo', JSON.stringify(tradeInfo));
+      console.log('Trade info saved to localStorage');
+
+      localStorage.setItem('currentPresessionId', fullPresession.id);
+      console.log('Presession ID saved separately:', fullPresession.id);
+
+      setIsModalOpen(false);
+      
+      console.log('Navigating to create-trade page with data:', tradeInfo);
+      navigate('/create-trade', { 
+        state: { 
+          presessionData: tradeInfo,
+          presessionId: fullPresession.id,
+          pair: fullPresession.pair
+        },
+        replace: true
+      });
+    } catch (error) {
+      console.error('Error in handleAddNewTrade:', error);
+      setError(error.message || 'Failed to prepare trade creation');
+    }
   };
 
-  // Показуємо компонент тільки якщо execution відповідає умовам
   if (!['Win', 'Loss', 'BE', 'Missed'].includes(execution)) {
     return null;
   }
 
+  if (error) {
+    return (
+      <ErrorMessage>
+        {error}
+        <button onClick={() => setError(null)}>Dismiss</button>
+      </ErrorMessage>
+    );
+  }
+
   return (
-    <TradeLinkContainer>
+    <TradeLinkContainer hasLinkedTrades={linkedTrades.length > 0}>
       {linkedTrades.map((trade) => (
         <LinkedTradeContainer 
           key={trade.id}
@@ -528,6 +621,7 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
           <ButtonsContainer>
             <ActionButton onClick={(e) => {
               e.stopPropagation();
+              e.preventDefault();
               setSelectedTrade(trade);
               setIsModalOpen(true);
             }} />
@@ -535,6 +629,7 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
               isRemove 
               onClick={(e) => {
                 e.stopPropagation();
+                e.preventDefault();
                 handleUnlinkTrade(trade.id);
               }} 
             />
@@ -548,12 +643,12 @@ const TradeLinkComponent = ({ presessionId, execution }) => {
       
       {linkedTrades.length > 0 ? (
         <AddTradeButton 
-          transparent 
+          className="hidden-add-button"
           onClick={(e) => {
             e.preventDefault();
+            e.stopPropagation();
             setIsModalOpen(true);
           }}
-          style={{ opacity: 0, transition: 'opacity 0.3s ease' }}
         >
           <AddIcon>+</AddIcon>
           <span>Add Trade</span>

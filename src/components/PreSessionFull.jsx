@@ -1599,19 +1599,32 @@ function PreSessionFull() {
   // Функція для збереження пресесії
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
     try {
-      setIsLoading(true);
+      // Отримуємо пов'язані трейди
+      const linkedTrades = await window.electronAPI.getLinkedTrades(presessionId);
+      console.log('Linked trades before save:', linkedTrades);
       
-      // Викликаємо функцію збереження
-      await savePresession(sessionData);
+      // Формуємо масив ID трейдів
+      const tradeIds = linkedTrades.map(trade => trade.id);
       
-      // Переходимо назад на сторінку журналу
-      navigate('/daily-routine/pre-session');
+      // Оновлюємо дані пресесії з новим масивом linked_trades
+      const updatedPresession = {
+        ...presession,
+        linked_trades: tradeIds
+      };
+      
+      console.log('Saving presession with updated linked_trades:', updatedPresession);
+      
+      // Зберігаємо оновлену пресесію
+      await window.electronAPI.updatePresession(updatedPresession);
+      
+      // Оновлюємо нотатки з даними пресесії
+      await window.electronAPI.updateNotesWithPresessionData(presessionId);
+      
+      console.log('Presession and notes updated successfully');
     } catch (error) {
-      console.error('Error saving pre-session:', error);
-    } finally {
-      setIsLoading(false);
+      console.error('Error saving presession:', error);
+      setError(error.message);
     }
   };
 
