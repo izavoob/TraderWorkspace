@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link, useLocation } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
-import DeleteIcon from '../../assets/icons/delete-icon.svg';;
+import DeleteIcon from '../../assets/icons/delete-icon.svg';
 import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
@@ -9,6 +9,7 @@ import { registerLocale } from 'react-datepicker';
 import uk from 'date-fns/locale/uk';
 import NotesList from '../Notes/NotesList.jsx';
 import NoteModal from '../Notes/NoteModal.jsx';
+import PreSessionLinkComponent from '../PreSessionLink/PreSessionLinkComponent.jsx';
 
 registerLocale('uk', uk);
 
@@ -97,7 +98,6 @@ const shineEffect = keyframes`
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -117,9 +117,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -127,6 +127,7 @@ const Header = styled.header`
   justify-content: center;
   align-items: center;
 `;
+
 
 const BackButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
@@ -152,7 +153,7 @@ const BackButton = styled.button`
   }
 
   &:before {
-    content: 'Back';
+    content: "Back";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -174,13 +175,9 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
-const Subtitle = styled.h2`
-  margin: 5px auto 0;
-  font-size: 1.2em;
+const Subtitle = styled.p`
   color: #ff8c00;
-  text-align: center;
-  z-index: 1;
-  font-weight: normal;
+  margin-top: 10px;
 `;
 
 const TradeNumber = styled.p`
@@ -390,10 +387,8 @@ const ConfirmButton = styled.button`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
-  margin: 20px 0 10px;
-  font-size: 2em;
-  text-align: center;
+  color: rgb(230, 243, 255);
+  margin-bottom: 10px;
 `;
 
 const TimeframeHeader = styled.div`
@@ -880,9 +875,99 @@ const Modal = styled.div`
 
 function CreateTrade() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [tradeCount, setTradeCount] = useState(0);
   const [accounts, setAccounts] = useState([]);
-  const [tradeId] = useState(() => crypto.randomUUID());
+  
+  console.log('CreateTrade component mounting...');
+  console.log('Location state:', location.state);
+  
+  // Отримуємо інформацію про новий трейд з різних джерел
+  const [tradeInfo] = useState(() => {
+    console.log('Initializing tradeInfo...');
+    console.log('Location state:', location.state);
+    
+    // Спочатку перевіряємо state з навігації
+    if (location.state?.presessionData) {
+      console.log('Found presession data in navigation state:', location.state.presessionData);
+      
+      // Очищаємо localStorage, оскільки дані є в state
+      localStorage.removeItem('newTradeInfo');
+      localStorage.removeItem('currentPresessionId');
+      
+      return location.state.presessionData;
+    }
+
+    // Потім перевіряємо localStorage
+    const info = localStorage.getItem('newTradeInfo');
+    const currentPresessionId = localStorage.getItem('currentPresessionId');
+    
+    console.log('localStorage data:', { newTradeInfo: info, currentPresessionId });
+
+    if (info) {
+      try {
+        const parsed = JSON.parse(info);
+        console.log('Successfully parsed newTradeInfo:', parsed);
+        
+        // Очищаємо localStorage після успішного парсингу
+        localStorage.removeItem('newTradeInfo');
+        localStorage.removeItem('currentPresessionId');
+        
+        return parsed;
+      } catch (e) {
+        console.error('Error parsing newTradeInfo:', e);
+      }
+    }
+
+    // Якщо є тільки ID пресесії, спробуємо завантажити її
+    if (currentPresessionId) {
+      console.log('Found currentPresessionId:', currentPresessionId);
+      return { presessionId: currentPresessionId };
+    }
+
+    console.log('No trade info found in any source');
+    return null;
+  });
+
+  // Використовуємо ID з tradeInfo або генеруємо новий
+  const [tradeId] = useState(() => {
+    const id = tradeInfo?.tradeId || crypto.randomUUID();
+    console.log('Using trade ID:', id);
+    return id;
+  });
+  
+  // Використовуємо presessionId та інформацію про пресесію з tradeInfo
+  const [presessionId, setPresessionId] = useState(() => {
+    const id = tradeInfo?.presession?.id || tradeInfo?.presessionId || null;
+    console.log('Initial presessionId:', id);
+    return id;
+  });
+
+  const [selectedPresession, setSelectedPresession] = useState(() => {
+    const presession = tradeInfo?.presession || null;
+    console.log('Initial selectedPresession:', presession);
+    return presession;
+  });
+
+  // Ефект для завантаження даних пресесії, якщо є тільки ID
+  useEffect(() => {
+    const loadPresessionData = async () => {
+      if (presessionId && !selectedPresession) {
+        console.log('Loading presession data for ID:', presessionId);
+        try {
+          const presession = await window.electronAPI.getPresession(presessionId);
+          console.log('Loaded presession data:', presession);
+          if (presession) {
+            setSelectedPresession(presession);
+          }
+        } catch (error) {
+          console.error('Error loading presession data:', error);
+        }
+      }
+    };
+    loadPresessionData();
+  }, [presessionId, selectedPresession]);
+
   const [executionItems, setExecutionItems] = useState({
     pointA: [],
     trigger: [],
@@ -897,11 +982,12 @@ function CreateTrade() {
     sessions: [],
     positionType: []
   });
+
   const [trade, setTrade] = useState({
     id: tradeId,
     date: new Date().toISOString().split('T')[0],
     account: '',
-    pair: '',
+    pair: tradeInfo?.presession?.pair || '',
     direction: '',
     positionType: '',
     risk: '',
@@ -921,6 +1007,7 @@ function CreateTrade() {
     slPosition: '',
     score: '',
     category: '',
+    presession_id: presessionId,
     topDownAnalysis: [
       { title: 'Daily Timeframe', screenshot: '', text: '' },
       { title: '4h Timeframe', screenshot: '', text: '' },
@@ -946,6 +1033,7 @@ function CreateTrade() {
 
   useEffect(() => {
     const loadInitialData = async () => {
+      console.log('Loading initial data...');
       try {
         // Завантажуємо кількість трейдів
         const trades = await window.electronAPI.getTrades();
@@ -985,6 +1073,8 @@ function CreateTrade() {
             }))
           }));
         }
+
+        console.log('Initial data loading completed');
       } catch (error) {
         console.error('Error loading initial data:', error);
         setTradeCount(1);
@@ -1220,10 +1310,24 @@ function CreateTrade() {
       const trades = await window.electronAPI.getTrades();
       const tradeNo = trades.length + 1;
       
+      // Перевіряємо чи є зв'язок з пресесією перед збереженням трейду
+      let linkedPresession = null;
+      try {
+        linkedPresession = await window.electronAPI.getLinkedPresession(tradeId);
+        console.log("Перевірка зв'язку з пресесією:", linkedPresession);
+      } catch (presessionError) {
+        console.error("Помилка при перевірці зв'язку з пресесією:", presessionError);
+      }
+      
+      // Використовуємо presession_id зі стану trade, якщо він є
+      const presessionId = trade.presession_id || (linkedPresession && linkedPresession.id) || null;
+      console.log("Використовуємо presession_id:", presessionId);
+      
       const tradeData = {
         ...trade,
         no: tradeNo,
-        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []
+        volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : [],
+        presession_id: presessionId
       };
       
       console.log('Зберігаємо трейд з даними:', tradeData);
@@ -1231,6 +1335,51 @@ function CreateTrade() {
       // Зберігаємо трейд
       await window.electronAPI.saveTrade(tradeData);
       console.log('Трейд успішно збережено');
+
+      // Якщо є presessionId, оновлюємо linked_trades в пресесії
+      if (presessionId) {
+        try {
+          // Отримуємо поточну пресесію
+          const presession = await window.electronAPI.getPresession(presessionId);
+          if (presession) {
+            // Парсимо поточні linked_trades
+            let linkedTrades = [];
+            try {
+              linkedTrades = JSON.parse(presession.linked_trades || '[]');
+            } catch (e) {
+              console.error('Error parsing linked_trades:', e);
+            }
+
+            // Додаємо новий tradeId, якщо його ще немає
+            if (!linkedTrades.includes(tradeData.id)) {
+              linkedTrades.push(tradeData.id);
+            }
+
+            // Оновлюємо пресесію з новим списком трейдів
+            await window.electronAPI.updatePresession({
+              ...presession,
+              linked_trades: linkedTrades
+            });
+            console.log('Пресесію оновлено з новим трейдом');
+          }
+        } catch (presessionError) {
+          console.error("Помилка при оновленні пресесії:", presessionError);
+        }
+      }
+
+      // Додатково гарантуємо зв'язок з пресесією, якщо він є
+      if (presessionId) {
+        try {
+          console.log("Підтверджуємо зв'язок з пресесією:", presessionId);
+          // Переприв'язуємо пресесію до трейду щоб гарантувати збереження зв'язку
+          await window.electronAPI.linkTradeToPresession(tradeData.id, presessionId);
+          console.log("Зв'язок з пресесією збережено");
+        } catch (presessionError) {
+          console.error("Помилка при збереженні зв'язку з пресесією:", presessionError);
+        }
+      } else {
+        console.log("Немає зв'язку з пресесією для збереження");
+      }
 
       // Отримуємо всі нотатки для цього трейду з бази даних
       const notes = await window.electronAPI.getNotesBySource('trade', tradeData.id);
@@ -1258,7 +1407,13 @@ function CreateTrade() {
         await window.electronAPI.updateAccountBalance(trade.account, parseFloat(trade.profitLoss));
       }
 
-      navigate('/trade-journal');
+      // Якщо є presessionId, повертаємося на сторінку пресесії
+      if (presessionId) {
+        navigate(`/daily-routine/pre-session/full/${presessionId}`);
+      } else {
+        // Якщо немає пресесії, повертаємося на сторінку журналу
+        navigate('/trade-journal');
+      }
     } catch (error) {
       console.error('Error saving trade:', error);
       setError(error.message);
@@ -1268,19 +1423,41 @@ function CreateTrade() {
   };
 
   const handleBack = () => {
-    navigate(-1); // Повернення назад по історії
+    // Використовуємо history.back() замість navigate
+    window.history.back();
   };
+
+  useEffect(() => {
+    console.log('CreateTrade: presessionId changed:', presessionId);
+    console.log('CreateTrade: selectedPresession:', selectedPresession);
+  }, [presessionId, selectedPresession]);
 
   return (
     <CreateTradeContainer>
       <DatePickerStyles />
       <Header>
         <BackButton onClick={handleBack} />
-        <Title>New Trade</Title>
+        <Title>New Trade #{tradeCount}</Title>
         <Subtitle>Let's add a new trade!</Subtitle>
+        <PreSessionLinkComponent 
+          tradeId={tradeId} 
+          presessionId={presessionId}
+          selectedPresession={selectedPresession}
+          onPresessionChange={(presession) => {
+            console.log("PreSession changed:", presession);
+            if (presession) {
+              setTrade(prev => ({
+                ...prev,
+                presession_id: presession.id,
+                pair: presession.pair || prev.pair
+              }));
+              setPresessionId(presession.id);
+              setSelectedPresession(presession);
+            }
+          }}
+        />
       </Header>
       <TradeContent>
-        <TradeNumber>Trade number: {tradeCount}</TradeNumber>
         <TablesContainer>
           <TradeTable>
             <FormRow>
@@ -1705,8 +1882,8 @@ function CreateTrade() {
         )}
 
         <ButtonGroup>
-          <ActionButton onClick={handleSubmit} disabled={isSubmitting}>Save Trade</ActionButton>
           <ActionButton onClick={handleBack}>Cancel</ActionButton>
+          <ActionButton onClick={handleSubmit} disabled={isSubmitting}>Save Trade</ActionButton>
         </ButtonGroup>
       </TradeContent>
     </CreateTradeContainer>

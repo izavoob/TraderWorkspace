@@ -111,6 +111,7 @@ async function initializeDatabase() {
             management TEXT,
             conclusion TEXT,
             parentTradeId TEXT,
+            presession_id TEXT,
             created_at TEXT DEFAULT CURRENT_TIMESTAMP,
             updated_at TEXT DEFAULT CURRENT_TIMESTAMP
           )
@@ -312,8 +313,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
             followingPlan, bestTrade, session, pointA, trigger, 
             volumeConfirmation, entryModel, entryTF, fta, 
             slPosition, score, category, topDownAnalysis, 
-            execution, management, conclusion, parentTradeId
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            execution, management, conclusion, parentTradeId, presession_id
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
           [
             trade.id,
             nextNo,
@@ -343,7 +344,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
             JSON.stringify(trade.execution || {}),
             JSON.stringify(trade.management || {}),
             JSON.stringify(trade.conclusion || {}),
-            trade.parentTradeId || null
+            trade.parentTradeId || null,
+            trade.presession_id || null
           ],
           function(err) {
             if (err) rej(err);
@@ -393,7 +395,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
             volumeConfirmation = ?, entryModel = ?, entryTF = ?, 
             fta = ?, slPosition = ?, score = ?, category = ?, 
             topDownAnalysis = ?, execution = ?, management = ?, 
-            conclusion = ?, parentTradeId = ? 
+            conclusion = ?, parentTradeId = ?, presession_id = ? 
           WHERE id = ?`,
           [
             updatedTrade.date || '',
@@ -423,6 +425,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
             JSON.stringify(updatedTrade.management) || '{}',
             JSON.stringify(updatedTrade.conclusion) || '{}',
             updatedTrade.parentTradeId || null,
+            updatedTrade.presession_id || null,
             tradeId
           ],
           function(err) {
@@ -1463,5 +1466,95 @@ ipcMain.handle('update-post-session', async (event, postSession) => {
 });
 
 ipcMain.handle('delete-post-session', async (event, id) => {
-  return await routinesDB.deletePostSession(id);
+  try {
+    return await routinesDB.deletePostSession(id);
+  } catch (error) {
+    console.error('Error deleting post session:', error);
+    throw error;
+  }
+});
+
+// Trade-Presession linking methods
+ipcMain.handle('linkTradeToPresession', async (event, tradeId, presessionId) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    console.log('Linking trade', tradeId, 'to presession', presessionId);
+    
+    db.run('UPDATE trades SET presession_id = ? WHERE id = ?', [presessionId, tradeId], (err) => {
+      if (err) {
+        console.error('Error linking trade to presession:', err);
+        reject(err);
+        return;
+      }
+      
+      console.log('Trade linked to presession successfully');
+      resolve(true);
+    });
+  });
+});
+
+ipcMain.handle('unlinkTradeFromPresession', async (event, tradeId) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    console.log('Unlinking trade', tradeId, 'from presession');
+    
+    db.run('UPDATE trades SET presession_id = NULL WHERE id = ?', [tradeId], (err) => {
+      if (err) {
+        console.error('Error unlinking trade from presession:', err);
+        reject(err);
+        return;
+      }
+      
+      console.log('Trade unlinked from presession successfully');
+      resolve(true);
+    });
+  });
+});
+
+ipcMain.handle('getLinkedPresession', async (event, tradeId) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    console.log('Getting linked presession for trade', tradeId);
+    
+    db.get('SELECT presession_id FROM trades WHERE id = ?', [tradeId], async (err, row) => {
+      if (err) {
+        console.error('Error getting linked presession ID:', err);
+        reject(err);
+        return;
+      }
+      
+      if (!row || !row.presession_id) {
+        console.log('No linked presession found for trade', tradeId);
+        resolve(null);
+        return;
+      }
+      
+      console.log('Found linked presession ID:', row.presession_id);
+      try {
+        const presession = await routinesDB.getPreSessionById(row.presession_id);
+        resolve(presession);
+      } catch (error) {
+        console.error('Error getting presession details:', error);
+        reject(error);
+      }
+    });
+  });
+});
+
+ipcMain.handle('getLinkedTrades', async (event, presessionId) => {
+  await ensureDatabaseInitialized();
+  return new Promise((resolve, reject) => {
+    console.log('Getting linked trades for presession', presessionId);
+    
+    db.all('SELECT * FROM trades WHERE presession_id = ?', [presessionId], (err, trades) => {
+      if (err) {
+        console.error('Error getting linked trades:', err);
+        reject(err);
+        return;
+      }
+      
+      console.log(`Found ${trades.length} linked trades`);
+      resolve(trades);
+    });
+  });
 });

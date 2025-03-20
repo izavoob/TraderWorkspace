@@ -166,7 +166,7 @@ const Title = styled.h1`
 const Subtitle = styled.p`
   color: #ff8c00;
   margin-top: 10px;
-  font-size: 1em;
+  font-size: 1.2em;
 `;
 
 const JournalContent = styled.div`

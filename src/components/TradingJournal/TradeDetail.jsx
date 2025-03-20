@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
 import DeleteIcon from '../../assets/icons/delete-icon.svg';
 import EditIcon from '../../assets/icons/edit-icon.svg';
@@ -8,6 +8,7 @@ import "react-datepicker/dist/react-datepicker.css";
 import { registerLocale } from 'react-datepicker';
 import uk from 'date-fns/locale/uk';
 import NotesList from '../Notes/NotesList.jsx';
+import PreSessionLinkComponent from '../PreSessionLink/PreSessionLinkComponent.jsx';
 
 registerLocale('uk', uk);
 
@@ -96,7 +97,7 @@ const shineEffect = keyframes`
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
+  margin: 50px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -116,9 +117,9 @@ const Header = styled.header`
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -126,6 +127,8 @@ const Header = styled.header`
   justify-content: center;
   align-items: center;
 `;
+
+
 
 const BackButton = styled.button`
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
@@ -151,7 +154,7 @@ const BackButton = styled.button`
   }
 
   &:before {
-    content: 'Back';
+    content: "Back";
     position: absolute;
     top: 50%;
     left: 50%;
@@ -173,14 +176,12 @@ const Title = styled.h1`
   text-align: center;
   z-index: 1;
 `;
-const Subtitle = styled.h2`
-  margin: 5px auto 0;
-  font-size: 1.2em;
+const Subtitle = styled.p`
   color: #ff8c00;
-  text-align: center;
-  z-index: 1;
-  font-weight: normal;
+  margin-top: 10px;
+  font-size: 1.2em;
 `;
+
 const TradeNumber = styled.p`
   color: #fff;
   font-size: 1.2em;
@@ -380,10 +381,9 @@ const ConfirmButton = styled.button`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
-  margin: 20px 0 10px;
-  font-size: 2em;
-  text-align: center;
+  color: rgb(230, 243, 255);
+  font-size: 1.8rem;
+  margin-bottom: 10px;
 `;
 
 const TimeframeHeader = styled.div`
@@ -1032,7 +1032,14 @@ function TradeDetail() {
   };
 
   const handleBack = () => {
-    navigate(-1);
+    // Перша спроба - використати window.history.back()
+    try {
+      window.history.back();
+    } catch (error) {
+      console.error("Помилка при спробі використати window.history.back():", error);
+      // Запасний варіант - використовуємо navigate(-1)
+      navigate(-1);
+    }
   };
 
   const handleChange = (e) => {
@@ -1596,18 +1603,18 @@ function TradeDetail() {
       <CreateTradeContainer>
         <DatePickerStyles />
         <Header>
-          <BackButton onClick={handleBack} />
-          <Title>Trade Details</Title>
-          <Subtitle>Let's explore your trade!</Subtitle>
+            
+              <BackButton onClick={handleBack} />
+            
+            <Title>Trade #{trade.no}</Title>
+            <Subtitle>Let's explore your trade!</Subtitle>
+            <PreSessionLinkComponent tradeId={id} />
         </Header>
         <TradeContent>
           {isLoading ? (
             <div>Loading...</div>
           ) : (
             <>
-              <TradeNumber>
-                Trade number: {trade.no || 'N/A'}
-              </TradeNumber>
               <TablesContainer>
                 <TradeTable>
                   <FormRow>
