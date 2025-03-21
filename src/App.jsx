@@ -35,6 +35,7 @@ const GlobalStyle = createGlobalStyle`
   body, html {
     margin: 0;
     padding: 0;
+    font-family: 'Roboto', sans-serif;
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;

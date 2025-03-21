@@ -97,7 +97,6 @@ const shineEffect = keyframes`
 
 const CreateTradeContainer = styled.div`
   max-width: 1820px;
-  margin: 50px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;

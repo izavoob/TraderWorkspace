@@ -136,7 +136,7 @@ const Header = styled.header`
 const TopRightButtons = styled.div`
   position: fixed;
   top: 30px;
-  right: 20px;
+  right: 50px;
   display: flex;
   gap: 15px;
   z-index: 1001;
@@ -211,7 +211,6 @@ const StatsContent = styled.div`
   padding: 15px;
   overflow: hidden;
   transition: max-width 0.3s ease;
-  grid-auto-rows: minmax(min-content, 180px); // Фіксуємо висоту рядків
 `;
 
 const ChartContent = styled.div`
@@ -432,8 +431,6 @@ const SlideNavigation = styled.div`
   align-items: center;
   justify-content: center;
   gap: 30px;
-  padding: 20px 0;
-  height: 80px; // Фіксована висота для навігації
   margin-top: auto;
 `;
 
@@ -444,6 +441,7 @@ const ContentWrapper = styled.div`
   align-items: center;
   justify-content: center;
   overflow: hidden;
+  padding-left: 20px;
   margin-bottom: 20px;
 `;
 

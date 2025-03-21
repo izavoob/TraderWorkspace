@@ -16,7 +16,7 @@ const GlobalStyle = createGlobalStyle`
     width: 100%;
     background-color: #1a1a1a;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: hidden;
   }
   ::-webkit-scrollbar {
     width: 4px;
@@ -37,7 +37,7 @@ const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
     background-color: #2e2e2e;
     border: 1px solid #5e2ca5;
-    font-family: inherit;
+    font-family: Roboto, sans-serif;
   }
 
   .react-datepicker__header {
@@ -121,7 +121,7 @@ const BackButton = styled.button`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -131,7 +131,6 @@ const BackButton = styled.button`
 
   &:hover {
     opacity: 1;
-    transform: scale(1.1);
   }
 
   &:active {
@@ -385,15 +384,19 @@ const StyledDatePicker = styled(DatePicker)`
 
 const TableContainer = styled.div`
   flex: 1;
+  bottom: 15px;
   overflow: auto;
   margin-top: 20px;
   position: relative;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   
   thead {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: #2e2e2e;
+    background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+    background-size: 200% 200%;
+    animation: ${gradientAnimation} 5s ease infinite;
   }
 
   tbody {
@@ -401,7 +404,7 @@ const TableContainer = styled.div`
   }
   
   ::-webkit-scrollbar {
-    width: 3px;
+    width: 0px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -418,17 +421,18 @@ const TableContainer = styled.div`
 const TradeTable = styled.table`
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0;
+  border-spacing: 1px;
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
 
 `;
 
 const TableHeader = styled.th`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  border: 1px solid #5e2ca5;
   padding: 12px;
-  text-align: center;
+  font-size: 14px;
+  text-align: center
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  text-transform: uppercase;
   color: #fff;
   font-weight: bold;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -448,18 +452,25 @@ const TableHeader = styled.th`
 `;
 
 const TableCell = styled.td`
-  border: 1px solid #5e2ca5;
   padding: 6px;
   text-align: center;
   color: #fff;
-  background-color: #2e2e2e;
+  background-color: #1a1a1a;
   position: relative;
 `;
 
 const TableRow = styled.tr`
   position: relative;
+  &:hover {
+      background-color: background: #7425c9;
+      opacity: 0.5;
+      transition: transform 0.5s ease;
+      overflow: hidden;
+    }
+
+  
   &:nth-child(even) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
+    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#252525'};
   }
   &:nth-child(odd) {
     background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
@@ -474,7 +485,6 @@ const TableRow = styled.tr`
   ${props => props.isSubtrade && css`
     & > td {
       background-color: rgba(92, 157, 245, 0.05) !important;
-      border-left: 2px solid #5C9DF5;
       padding-left: 20px !important;
     }
 
@@ -682,9 +692,7 @@ const CalendarDay = styled.div`
   `}
 
   ${props => props.isToday && `
-    border: 2px solid transparent;
-    background: linear-gradient(#252525, #252525) padding-box,
-                linear-gradient(45deg, #7425c9, #b886ee) border-box;
+    border: 2px solid transparent linear-gradient(45deg, #7425c9, #b886ee) border-box;
   `}
 
   ${props => props.result === 'Win' && `
@@ -692,7 +700,7 @@ const CalendarDay = styled.div`
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom, rgba(0, 230, 118, 0.2), transparent);
+      background: linear-gradient(to bottom, rgba(0, 230, 118, 0.3), transparent);
       border-radius: 8px;
     }
   `}
@@ -702,7 +710,7 @@ const CalendarDay = styled.div`
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom, rgba(255, 82, 82, 0.2), transparent);
+      background: linear-gradient(to bottom, rgba(255, 82, 82, 0.3), transparent);
       border-radius: 8px;
     }
   `}
@@ -712,7 +720,17 @@ const CalendarDay = styled.div`
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom, rgba(255, 147, 0, 0.2), transparent);
+      background: linear-gradient(to bottom, rgba(255, 147, 0, 0.3), transparent);
+      border-radius: 8px;
+    }
+  `}
+
+  ${props => (!props.result || props.result === '') && `
+    &::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), transparent);
       border-radius: 8px;
     }
   `}
@@ -722,7 +740,7 @@ const CalendarDay = styled.div`
       content: '';
       position: absolute;
       inset: 0;
-      background: linear-gradient(to bottom, rgba(147, 112, 219, 0.2), transparent);
+      background: linear-gradient(to bottom, rgba(74, 42, 140, 0.3), transparent);
       border-radius: 8px;
     }
   `}
@@ -730,8 +748,8 @@ const CalendarDay = styled.div`
 
 const CalendarDayHeader = styled.div`
   font-size: 1.2em;
+  color: rgb(230, 243, 255);
   font-weight: bold;
-  color: #b886ee;
   margin-bottom: 8px;
 `;
 
@@ -995,7 +1013,7 @@ function TradeJournal() {
       { 
         Header: 'Actions',
         accessor: 'actions',
-        width: 80,
+        width: 70,
         Cell: ({ row }) => (
           <ButtonsContainer>
             <Checkbox
@@ -1023,13 +1041,13 @@ function TradeJournal() {
       { Header: 'Result', accessor: 'result', width: 100 },
       { Header: 'Category', accessor: 'category', width: 80 },
       { 
-        Header: 'Profit in %', 
+        Header: 'Profit %', 
         accessor: 'profitLoss',
         Cell: ({ value }) => `${value || 0}%`,
         width: 80 
       },
       { 
-        Header: 'Profit in $', 
+        Header: 'Profit $', 
         accessor: 'gainedPoints',
         Cell: ({ value }) => value || '$0.00',
         width: 80 
@@ -1133,7 +1151,7 @@ function TradeJournal() {
           const trade = getTradeForDate(date);
           const isToday = date.toDateString() === today.toDateString();
   
-          return (
+            return (
             <CalendarDay 
               key={index}
               hasData={!!trade}
@@ -1142,23 +1160,23 @@ function TradeJournal() {
             >
               <CalendarDayHeader>{formatDate(date)}</CalendarDayHeader>
               {trade && (
-                <CalendarDayMetrics>
-                  {trade.pair}<br/>
-                  <MetricsValue 
-                    type={
-                      trade.result === 'Win' ? 'profit' :
-                      trade.result === 'Loss' ? 'loss' :
-                      trade.result === 'Breakeven' ? 'breakeven' : 'missed'
-                    }
-                  >
-                    {trade.result === 'Win' ? `+${trade.profitLoss}` :
-                     trade.result === 'Loss' ? `-${trade.profitLoss}` :
-                     '0'}
-                  </MetricsValue>
-                </CalendarDayMetrics>
+              <CalendarDayMetrics>
+                {trade.pair}<br/>
+                <MetricsValue 
+                type={
+                  trade.result === 'Win' ? 'profit' :
+                  trade.result === 'Loss' ? 'loss' :
+                  trade.result === 'Breakeven' ? 'breakeven' : 'missed'
+                }
+                >
+                {trade.result === 'Win' ? `+${trade.profitLoss}%` :
+                 trade.result === 'Loss' ? `${trade.profitLoss}%` :
+                 `${trade.profitLoss}%`}
+                </MetricsValue>
+              </CalendarDayMetrics>
               )}
             </CalendarDay>
-          );
+            );
         })}
       </TradeCalendarContainer>
     );
