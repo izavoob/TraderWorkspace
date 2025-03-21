@@ -81,6 +81,16 @@ const shineEffect = keyframes`
   100% { background-position: 200% 0; }
 `;
 
+const fadeAnim = keyframes`
+  0% { opacity: 0; transform: translateY(10px); filter: blur(4px); }
+  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
+`;
+
+const slideAnim = keyframes`
+  0% { opacity: 0; transform: translateX(-15px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+`;
+
 const TradeJournalContainer = styled.div`
   max-width: 1820px;
   margin: 0 auto;
@@ -317,14 +327,20 @@ const FilterButton = styled.button`
   background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
   color: #fff;
   border: none;
-  padding: 6px 12px;
+  padding: 12px 20px;
   border-radius: 8px;
   cursor: pointer;
-  font-size: 14px;
-  transition: transform 0.2s ease;
-
+  text-decoration: none;
+  font-size: 1.1em;
+  transition: all 0.3s ease;
+  
   &:hover {
+    background-color: ${props => props.clear ? '#555' : '#4a1a8d'};
     transform: scale(1.05);
+  }
+
+  &:active {
+    transform: scale(0.95);
   }
 `;
 const SortOption = styled.div`
@@ -472,24 +488,25 @@ const TableCell = styled.td`
 
 const TableRow = styled.tr`
   position: relative;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  
   &:hover {
-      background-color: background: #7425c9;
-      opacity: 0.5;
-      transition: transform 0.5s ease;
-      overflow: hidden;
-    }
-
+    background-color: #7425c933 !important;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);
+  }
   
   &:nth-child(even) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#252525'};
+    background-color: ${props => props.selected ? '#7425c966' : '#252525'};
   }
   &:nth-child(odd) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
+    background-color: ${props => props.selected ? '#7425c966' : '#3e3e3e'};
   }
 
   ${props => props.selected && css`
     && {
-      background-color: rgba(116, 37, 201, 0.3) !important;
+      background-color: #7425c966 !important;
+      transform: scale(1.005);
     }
   `}
 
@@ -691,7 +708,7 @@ const CalendarDay = styled.div`
   border-radius: 8px;
   padding: 12px;
   text-align: center;
-  height: 100px;
+  height: 125px;
   position: relative;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   opacity: 0.6;
@@ -777,6 +794,31 @@ const CalendarDayMetrics = styled.div`
   position: relative;
   z-index: 1;
   color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const PairContainer = styled.div`
+  height: 20px;
+  position: relative;
+  margin-bottom: 4px;
+  overflow: hidden;
+  width: 100%;
+`;
+
+const PairText = styled.span`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  animation: ${slideAnim} 0.5s ease forwards;
+  white-space: nowrap;
+  font-weight: 500;
+  letter-spacing: 0.5px;
+  background: linear-gradient(45deg, #b886ee, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 `;
 
 const MetricsValue = styled.span`
@@ -908,6 +950,25 @@ function TradeJournal() {
           return sortConfig.direction === 'asc' ? noA - noB : noB - noA;
         }
         
+        if (sortConfig.key === 'profitLoss') {
+          const profitA = parseFloat(a.profitLoss?.replace('%', '') || 0);
+          const profitB = parseFloat(b.profitLoss?.replace('%', '') || 0);
+          return sortConfig.direction === 'asc' ? profitA - profitB : profitB - profitA;
+        }
+        
+        if (sortConfig.key === 'gainedPoints') {
+          const gainedA = parseFloat(a.gainedPoints?.replace(/[^-\d.]/g, '') || 0);
+          const gainedB = parseFloat(b.gainedPoints?.replace(/[^-\d.]/g, '') || 0);
+          return sortConfig.direction === 'asc' ? gainedA - gainedB : gainedB - gainedA;
+        }
+        
+        if (sortConfig.key === 'result') {
+          const resultOrder = { 'Win': 0, 'Breakeven': 1, 'Missed': 2, 'Loss': 3 };
+          const resultA = resultOrder[a.result] !== undefined ? resultOrder[a.result] : 999;
+          const resultB = resultOrder[b.result] !== undefined ? resultOrder[b.result] : 999;
+          return sortConfig.direction === 'asc' ? resultA - resultB : resultB - resultA;
+        }
+        
         return 0;
       });
 
@@ -977,6 +1038,12 @@ function TradeJournal() {
 
     const selectedTrade = trades.find(trade => trade.id === selectedTrades[0]);
     if (!selectedTrade) return;
+    
+    // Перевіряємо чи вибраний трейд не є вже субтрейдом
+    if (selectedTrade.parentTradeId) {
+      alert("Неможливо створити субтрейд з іншого субтрейду");
+      return;
+    }
 
     try {
       // Створюємо копію трейду без певних полів
@@ -1131,6 +1198,28 @@ function TradeJournal() {
   };
 
   const TradeCalendar = () => {
+    const [activePairIndex, setActivePairIndex] = useState({});
+
+    // Оновлюємо активний індекс кожні 2 секунди
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setActivePairIndex(prev => {
+          const newState = { ...prev };
+          weekDates.forEach((date, idx) => {
+            const dayTrades = getTradesForDate(date);
+            const dayResults = calculateDayResult(dayTrades);
+            if (dayResults.pairs.length > 1) {
+              const currentIndex = prev[idx] !== undefined ? prev[idx] : 0;
+              newState[idx] = (currentIndex + 1) % dayResults.pairs.length;
+            }
+          });
+          return newState;
+        });
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }, []);
+
     // Get current week dates
     const getCurrentWeekDates = () => {
       const curr = new Date();
@@ -1146,10 +1235,10 @@ function TradeJournal() {
       
       return week;
     };
-  
+
     const weekDates = getCurrentWeekDates();
     const today = new Date();
-  
+
     // Get trades for specific date
     const getTradesForDate = (date) => {
       return trades.filter(trade => {
@@ -1157,26 +1246,39 @@ function TradeJournal() {
         return tradeDate.toDateString() === date.toDateString();
       });
     };
-  
+
     const calculateDayResult = (dayTrades) => {
       if (!dayTrades || dayTrades.length === 0) {
         return {
           totalProfitLoss: 0,
+          totalGainedPoints: 0,
+          pairs: [],
           results: [],
           hasData: false
         };
       }
-  
+
       let totalProfitLoss = 0;
+      let totalGainedPoints = 0;
       const results = [];
-  
+      const pairs = [];
+
       dayTrades.forEach(trade => {
         // Extract the numeric value from profitLoss (remove '%' sign if present)
         const profitValue = trade.profitLoss ? parseFloat(trade.profitLoss.replace('%', '')) : 0;
         totalProfitLoss += profitValue;
+
+        // Extract the numeric value from gainedPoints (remove '$' sign if present)
+        const gainedValue = trade.gainedPoints ? 
+          parseFloat(trade.gainedPoints.replace(/[^-\d.]/g, '')) : 0;
+        totalGainedPoints += gainedValue;
+
         results.push(trade.result);
+        if (trade.pair && !pairs.includes(trade.pair)) {
+          pairs.push(trade.pair);
+        }
       });
-  
+
       // Determine the color logic based on totalProfitLoss value
       let resultColor;
       if (totalProfitLoss > 0) {
@@ -1193,21 +1295,23 @@ function TradeJournal() {
           resultColor = '#ffffff'; // White for other cases
         }
       }
-  
+
       return {
         totalProfitLoss: totalProfitLoss,
+        totalGainedPoints: totalGainedPoints,
+        pairs: pairs,
         results: results,
         hasData: true,
         resultColor: resultColor
       };
     };
-  
+
     const formatDate = (date) => {
       const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
       const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
     };
-  
+
     return (
       <TradeCalendarContainer>
         {weekDates.map((date, index) => {
@@ -1215,7 +1319,9 @@ function TradeJournal() {
           const dayResults = calculateDayResult(dayTrades);
           const isToday = date.toDateString() === today.toDateString();
           
-          const primaryTrade = dayTrades.length > 0 ? dayTrades[0] : null;
+          // Визначаємо, яку пару відображати
+          const currentPairIndex = activePairIndex[index] || 0;
+          const currentPair = dayResults.pairs[currentPairIndex];
 
           return (
             <CalendarDay 
@@ -1227,7 +1333,13 @@ function TradeJournal() {
               <CalendarDayHeader>{formatDate(date)}</CalendarDayHeader>
               {dayResults.hasData && (
                 <CalendarDayMetrics>
-                  {primaryTrade && primaryTrade.pair}<br/>
+                  <PairContainer>
+                    {currentPair && (
+                      <PairText key={`${index}-${currentPairIndex}`}>
+                        {currentPair}
+                      </PairText>
+                    )}
+                  </PairContainer>
                   <MetricsValue 
                     type={
                       dayResults.totalProfitLoss > 0 ? 'profit' :
@@ -1237,6 +1349,16 @@ function TradeJournal() {
                   >
                     {dayResults.totalProfitLoss > 0 ? `+${dayResults.totalProfitLoss}%` :
                      `${dayResults.totalProfitLoss}%`}
+                  </MetricsValue>
+                  <MetricsValue 
+                    type={
+                      dayResults.totalGainedPoints > 0 ? 'profit' :
+                      dayResults.totalGainedPoints < 0 ? 'loss' :
+                      'breakeven'
+                    }
+                  >
+                    {dayResults.totalGainedPoints > 0 ? `+$${dayResults.totalGainedPoints.toFixed(2)}` :
+                     `$${dayResults.totalGainedPoints.toFixed(2)}`}
                   </MetricsValue>
                 </CalendarDayMetrics>
               )}
@@ -1281,6 +1403,7 @@ function TradeJournal() {
                       isClearable={true}
                       placeholderText="Select date range"
                       dateFormat="yyyy-MM-dd"
+                      locale="en-GB"
                     />
                     <FilterButtonGroup>
                       <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
@@ -1394,6 +1517,33 @@ function TradeJournal() {
                       >
                         <RadioButton selected={sortConfig.key === 'no'} />
                         <span>No. {sortConfig.key === 'no' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+                      
+                      <SortOption 
+                        selected={sortConfig.key === 'profitLoss'}
+                        onClick={() => handleSort('profitLoss')}
+                      >
+                        <RadioButton selected={sortConfig.key === 'profitLoss'} />
+                        <span>Profit % {sortConfig.key === 'profitLoss' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+                      
+                      <SortOption 
+                        selected={sortConfig.key === 'gainedPoints'}
+                        onClick={() => handleSort('gainedPoints')}
+                      >
+                        <RadioButton selected={sortConfig.key === 'gainedPoints'} />
+                        <span>Profit $ {sortConfig.key === 'gainedPoints' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+                      
+                      <SortOption 
+                        selected={sortConfig.key === 'result'}
+                        onClick={() => handleSort('result')}
+                      >
+                        <RadioButton selected={sortConfig.key === 'result'} />
+                        <span>Result {sortConfig.key === 'result' && 
                           (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
                       </SortOption>
                     </SortGroup>

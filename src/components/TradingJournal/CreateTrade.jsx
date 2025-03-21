@@ -1036,9 +1036,15 @@ function CreateTrade() {
     const loadInitialData = async () => {
       console.log('Loading initial data...');
       try {
-        // Завантажуємо кількість трейдів
+        // Завантажуємо трейди і визначаємо наступний номер
         const trades = await window.electronAPI.getTrades();
-        setTradeCount(trades.length + 1);
+        // Знаходимо максимальний номер трейду
+        const maxTradeNo = trades.reduce((max, trade) => {
+          const tradeNo = parseInt(trade.no) || 0;
+          return tradeNo > max ? tradeNo : max;
+        }, 0);
+        // Встановлюємо наступний номер (+1 до максимального)
+        setTradeCount(maxTradeNo + 1);
 
         // Завантажуємо список акаунтів
         const accountsData = await window.electronAPI.getAllAccounts();
