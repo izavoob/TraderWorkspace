@@ -383,7 +383,6 @@ const StyledDatePicker = styled(DatePicker)`
 `;
 
 const TableContainer = styled.div`
-  flex: 1;
   bottom: 15px;
   overflow: auto;
   margin-top: 20px;
@@ -454,7 +453,19 @@ const TableHeader = styled.th`
 const TableCell = styled.td`
   padding: 6px;
   text-align: center;
-  color: #fff;
+  color: ${props => {
+    if (props.column === 'profitLoss' || props.column === 'gainedPoints') {
+      const value = props.value ? parseFloat(props.value.toString().replace(/[^-\d.]/g, '')) : 0;
+      return value > 0 ? '#00d1b2' : value < 0 ? '#ff4560' : '#fff';
+    }
+    if (props.column === 'result') {
+      if (props.value === 'Win') return '#00e676';
+      if (props.value === 'Loss') return '#ff5252';
+      if (props.value === 'Breakeven') return '#ff9300';
+      if (props.value === 'Missed') return '#9370db';
+    }
+    return '#fff';
+  }};
   background-color: #1a1a1a;
   position: relative;
 `;
@@ -680,7 +691,7 @@ const CalendarDay = styled.div`
   border-radius: 8px;
   padding: 12px;
   text-align: center;
-  height: 130px;
+  height: 100px;
   position: relative;
   box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
   opacity: 0.6;
@@ -695,55 +706,63 @@ const CalendarDay = styled.div`
     border: 2px solid transparent linear-gradient(45deg, #7425c9, #b886ee) border-box;
   `}
 
-  ${props => props.result === 'Win' && `
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(0, 230, 118, 0.3), transparent);
-      border-radius: 8px;
+  ${props => {
+    if (!props.hasData || !props.dayResults) return '';
+    
+    const { totalProfitLoss, results } = props.dayResults;
+    
+    if (totalProfitLoss > 0) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(0, 230, 118, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (totalProfitLoss < 0) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 82, 82, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (results && results.includes('Breakeven')) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 147, 0, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (results && results.includes('Missed')) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(147, 112, 219, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
     }
-  `}
-
-  ${props => props.result === 'Loss' && `
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(255, 82, 82, 0.3), transparent);
-      border-radius: 8px;
-    }
-  `}
-
-  ${props => props.result === 'Breakeven' && `
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(255, 147, 0, 0.3), transparent);
-      border-radius: 8px;
-    }
-  `}
-
-  ${props => (!props.result || props.result === '') && `
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), transparent);
-      border-radius: 8px;
-    }
-  `}
-
-  ${props => props.result === 'Missed' && `
-    &::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: linear-gradient(to bottom, rgba(74, 42, 140, 0.3), transparent);
-      border-radius: 8px;
-    }
-  `}
+  }}
 `;
 
 const CalendarDayHeader = styled.div`
@@ -1104,7 +1123,7 @@ function TradeJournal() {
   const handleDelete = async (tradeId) => {
     try {
       await window.electronAPI.deleteTrade(tradeId);
-      setTrades(trades.filter((trade) => trade.id !== tradeId));
+      setTrades(prevTrades => prevTrades.filter(trade => trade.id !== tradeId));
       setDeletePopup(null);
     } catch (error) {
       console.error('Error deleting trade:', error);
@@ -1132,11 +1151,55 @@ function TradeJournal() {
     const today = new Date();
   
     // Get trades for specific date
-    const getTradeForDate = (date) => {
-      return trades.find(trade => {
+    const getTradesForDate = (date) => {
+      return trades.filter(trade => {
         const tradeDate = new Date(trade.date);
         return tradeDate.toDateString() === date.toDateString();
       });
+    };
+  
+    const calculateDayResult = (dayTrades) => {
+      if (!dayTrades || dayTrades.length === 0) {
+        return {
+          totalProfitLoss: 0,
+          results: [],
+          hasData: false
+        };
+      }
+  
+      let totalProfitLoss = 0;
+      const results = [];
+  
+      dayTrades.forEach(trade => {
+        // Extract the numeric value from profitLoss (remove '%' sign if present)
+        const profitValue = trade.profitLoss ? parseFloat(trade.profitLoss.replace('%', '')) : 0;
+        totalProfitLoss += profitValue;
+        results.push(trade.result);
+      });
+  
+      // Determine the color logic based on totalProfitLoss value
+      let resultColor;
+      if (totalProfitLoss > 0) {
+        resultColor = '#00e676'; // Green for positive
+      } else if (totalProfitLoss < 0) {
+        resultColor = '#ff5252'; // Red for negative
+      } else {
+        // If profitLoss is 0, check results
+        if (results.includes('Breakeven')) {
+          resultColor = '#ff9300'; // Orange for breakeven
+        } else if (results.includes('Missed')) {
+          resultColor = '#9370db'; // Purple for missed
+        } else {
+          resultColor = '#ffffff'; // White for other cases
+        }
+      }
+  
+      return {
+        totalProfitLoss: totalProfitLoss,
+        results: results,
+        hasData: true,
+        resultColor: resultColor
+      };
     };
   
     const formatDate = (date) => {
@@ -1148,35 +1211,37 @@ function TradeJournal() {
     return (
       <TradeCalendarContainer>
         {weekDates.map((date, index) => {
-          const trade = getTradeForDate(date);
+          const dayTrades = getTradesForDate(date);
+          const dayResults = calculateDayResult(dayTrades);
           const isToday = date.toDateString() === today.toDateString();
-  
-            return (
+          
+          const primaryTrade = dayTrades.length > 0 ? dayTrades[0] : null;
+
+          return (
             <CalendarDay 
               key={index}
-              hasData={!!trade}
+              hasData={dayResults.hasData}
               isToday={isToday}
-              result={trade?.result}
+              dayResults={dayResults}
             >
               <CalendarDayHeader>{formatDate(date)}</CalendarDayHeader>
-              {trade && (
-              <CalendarDayMetrics>
-                {trade.pair}<br/>
-                <MetricsValue 
-                type={
-                  trade.result === 'Win' ? 'profit' :
-                  trade.result === 'Loss' ? 'loss' :
-                  trade.result === 'Breakeven' ? 'breakeven' : 'missed'
-                }
-                >
-                {trade.result === 'Win' ? `+${trade.profitLoss}%` :
-                 trade.result === 'Loss' ? `${trade.profitLoss}%` :
-                 `${trade.profitLoss}%`}
-                </MetricsValue>
-              </CalendarDayMetrics>
+              {dayResults.hasData && (
+                <CalendarDayMetrics>
+                  {primaryTrade && primaryTrade.pair}<br/>
+                  <MetricsValue 
+                    type={
+                      dayResults.totalProfitLoss > 0 ? 'profit' :
+                      dayResults.totalProfitLoss < 0 ? 'loss' :
+                      dayResults.results.includes('Breakeven') ? 'breakeven' : 'missed'
+                    }
+                  >
+                    {dayResults.totalProfitLoss > 0 ? `+${dayResults.totalProfitLoss}%` :
+                     `${dayResults.totalProfitLoss}%`}
+                  </MetricsValue>
+                </CalendarDayMetrics>
               )}
             </CalendarDay>
-            );
+          );
         })}
       </TradeCalendarContainer>
     );
@@ -1417,6 +1482,8 @@ function TradeJournal() {
                             key={cell.column.id}
                             {...cell.getCellProps()} 
                             style={{ width: cell.column.width }}
+                            column={cell.column.id}
+                            value={row.original[cell.column.id]}
                           >
                             {cell.render('Cell')}
                           </TableCell>
