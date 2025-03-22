@@ -136,7 +136,7 @@ const BackButton = styled.button`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -181,12 +181,7 @@ const Subtitle = styled.p`
   margin-top: 10px;
 `;
 
-const TradeNumber = styled.p`
-  color: #fff;
-  font-size: 1.2em;
-  margin: 10px 0;
-  text-align: center;
-`;
+
 
 const TradeContent = styled.div`
   
@@ -206,10 +201,9 @@ const TradeTable = styled.div`
   flex: 1;
   background-color: #2e2e2e;
   padding: 20px;
-  border-radius: 5px;
-  border: 2px solid #5e2ca5;
+  border-radius: 8px;
   animation: ${slideIn} 0.5s ease;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   transition: all 0.3s ease;
 
   &:hover {
@@ -241,7 +235,7 @@ const FormLabel = styled.label`
   text-align: center;
   font-size: 1em;
   width: 100%;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Roboto', sans-serif;
   font-weight: 500;
   letter-spacing: 0.3px;
 `;
@@ -249,6 +243,7 @@ const FormLabel = styled.label`
 const FormInput = styled.input`
   padding: 8px;
   background-color: #3e3e3e;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: ${props => {
     if (props.name === 'gainedPoints') {
       const value = parseFloat(props.value);
@@ -258,11 +253,11 @@ const FormInput = styled.input`
     return '#fff';
   }};
   border: 1px solid #5e2ca5;
-  border-radius: 5px;
+  border-radius: 8px;
   width: 100%;
   text-align: center;
   box-sizing: border-box;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Roboto', sans-serif;
   letter-spacing: 0.3px;
   
   &:focus {
@@ -277,7 +272,7 @@ const FormSelect = styled.select`
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
-  border-radius: 5px;
+  border-radius: 8px;
   width: 100%;
   text-align: center;
   appearance: none;
@@ -307,7 +302,7 @@ const FormButton = styled.button`
   color: #fff;
   border: none;
   padding: 10px 20px;
-  border-radius: 15px;
+  border-radius: 8px;
   cursor: pointer;
   transition: transform 0.2s ease, opacity 0.2s ease;
   min-width: 120px;
@@ -339,7 +334,7 @@ const VolumeConfirmationButton = styled.button`
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
-  border-radius: 5px;
+  border-radius: 8px;
   width: 100%;
   text-align: center;
   appearance: none;
@@ -357,7 +352,7 @@ const VolumeConfirmationPopup = styled.div`
   right: 0;
   background-color: #3e3e3e;
   border: 1px solid #5e2ca5;
-  border-radius: 5px;
+  border-radius: 8px;
   padding: 10px;
   z-index: 1000;
   width: 100%;
@@ -369,7 +364,7 @@ const VolumeOption = styled.div`
   background-color: ${(props) => (props.selected ? 'rgba(94, 44, 165, 0.4)' : 'transparent')};
   color: #fff;
   text-align: center;
-  border-radius: 4px;
+  border-radius: 8px;
 
   &:hover {
     background-color: #5e2ca5;
@@ -382,7 +377,7 @@ const ConfirmButton = styled.button`
   color: #fff;
   border: none;
   padding: 8px;
-  border-radius: 5px;
+  border-radius: 8px;
   cursor: pointer;
   width: 100%;
 `;
@@ -412,9 +407,8 @@ const TimeframeIcon = styled.div`
 `;
 
 const ImageUploadArea = styled.div`
-  width: 94%;
+  width: 100%;
   border: 2px dashed #5e2ca5;
-  padding: 20px;
   text-align: center;
   cursor: pointer;
   margin: 10px auto;
@@ -435,7 +429,7 @@ const ImageUploadArea = styled.div`
   img {
     max-width: 100%;
     max-height: 400px;
-    border-radius: 4px;
+    border-radius: 8px;
   }
 
   span {
@@ -455,8 +449,8 @@ const ScreenshotField = styled.div`
   flex: 1 1 45%;
   background-color: #2e2e2e;
   padding: 15px;
-  border-radius: 5px;
-  border: 2px solid #5e2ca5;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+  border-radius: 8px;
   position: relative;
   display: flex;
   flex-direction: column;
@@ -487,7 +481,7 @@ const ScreenshotInput = styled.input`
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
-  border-radius: 5px;
+  border-radius: 8px;
   margin-bottom: 10px;
   text-align: center;
 `;
@@ -505,10 +499,10 @@ const TextArea = styled.textarea`
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
-  border-radius: 5px;
+  border-radius: 8px;
   min-height: 100px;
   text-align: center;
-  font-family: 'Inter', sans-serif;
+  font-family: 'Roboto', sans-serif;
   letter-spacing: 0.3px;
   line-height: 1.5;
   
@@ -537,7 +531,7 @@ const NoteContainer = styled.div`
 const NoteItem = styled.div`
   background-color: #2e2e2e;
   padding: 10px;
-  border-radius: 5px;
+  border-radius: 8px;
   border: 1px solid #5e2ca5;
   margin-bottom: 10px;
   cursor: pointer;
@@ -555,37 +549,6 @@ const NoteText = styled.p`
   text-align: center;
 `;
 
-const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425c9, #b886ee);
-  border: none;
-  cursor: pointer;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
-  position: absolute;
-  top: 10px;
-
-  &:hover {
-    filter: brightness(1.5);
-  }
-
-  img {
-    width: 16px;
-    height: 16px;
-  }
-
-  &.edit {
-    right: 40px;
-  }
-
-  &.delete {
-    right: 10px;
-  }
-`;
 
 const DeleteButton = styled.button`
   position: absolute;
@@ -636,7 +599,7 @@ const FullscreenImage = styled.img`
   max-height: 100%;
   object-fit: contain;
   border: 2px solid #5e2ca5;
-  border-radius: 4px;
+  border-radius: 8px;
   box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 `;
 
@@ -704,39 +667,7 @@ const NotePopup = styled.div`
   align-items: center;
 `;
 
-const NotePopupTitle = styled.h3`
-  color: #fff;
-  margin: 0 0 10px;
-  text-align: center;
-`;
 
-const NotePopupInput = styled.input`
-  padding: 8px;
-  background-color: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 5px;
-  width: 100%;
-  text-align: center;
-`;
-
-const NotePopupTextArea = styled.textarea`
-  padding: 8px;
-  background-color: #3e3e3e;
-  color: #fff;
-  border: 1px solid #5e2ca5;
-  border-radius: 5px;
-  width: 100%;
-  flex-grow: 1;
-  text-align: center;
-`;
-
-const NotePopupButtons = styled.div`
-  display: flex;
-  gap: 10px;
-  justify-content: center;
-  width: 100%;
-`;
 
 const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
@@ -801,6 +732,7 @@ const DatePickerStyles = createGlobalStyle`
 const StyledDatePicker = styled(DatePicker)`
   background: #2e2e2e;
   border: 1px solid #5e2ca5;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: #fff;
   padding: 8px;
   border-radius: 8px;

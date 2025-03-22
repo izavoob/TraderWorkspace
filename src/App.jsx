@@ -39,13 +39,16 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     width: 100%;
     background-color: #1a1a1a;
-    overflow: ${props => props.isHome ? 'hidden' : 'visible'}; // Змінюємо auto на visible
+    overflow: ${props => {
+      const noScrollPaths = ['/', '/trade-journal', '/daily-routine/pre-session', '/daily-routine/post-session'];
+      return noScrollPaths.includes(props.pathname) ? 'hidden' : 'visible';
+    }};
   }
 
   #root {
     height: 100%;
     position: relative;
-    overflow: visible; // Додаємо overflow: visible
+    overflow: visible;
   }
 
   ::-webkit-scrollbar {
@@ -248,7 +251,7 @@ function App() {
 
   return (
     <>
-      <GlobalStyle isHome={isHome} />
+      <GlobalStyle pathname={location.pathname} />
       {isLoading ? (
         <LoadingScreen />
       ) : (

@@ -3,6 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import styled, { css, keyframes } from 'styled-components';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend, ArcElement } from 'chart.js';
 import { Bar, Doughnut } from 'react-chartjs-2';
+import MenuOpenTwoToneIcon from '@mui/icons-material/MenuOpenTwoTone';
+import CachedTwoToneIcon from '@mui/icons-material/CachedTwoTone';
+import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
 import UpdateIcon from '../assets/icons/update-icon.svg';
 import SettingsIcon from '../assets/icons/settings-icon.svg';
 import HideMenuIcon from '../assets/icons/hide-menu-icon.svg';
@@ -59,32 +62,47 @@ const gradientAnimation = keyframes`
   100% { background-position: 0% 50%; }
 `;
 
-const Sidebar = styled.div`
+const Overlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
-  width: ${props => props.isCollapsed ? '0' : '300px'};
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  opacity: ${props => props.isVisible ? 1 : 0};
+  visibility: ${props => props.isVisible ? 'visible' : 'hidden'};
+  transition: all 0.3s ease;
+  z-index: 999;
+`;
+
+const Sidebar = styled.div`
+  position: fixed;
+  top: 0;
+  left: ${props => props.isCollapsed ? '-350px' : '0'};
+  width: 300px;
   height: 100vh;
-  background-color: #1a1a1a;
-  padding: ${props => props.isCollapsed ? '0' : '20px'};
+  background-color: rgb(26 26 26 / 20%);
+  padding: 20px;
+  padding-top: 70px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  overflow: hidden;
-  transition: all 0.3s ease;
+  transition: left 0.3s ease;
+  overflow-y: auto;
 `;
 
 const ToggleButton = styled.button`
   position: fixed;
-  top: 20px;
-  left: ${props => props.isCollapsed ? '20px' : '320px'};
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  top: 25px;
+  left: ${props => props.isCollapsed ? '25px' : '320px'};
+  background: rgb(26, 26, 46);
   border: none;
   cursor: pointer;
   width: 36px;
-  height: 36px;
+  height: ${props => (props.isCollapsed ? '116px' : '36px')};
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -92,28 +110,43 @@ const ToggleButton = styled.button`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   z-index: 1001;
   transition: all 0.3s ease;
-
-  &:hover {
-    transform: scale(1.1);
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgb(94, 44, 165);
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
-  img {
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.05);
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
+  }
+
+  svg {
     width: 24px;
     height: 24px;
-    filter: brightness(0) invert(1);
+    color: #fff;
+    transform: ${props => props.isCollapsed ? 'scaleX(-1)' : 'scaleX(1)'};
+    transition: transform 0.3s ease;
+    z-index: 1;
   }
 `;
 
 const MainContent = styled.div`
-  margin-left: ${props => props.isCollapsed ? '42px' : '297px'};
   padding: 20px;
-  background-color: #1a1a1a;
+  background-color:rgb(46, 46, 46);
   color: #fff;
-  margin-top: 30px;
-  margin-right: 25px;
-  margin-bottom: 25px;
-  transition: margin-left 0.3s ease;
-  height: calc(100vh - 85px);
+  height: calc(100vh - 40px);
+  gap: 10px;
   overflow: hidden;
   position: relative;
   display: flex;
@@ -127,7 +160,7 @@ const Header = styled.header`
   padding: 20px;
   border-radius: 10px;
   color: #fff;
-  margin-bottom: 20px;
+  
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 15px rgba(116, 37, 201, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -135,8 +168,9 @@ const Header = styled.header`
 
 const TopRightButtons = styled.div`
   position: fixed;
-  top: 30px;
-  right: 50px;
+  flex-direction: column-reverse;
+  top: 40px;
+  right: 25px;
   display: flex;
   gap: 15px;
   z-index: 1001;
@@ -203,41 +237,42 @@ const MenuButton = styled(Link)`
 
 const StatsContent = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  width: 85%;
-  max-width: ${props => props.isCollapsed ? '1600px' : '1400px'};
-  margin: 0 auto;
-  padding: 15px;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  gap: 10px;
   overflow: hidden;
-  transition: max-width 0.3s ease;
+  padding: 15px;
+  
+  
 `;
 
 const ChartContent = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr); // Змінюємо на 2 колонки
-  grid-template-rows: repeat(2, 1fr); // 2 ряди
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 15px;
   width: 100%;
-  height: 100%;
-  padding: 20px;
+  padding: 15px;
   box-sizing: border-box;
-  max-width: 1400px; // Збільшуємо максимальну ширину
-  margin: 0 auto;
+  
   overflow: hidden;
 `;
 
 const ChartContainer = styled.div`
-  background: rgba(116, 37, 201, 0.1);
-  border-radius: 13px;
-  padding: 15px;
+  background: linear-gradient(90deg, rgb(39, 18, 61), rgb(92, 43, 144), rgb(28, 9, 49));
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 10s ease infinite;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(116, 37, 201, 0.2);
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   backdrop-filter: blur(5px);
   transition: all 0.3s ease;
+  height: 100%;
+  max-height: 300px;
+  position: relative;
+  overflow: hidden;
 
   &:hover {
     transform: scale(1.01);
@@ -253,6 +288,13 @@ const ChartContainer = styled.div`
   & > canvas {
     max-width: 100% !important;
     max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    position: absolute !important;
+    padding: 5px;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
   }
 `;
 
@@ -263,63 +305,39 @@ const MetricsContainer = styled.div`
 `;
 
 const StatCard = styled.div`
-  background: rgba(116, 37, 201, 0.1);
-  border-radius: 13px;
-  padding: 30px;
+  background: linear-gradient(90deg, rgb(39, 18, 61), rgb(92, 43, 144), rgb(28, 9, 49));
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 10s ease infinite;
+  border-radius: 8px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: white;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1.2;
   position: relative;
   transition: all 0.3s ease;
-  border: 1px solid rgba(116, 37, 201, 0.2);
   backdrop-filter: blur(5px);
 
   &:hover {
     transform: translateY(-5px);
     border-color: rgba(116, 37, 201, 0.5);
-    animation: ${glowEffect} 2s infinite;
+    animation: ${pulseAnimation} 2s ease-in-out infinite;
   }
 
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 13px;
+    border-radius: 8px;
     padding: 1px;
-    background: linear-gradient(
-      45deg, 
-      rgba(116, 37, 201, 0.5),
-      rgba(184, 134, 238, 0.5)
-    );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
   }
-
-  ${({ isAnimating }) =>
-    isAnimating &&
-    css`
-      animation: ${fadeInScale} 0.5s ease-out, ${pulseAnimation} 2s ease-in-out infinite;
-    `}
 `;
 
-const WinrateContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  margin: 10px 0;
-`;
-
-const WinrateBox = styled.div`
-  padding: 8px 16px;
-  border-radius: 8px;
-  background-color: ${props => props.type === 'long' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(255, 99, 132, 0.2)'};
-  color: ${props => props.type === 'long' ? '#4bc0c0' : '#ff6384'};
-  font-weight: bold;
-`;
 
 const GainedRRContainer = styled.div`
   display: flex;
@@ -330,9 +348,9 @@ const GainedRRContainer = styled.div`
 `;
 
 const RRValue = styled.div`
-  font-size: 1.2em;
+  font-size: 1em;
   font-weight: bold;
-  color: ${props => props.type === 'gained' ? '#4bc0c0' : '#B886EE'};
+  color: ${props => props.type === 'gained' ? '#4bc0c0' : '#000000'};
 `;
 
 const RRSeparator = styled.span`
@@ -341,25 +359,25 @@ const RRSeparator = styled.span`
 `;
 
 const StatValue = styled.div`
-  font-size: 1.5em;
+  font-size: 1em;
   font-weight: bold;
-  color: #B886EE;
+  color:rgb(255, 255, 255);
   margin: 10px 0;
   text-align: center;
 `;
 
 const StatLabel = styled.div`
   font-size: 0.9em;
-  color: #888;
+  color:rgb(255, 255, 255);
   text-align: center;
   margin-bottom: 5px;
 `;
 
 const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: rgb(26, 26, 46);
   border: none;
   cursor: pointer;
-  width: 36px;
+  width: 116px;
   height: 36px;
   border-radius: 6px;
   display: flex;
@@ -367,16 +385,32 @@ const IconButton = styled.button`
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   position: relative;
+  overflow: hidden;
 
-  &:hover {
-    transform: scale(1.1);
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgb(94, 44, 165);
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
-  transition: transform 0.2s ease;
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.05);
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
+  }
 
-  img {
+  svg {
     width: 24px;
     height: 24px;
+    color: #fff;
+    z-index: 1;
   }
 
   &:hover::after {
@@ -395,7 +429,7 @@ const IconButton = styled.button`
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  &.update-button:active img {
+  &.update-button:active svg {
     animation: ${iconRotate} 0.5s linear;
   }
 `;
@@ -437,12 +471,9 @@ const SlideNavigation = styled.div`
 const ContentWrapper = styled.div`
   flex: 1;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex-direction: row;
+  
   overflow: hidden;
-  padding-left: 20px;
-  margin-bottom: 20px;
 `;
 
 const NavigationArrow = styled.div`
@@ -494,8 +525,9 @@ const SlideIndicator = styled.div`
 `;
 
 function Home() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [chartKey, setChartKey] = useState(0);
   const [tradeStats, setTradeStats] = useState({
     totalTrades: 0,
     winningRatio: 0,
@@ -685,15 +717,12 @@ function Home() {
   };
 
   const handleUpdate = () => {
+    setChartKey(prevKey => prevKey + 1);
     fetchTradeData();
   };
 
   const handleSettings = () => {
     navigate('/settings');
-  };
-
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
   };
 
   const chartOptions = {
@@ -869,130 +898,102 @@ function Home() {
 
   return (
     <>
+      <Overlay isVisible={!isCollapsed} onClick={() => setIsCollapsed(true)} />
       <Sidebar isCollapsed={isCollapsed}>
-        <Header>
-          <Greeting>{getGreeting()}</Greeting>
-          <WorkPhrase>Let's get to work!</WorkPhrase>
-        </Header>
         {galleryItems.map((item) => (
           <MenuButton key={item.path} to={item.path}>
             {item.title}
           </MenuButton>
         ))}
       </Sidebar>
-      <ToggleButton isCollapsed={isCollapsed} onClick={toggleSidebar}>
-        <img 
-          src={isCollapsed ? ShowMenuIcon : HideMenuIcon} 
-          alt={isCollapsed ? "Show menu" : "Hide menu"}
-        />
+      <ToggleButton isCollapsed={isCollapsed} onClick={() => setIsCollapsed(!isCollapsed)}>
+        <MenuOpenTwoToneIcon />
       </ToggleButton>
-      <MainContent isCollapsed={isCollapsed}>
+      <MainContent>
+        <Header>
+          <Greeting>{getGreeting()}</Greeting>
+          <WorkPhrase>Let's get to work!</WorkPhrase>
+        </Header>
         <TopRightButtons>
           <IconButton className="update-button" data-tooltip="Update Statistics" onClick={handleUpdate}>
-            <img src={UpdateIcon} alt="Update" />
+            <CachedTwoToneIcon />
           </IconButton>
           <IconButton data-tooltip="Open Settings" onClick={handleSettings}>
-            <img src={SettingsIcon} alt="Settings" />
+            <SettingsTwoToneIcon />
           </IconButton>
         </TopRightButtons>
         
-        <SlideContainer>
-          <Slide active={activeSlide === 0} direction="prev">
-            <ContentWrapper>
-              <StatsContent isCollapsed={isCollapsed}>
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Total Trades</StatLabel>
-                  <StatValue>{tradeStats.totalTrades}</StatValue>
-                </StatCard>
+        <ContentWrapper>
+          <StatsContent>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Total Trades</StatLabel>
+              <StatValue>{tradeStats.totalTrades}</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Best Pair</StatLabel>
-                  <StatValue>{tradeStats.bestPair}</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Best Pair</StatLabel>
+              <StatValue>{tradeStats.bestPair}</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Average RR</StatLabel>
-                  <StatValue>{tradeStats.averageRR.toFixed(2)}R</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Average RR</StatLabel>
+              <StatValue>{tradeStats.averageRR.toFixed(2)}R</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Best Session</StatLabel>
-                  <StatValue>{tradeStats.bestSession}</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Best Session</StatLabel>
+              <StatValue>{tradeStats.bestSession}</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Best Weekday</StatLabel>
-                  <StatValue>{tradeStats.bestWeekday}</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Best Weekday</StatLabel>
+              <StatValue>{tradeStats.bestWeekday}</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Gained & Potential RR</StatLabel>
-                  <GainedRRContainer>
-                    <RRValue type="gained">{tradeStats.gainedRR.toFixed(2)}R</RRValue>
-                    <RRSeparator>—</RRSeparator>
-                    <RRValue type="potential">{tradeStats.potentialRR.toFixed(2)}R</RRValue>
-                  </GainedRRContainer>
-                </StatCard>
-              </StatsContent>
-            </ContentWrapper>
-            <SlideNavigation>
-              <NavigationArrow onClick={() => setActiveSlide(0)}>
-                <img src={ArrowLeftIcon} alt="Previous" />
-              </NavigationArrow>
-              <SlideIndicator active={activeSlide === 0} />
-              <SlideIndicator active={activeSlide === 1} />
-              <NavigationArrow onClick={() => setActiveSlide(1)}>
-                <img src={ArrowRightIcon} alt="Next" />
-              </NavigationArrow>
-            </SlideNavigation>
-          </Slide>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Gained & Potential RR</StatLabel>
+              <GainedRRContainer>
+                <RRValue type="gained">{tradeStats.gainedRR.toFixed(2)}R</RRValue>
+                <RRSeparator>—</RRSeparator>
+                <RRValue type="potential">{tradeStats.potentialRR.toFixed(2)}R</RRValue>
+              </GainedRRContainer>
+            </StatCard>
+          </StatsContent>
 
-          <Slide active={activeSlide === 1} direction="next">
-            <ContentWrapper>
-              <ChartContent>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Doughnut 
-                    data={weekdayChartData} 
-                    options={weekdayOptions}
-                  />
-                </ChartContainer>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Bar 
-                    data={directionWinrateData} 
-                    options={{
-                      ...chartOptions,
-                      plugins: {
-                        ...chartOptions.plugins,
-                        title: {
-                          display: true,
-                          text: 'Long/Short Win Rate',
-                          color: 'white',
-                          font: { size: 14 }
-                        }
-                      }
-                    }}
-                  />
-                </ChartContainer>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Doughnut data={followingPlanData} options={doughnutOptions} />
-                </ChartContainer>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Bar data={executionData} options={executionOptions} />
-                </ChartContainer>
-              </ChartContent>
-            </ContentWrapper>
-            <SlideNavigation>
-              <NavigationArrow onClick={() => setActiveSlide(0)}>
-                <img src={ArrowLeftIcon} alt="Previous" />
-              </NavigationArrow>
-              <SlideIndicator active={activeSlide === 0} />
-              <SlideIndicator active={activeSlide === 1} />
-              <NavigationArrow onClick={() => setActiveSlide(1)}>
-                <img src={ArrowRightIcon} alt="Next" />
-              </NavigationArrow>
-            </SlideNavigation>
-          </Slide>
-        </SlideContainer>
+          <ChartContent>
+            <ChartContainer isAnimating={isStatsAnimating}>
+              <Doughnut 
+                key={chartKey}
+                data={weekdayChartData} 
+                options={weekdayOptions}
+              />
+            </ChartContainer>
+            <ChartContainer isAnimating={isStatsAnimating}>
+              <Bar 
+                key={chartKey}
+                data={directionWinrateData} 
+                options={{
+                  ...chartOptions,
+                  plugins: {
+                    ...chartOptions.plugins,
+                    title: {
+                      display: true,
+                      text: 'Long/Short Win Rate',
+                      color: 'white',
+                      font: { size: 14 }
+                    }
+                  }
+                }}
+              />
+            </ChartContainer>
+            <ChartContainer isAnimating={isStatsAnimating}>
+              <Doughnut key={chartKey} data={followingPlanData} options={doughnutOptions} />
+            </ChartContainer>
+            <ChartContainer isAnimating={isStatsAnimating}>
+              <Bar key={chartKey} data={executionData} options={executionOptions} />
+            </ChartContainer>
+          </ChartContent>
+        </ContentWrapper>
       </MainContent>
     </>
   );

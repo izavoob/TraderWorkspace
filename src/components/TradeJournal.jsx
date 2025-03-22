@@ -400,7 +400,8 @@ const StyledDatePicker = styled(DatePicker)`
 
 const TableContainer = styled.div`
   bottom: 15px;
-  overflow: auto;
+  overflow-y: auto;
+  overflow-x: hidden;
   margin-top: 20px;
   position: relative;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
@@ -416,6 +417,7 @@ const TableContainer = styled.div`
 
   tbody {
     overflow-y: auto;
+    overflow-x: hidden;
   }
   
   ::-webkit-scrollbar {
@@ -437,8 +439,6 @@ const TradeTable = styled.table`
   width: 100%;
   border-collapse: separate;
   border-spacing: 1px;
-  background-color: #2e2e2e;
-
 `;
 
 const TableHeader = styled.th`
@@ -482,51 +482,75 @@ const TableCell = styled.td`
     }
     return '#fff';
   }};
-  background-color: #1a1a1a;
   position: relative;
+
+
+  
+  
 `;
 
 const TableRow = styled.tr`
-  position: relative;
-  transition: background-color 0.3s ease, transform 0.2s ease;
+  position: relative;                    // Для позиціонування дочірніх елементів
+  transition: background-color 0.3s ease, transform 0.2s ease;  // Плавні переходи
+  background-color: rgb(37, 37, 37);     // Темно-сірий фон
+  overflow-x: hidden;                    // Приховує горизонтальний overflow
   
-  &:hover {
-    background-color: #7425c933 !important;
-    transform: translateY(-1px);
-    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);
+  &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
   }
   
-  &:nth-child(even) {
-    background-color: ${props => props.selected ? '#7425c966' : '#252525'};
-  }
-  &:nth-child(odd) {
-    background-color: ${props => props.selected ? '#7425c966' : '#3e3e3e'};
+  &:nth-child(even) {                    // Парні рядки
+    background-color: rgb(62, 62, 62);
+    overflow-x: hidden;
+
+     &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
   }
 
-  ${props => props.selected && css`
-    && {
-      background-color: #7425c966 !important;
-      transform: scale(1.005);
+    
+  }
+  &:nth-child(odd) {                     // Непарні рядки
+    background-color: rgb(37, 37, 37); 
+    overflow-x: hidden;
+
+   &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
+  }
+
+  }
+
+  ${props => props.selected && css`      // Стилі для вибраного стану
+    && {                                // Підвищена специфічність
+      background-color: #7425c966;      // Фіолетовий фон
+      transform: scale(1.005);          // Легке збільшення
+      overflow-x: hidden;               // Приховує горизонтальний overflow
     }
   `}
 
-  ${props => props.isSubtrade && css`
-    & > td {
-      background-color: rgba(92, 157, 245, 0.05) !important;
-      padding-left: 20px !important;
+  ${props => props.isSubtrade && css`    // Стилі для субрядків
+    & > td {                            // Усі клітинки
+      padding-left: 20px;               // Відступ зліва
+      overflow-x: hidden;  
+      background-color: rgba(80, 100, 160, 0.4);          
     }
 
-    & > td:first-child::before {
-      content: '↳';
-      position: absolute;
-      left: 5px;
-      color: #5C9DF5;
+    & > td:first-child::before {        // Псевдоелемент для першої клітинки
+      content: '↳';                    // Стрілка
+      position: absolute;              // Абсолютне позиціонування
+      left: 12px;                       // Відступ зліва
+      color: #5C9DF5;                  // Синій колір
     }
   `}
 
-  &:hover {
+  &:hover {                              // Стилі при наведенні для чекбокса
     .checkbox-container {
-      opacity: ${props => props.selected ? 1 : 0.8};
+      opacity: ${props => props.selected ? 1 : 0.8};  // Прозорість залежно від стану
     }
   }
 `;
@@ -720,7 +744,21 @@ const CalendarDay = styled.div`
   `}
 
   ${props => props.isToday && `
-    border: 2px solid transparent linear-gradient(45deg, #7425c9, #b886ee) border-box;
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 10px;
+      background: linear-gradient(45deg, #7425c9, #b886ee);
+      -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
   `}
 
   ${props => {
@@ -768,17 +806,8 @@ const CalendarDay = styled.div`
           border-radius: 8px;
         }
       `;
-    } else {
-      return `
-        &::before {
-          content: '';
-          position: absolute;
-          inset: 0;
-          background: linear-gradient(to bottom, rgba(255, 255, 255, 0.3), transparent);
-          border-radius: 8px;
-        }
-      `;
     }
+    return '';
   }}
 `;
 
@@ -802,7 +831,6 @@ const CalendarDayMetrics = styled.div`
 const PairContainer = styled.div`
   height: 20px;
   position: relative;
-  margin-bottom: 4px;
   overflow: hidden;
   width: 100%;
 `;
@@ -814,7 +842,7 @@ const PairText = styled.span`
   right: 0;
   animation: ${slideAnim} 0.5s ease forwards;
   white-space: nowrap;
-  font-weight: 500;
+  font-weight: 700;
   letter-spacing: 0.5px;
   background: linear-gradient(45deg, #b886ee, #ffffff);
   -webkit-background-clip: text;
@@ -822,10 +850,20 @@ const PairText = styled.span`
 `;
 
 const MetricsValue = styled.span`
-  ${props => props.type === 'profit' && `color: #00e676;`}
-  ${props => props.type === 'loss' && `color: #ff5252;`}
-  ${props => props.type === 'breakeven' && `color: #ff9300;`}
-  ${props => props.type === 'missed' && `color: #9370db;`}
+  ${props => {
+    const numericValue = props.type === 'profit' || props.type === 'loss' 
+      ? parseFloat(props.value) || 0 
+      : 0;
+
+    if (numericValue === 0) return 'color: #fff;';
+    
+    if (numericValue > 0) return 'color: #00e676;';
+    if (numericValue < 0) return 'color: #ff5252;';
+    
+    if (props.type === 'breakeven') return 'color: #ff9300;';
+    if (props.type === 'missed') return 'color: #9370db;';
+    return 'color: #fff;';
+  }}
   font-weight: bold;
 `;
 
@@ -1264,11 +1302,12 @@ function TradeJournal() {
       const pairs = [];
 
       dayTrades.forEach(trade => {
-        // Extract the numeric value from profitLoss (remove '%' sign if present)
-        const profitValue = trade.profitLoss ? parseFloat(trade.profitLoss.replace('%', '')) : 0;
+        // Для profitLoss прибираємо '%' і конвертуємо в число
+        const profitValue = trade.profitLoss ? 
+          parseFloat(trade.profitLoss.replace(/[^-\d.]/g, '')) : 0;
         totalProfitLoss += profitValue;
 
-        // Extract the numeric value from gainedPoints (remove '$' sign if present)
+        // Для gainedPoints прибираємо '$' і конвертуємо в число
         const gainedValue = trade.gainedPoints ? 
           parseFloat(trade.gainedPoints.replace(/[^-\d.]/g, '')) : 0;
         totalGainedPoints += gainedValue;
@@ -1279,30 +1318,12 @@ function TradeJournal() {
         }
       });
 
-      // Determine the color logic based on totalProfitLoss value
-      let resultColor;
-      if (totalProfitLoss > 0) {
-        resultColor = '#00e676'; // Green for positive
-      } else if (totalProfitLoss < 0) {
-        resultColor = '#ff5252'; // Red for negative
-      } else {
-        // If profitLoss is 0, check results
-        if (results.includes('Breakeven')) {
-          resultColor = '#ff9300'; // Orange for breakeven
-        } else if (results.includes('Missed')) {
-          resultColor = '#9370db'; // Purple for missed
-        } else {
-          resultColor = '#ffffff'; // White for other cases
-        }
-      }
-
       return {
-        totalProfitLoss: totalProfitLoss,
-        totalGainedPoints: totalGainedPoints,
-        pairs: pairs,
-        results: results,
-        hasData: true,
-        resultColor: resultColor
+        totalProfitLoss: parseFloat(totalProfitLoss.toFixed(2)),
+        totalGainedPoints: parseFloat(totalGainedPoints.toFixed(2)),
+        pairs,
+        results,
+        hasData: true
       };
     };
 
@@ -1341,23 +1362,19 @@ function TradeJournal() {
                     )}
                   </PairContainer>
                   <MetricsValue 
-                    type={
-                      dayResults.totalProfitLoss > 0 ? 'profit' :
-                      dayResults.totalProfitLoss < 0 ? 'loss' :
-                      dayResults.results.includes('Breakeven') ? 'breakeven' : 'missed'
-                    }
+                    type={dayResults.totalProfitLoss > 0 ? 'profit' : 'loss'}
+                    value={dayResults.totalProfitLoss}
                   >
-                    {dayResults.totalProfitLoss > 0 ? `+${dayResults.totalProfitLoss}%` :
+                    {dayResults.totalProfitLoss === 0 ? '0%' :
+                     dayResults.totalProfitLoss > 0 ? `+${dayResults.totalProfitLoss}%` :
                      `${dayResults.totalProfitLoss}%`}
                   </MetricsValue>
                   <MetricsValue 
-                    type={
-                      dayResults.totalGainedPoints > 0 ? 'profit' :
-                      dayResults.totalGainedPoints < 0 ? 'loss' :
-                      'breakeven'
-                    }
+                    type={dayResults.totalGainedPoints > 0 ? 'profit' : 'loss'}
+                    value={dayResults.totalGainedPoints}
                   >
-                    {dayResults.totalGainedPoints > 0 ? `+$${dayResults.totalGainedPoints.toFixed(2)}` :
+                    {dayResults.totalGainedPoints === 0 ? '$0.00' :
+                     dayResults.totalGainedPoints > 0 ? `+$${dayResults.totalGainedPoints.toFixed(2)}` :
                      `$${dayResults.totalGainedPoints.toFixed(2)}`}
                   </MetricsValue>
                 </CalendarDayMetrics>
