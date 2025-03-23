@@ -66,7 +66,6 @@ const DatePickerStyles = createGlobalStyle`
 
 const Container = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -75,20 +74,20 @@ const Container = styled.div`
 `;
 
 const Header = styled.header`
-  background: linear-gradient(45deg, #7425C9, #b886ee, #7425C9);
+  background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -103,7 +102,7 @@ const BackButton = styled(Link)`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -150,20 +149,18 @@ const Subtitle = styled.h2`
 `;
 
 const Content = styled.div`
-  margin-top: 38px;
-  padding: 20px;
   display: flex;
   flex-direction: column;
-  gap: 40px;
+  gap: 30px;
   max-width: 1820px;
-  margin-left: auto;
-  margin-right: auto;
+  margin-top: 20px
 `;
 
 const SectionContainer = styled.div`
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
   border-radius: 15px;
+      box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+
   padding: 30px;
   box-sizing: border-box;
   height: fit-content;
@@ -276,7 +273,7 @@ const MetricCard = styled.div`
   background-color: rgb(26, 26, 26);
   padding: 20px;
   border-radius: 15px;
-  border: 2px solid #5e2ca5;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
@@ -437,12 +434,13 @@ const TradeCard = styled(Link)`
   background-color: rgb(26, 26, 26);
   padding: 20px;
   border-radius: 15px;
-  border: 2px solid #5e2ca5;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   text-decoration: none;
   color: white;
   transition: all 0.3s ease;
   position: relative;
   overflow: hidden;
+  
 
   &:before {
     content: '';
@@ -502,7 +500,7 @@ const PreSessionCard = styled.div`
   background-color: #1a1a1a;
   padding: 20px;
   border-radius: 15px;
-  border: 2px solid #5e2ca5;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   text-decoration: none;
   color: white;
   transition: all 0.3s ease;
@@ -620,14 +618,14 @@ const BlocksContainer = styled.div`
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 20px;
-  margin-bottom: 20px;
 `;
 
 const DatePickerContainer = styled.div`
   display: flex;
   flex-direction: column;
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+
   border-radius: 15px;
   padding: 30px;
   box-sizing: border-box;
@@ -641,7 +639,7 @@ const VideoAnalysisContainer = styled.div`
   flex-direction: column;
   gap: 10px;
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   border-radius: 15px;
   padding: 30px;
   box-sizing: border-box;
@@ -1509,7 +1507,7 @@ function CreateWPA() {
               </MetricCard>
               <MetricCard>
                 <MetricTitle>Execution Coefficient</MetricTitle>
-                <MetricValue color="#4caf50">{metrics.executionCoefficient}%</MetricValue>
+                <MetricValue color="#4caf50">{metrics.executionCoefficient ? metrics.executionCoefficient.toFixed(2) : '0.00'}%</MetricValue>
               </MetricCard>
               <MetricCard>
                 <MetricTitle>Winrate</MetricTitle>

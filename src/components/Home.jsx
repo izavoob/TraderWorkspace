@@ -253,7 +253,7 @@ const ChartContent = styled.div`
 `;
 
 const ChartContainer = styled.div`
-  background: linear-gradient(90deg, rgb(39, 18, 61), rgb(92, 43, 144), rgb(28, 9, 49));
+  background: linear-gradient(-90deg, rgb(39, 18, 61), rgb(92, 43, 144), rgb(28, 9, 49));
   background-size: 200% 200%;
   animation: ${gradientAnimation} 10s ease infinite;
   border-radius: 8px;

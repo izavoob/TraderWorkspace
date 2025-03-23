@@ -19,7 +19,6 @@ const shineEffect = keyframes`
 
 const Container = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -32,16 +31,16 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -56,7 +55,7 @@ const BackButton = styled(Link)`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -103,7 +102,6 @@ const Subtitle = styled.h2`
 `;
 const Content = styled.div`
   margin-top: 38px;
-  padding: 20px;
   display: flex;
   flex-direction: column;
   gap: 40px;
@@ -114,8 +112,9 @@ const Content = styled.div`
 
 const SectionContainer = styled.div`
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
-  border-radius: 15px;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+
+  border-radius: 8px;
   padding: 30px;
   box-sizing: border-box;
   height: fit-content;
@@ -141,8 +140,9 @@ const AnalysisGrid = styled.div`
 const AnalysisCard = styled.div`
   background-color: #2e2e2e;
   padding: 20px;
-  border-radius: 15px;
-  border: 2px solid #5e2ca5;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+
+  border-radius: 8px;
   transition: all 0.3s ease;
   cursor: pointer;
   position: relative;
@@ -173,8 +173,10 @@ const AnalysisCard = styled.div`
 const AddAnalysisCard = styled(Link)`
   background-color: rgba(94, 44, 165, 0.1);
   border: 2px dashed #5e2ca5;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+
   padding: 20px;
-  border-radius: 15px;
+  border-radius: 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -210,7 +212,7 @@ const AddText = styled.span`
 const WeekInfo = styled.div`
   font-size: 1.5em;
   color: rgb(230, 243, 255);
-  margin-bottom: 15px;
+  margin-bottom: 8px;
   font-weight: bold;
 `;
 

@@ -385,6 +385,7 @@ const StyledDatePicker = styled(DatePicker)`
 
 const TableContainer = styled.div`
   position: relative;
+  bottom: 5px;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
   overflow-y: auto;
   overflow-x: hidden;
@@ -670,6 +671,7 @@ const ArrowContainer = styled.div`
 const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
+  margin-bottom: 10px;
   gap: 12px;
   color: #fff;
   height: 40px;
@@ -704,6 +706,7 @@ const TradeCalendarContainer = styled.div`
   display: flex;
   gap: 5px;
   margin-top: 20px;
+  margin-bottom: 15px;
   width: 100%;
 `;
 
@@ -870,6 +873,7 @@ function TradeJournal() {
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [tradeRelations, setTradeRelations] = useState({});
   const [expandedTrades, setExpandedTrades] = useState([]);
+  const [allSubtradesExpanded, setAllSubtradesExpanded] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -1199,14 +1203,14 @@ function TradeJournal() {
                 checked={selectedTrades.includes(row.original.id)}
                 onChange={() => handleSelectTrade(row.original.id)}
               />
-              <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
-                <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+              <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '6px', minWidth: 'auto' }}>
+                <img src={EditIcon} alt="Edit" style={{ width: '18px', height: '18px' }} />
               </ActionButton>
               <ActionButton 
                 onClick={() => handleDelete(row.original.id)} 
-                style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
+                style={{ padding: '6px', minWidth: 'auto', background: '#ff4757' }}
               >
-                <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+                <img src={DeleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} />
               </ActionButton>
               {hasSubtrades && !row.original.parentTradeId && (
                 <ActionButton 
@@ -1353,6 +1357,21 @@ function TradeJournal() {
     );
   };
 
+  const toggleAllSubtrades = () => {
+    if (allSubtradesExpanded) {
+      // Згортаємо всі субтрейди
+      setExpandedTrades([]);
+    } else {
+      // Розгортаємо всі трейди, у яких є субтрейди
+      const parentIds = trades
+        .filter(trade => tradeRelations[trade.id] && tradeRelations[trade.id].length > 0)
+        .map(trade => trade.id);
+      setExpandedTrades(parentIds);
+    }
+    // Інвертуємо стан кнопки
+    setAllSubtradesExpanded(!allSubtradesExpanded);
+  };
+
   const handleRowClick = (tradeId, isActionCell) => {
     if (!isActionCell) {
       navigate(`/trade/${tradeId}`);
@@ -1385,7 +1404,10 @@ function TradeJournal() {
       const curr = new Date();
       const week = [];
       
-      curr.setDate(curr.getDate() - curr.getDay() + 1);
+      // Змінюємо логіку, щоб неділя належала до поточного тижня
+      // Віднімаємо від поточної дати номер дня тижня (0-6, де 0 - неділя)
+      // для неділі це буде -0, для понеділка -1, вівторка -2, і т.д.
+      curr.setDate(curr.getDate() - ((curr.getDay() + 6) % 7));
       
       for (let i = 0; i < 7; i++) {
         week.push(new Date(curr));
@@ -1427,7 +1449,7 @@ function TradeJournal() {
         totalProfitLoss += profitValue;
 
         const gainedValue = trade.gainedPoints ? 
-          parseFloat(trade.gainedPoints.replace(/[^-\d.]/g, '')) : 0;
+          parseFloat(trade.gainedPoints.replace(/[^-\d.]/g, '') || 0) : 0;
         totalGainedPoints += gainedValue;
 
         results.push(trade.result);
@@ -1520,6 +1542,10 @@ function TradeJournal() {
               <ActionButton primary onClick={handleAddTrade}>Add new Trade</ActionButton>
             </ButtonGroup>
             <ButtonGroup>
+              <ActionButton onClick={toggleAllSubtrades}>
+                {allSubtradesExpanded ? 'Hide Subtrades ▲' : 'Show Subtrades ▼'}
+              </ActionButton>
+              
               <div style={{ position: 'relative' }}>
                 <ActionButton 
                   ref={rangeButtonRef}
