@@ -1,17 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
-import DeleteIcon from '../../assets/icons/delete-icon.svg';
-import EditIcon from '../../assets/icons/edit-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
 import { registerLocale } from 'react-datepicker';
-import uk from 'date-fns/locale/uk';
+import { enGB } from 'date-fns/locale';
 import NotesList from '../Notes/NotesList.jsx';
 import NoteModal from '../Notes/NoteModal.jsx';
 import PreSessionLinkComponent from '../PreSessionLink/PreSessionLinkComponent.jsx';
 
-registerLocale('uk', uk);
+registerLocale('en-gb', enGB);
 
 const formatCurrency = (amount) => {
   if (amount === null || amount === undefined) return '$0.00';
@@ -1406,7 +1404,7 @@ function CreateTrade() {
                   selected={trade.date ? new Date(trade.date) : new Date()}
                   onChange={(date) => handleChange({ target: { name: 'date', value: date.toISOString().split('T')[0] } })}
                   dateFormat="yyyy-MM-dd"
-                  locale="uk"
+                  locale="en-gb"
                 />
               </FormField>
               <FormField>

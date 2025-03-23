@@ -6,12 +6,6 @@ import { Bar, Doughnut } from 'react-chartjs-2';
 import MenuOpenTwoToneIcon from '@mui/icons-material/MenuOpenTwoTone';
 import CachedTwoToneIcon from '@mui/icons-material/CachedTwoTone';
 import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
-import UpdateIcon from '../assets/icons/update-icon.svg';
-import SettingsIcon from '../assets/icons/settings-icon.svg';
-import HideMenuIcon from '../assets/icons/hide-menu-icon.svg';
-import ShowMenuIcon from '../assets/icons/show-menu-icon.svg';
-import ArrowLeftIcon from '../assets/icons/arrow-left-icon.svg';
-import ArrowRightIcon from '../assets/icons/arrow-right-icon.svg';
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend, ArcElement);
 
@@ -278,12 +272,6 @@ const ChartContainer = styled.div`
     transform: scale(1.01);
     box-shadow: 0 6px 20px rgba(116, 37, 201, 0.3);
   }
-
-  ${({ isAnimating }) =>
-    isAnimating &&
-    css`
-      animation: ${fadeInScale} 0.5s ease-out;
-    `}
 
   & > canvas {
     max-width: 100% !important;
@@ -765,12 +753,12 @@ function Home() {
     labels: ['Win', 'Loss'],
     datasets: [{
       data: [
-        tradeStats.winningRatio, // Відсоток виграшних трейдів
-        100 - tradeStats.winningRatio // Відсоток програшних трейдів
+        tradeStats.winningRatio,
+        100 - tradeStats.winningRatio
       ],
       backgroundColor: [
-        'rgba(75, 192, 192, 0.8)', // Зелений для Win
-        'rgba(255, 99, 132, 0.8)'  // Червоний для Loss
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(255, 99, 132, 0.8)'
       ],
       borderColor: [
         'rgb(75, 192, 192)',
@@ -781,21 +769,15 @@ function Home() {
   };
 
   const weekdayOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+    ...chartOptions,
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: 'white',
-          font: { size: 12 }
+      ...chartOptions.plugins,
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
         }
-      },
-      title: {
-        display: true,
-        text: 'Overall Winrate',
-        color: 'white',
-        font: { size: 14 }
       }
     }
   };
@@ -838,14 +820,21 @@ function Home() {
   };
 
   const executionData = {
-    labels: ['Execution Coefficient'],
+    labels: ['Execution Coefficient', 'Not Executed'],
     datasets: [{
-      label: 'Execution %',
-      data: [tradeStats.executionCoefficient],
-      backgroundColor: 'rgba(75, 192, 192, 0.5)',
-      borderColor: 'rgb(75, 192, 192)',
-      borderWidth: 1,
-      barThickness: 50
+      data: [
+        tradeStats.executionCoefficient,
+        100 - tradeStats.executionCoefficient
+      ],
+      backgroundColor: [
+        'rgba(75, 192, 192, 0.8)',
+        'rgba(255, 99, 132, 0.8)'
+      ],
+      borderColor: [
+        'rgb(75, 192, 192)',
+        'rgb(255, 99, 132)'
+      ],
+      borderWidth: 1
     }]
   };
 
@@ -858,6 +847,13 @@ function Home() {
         text: 'Execution Coefficient',
         color: 'white',
         font: { size: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
+        }
       }
     },
     scales: {
@@ -880,18 +876,18 @@ function Home() {
     responsive: true,
     maintainAspectRatio: false,
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: 'white',
-          font: { size: 12 }
-        }
-      },
       title: {
         display: true,
         text: 'Following The Plan',
         color: 'white',
         font: { size: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
+        }
       }
     }
   };
@@ -961,14 +957,14 @@ function Home() {
           </StatsContent>
 
           <ChartContent>
-            <ChartContainer isAnimating={isStatsAnimating}>
+            <ChartContainer>
               <Doughnut 
                 key={chartKey}
                 data={weekdayChartData} 
                 options={weekdayOptions}
               />
             </ChartContainer>
-            <ChartContainer isAnimating={isStatsAnimating}>
+            <ChartContainer>
               <Bar 
                 key={chartKey}
                 data={directionWinrateData} 
@@ -981,16 +977,23 @@ function Home() {
                       text: 'Long/Short Win Rate',
                       color: 'white',
                       font: { size: 14 }
+                    },
+                    tooltip: {
+                      callbacks: {
+                        label: function(context) {
+                          return `${context.raw.toFixed(2)}%`;
+                        }
+                      }
                     }
                   }
                 }}
               />
             </ChartContainer>
-            <ChartContainer isAnimating={isStatsAnimating}>
-              <Doughnut key={chartKey} data={followingPlanData} options={doughnutOptions} />
+            <ChartContainer>
+              <Bar key={chartKey} data={followingPlanData} options={doughnutOptions} />
             </ChartContainer>
-            <ChartContainer isAnimating={isStatsAnimating}>
-              <Bar key={chartKey} data={executionData} options={executionOptions} />
+            <ChartContainer>
+              <Doughnut key={chartKey} data={executionData} options={executionOptions} />
             </ChartContainer>
           </ChartContent>
         </ContentWrapper>

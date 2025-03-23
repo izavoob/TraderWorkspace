@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
 import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
@@ -7,6 +7,10 @@ import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { registerLocale } from 'react-datepicker';
+import { enGB } from 'date-fns/locale';
+
+registerLocale('en-gb', enGB);
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -81,10 +85,6 @@ const shineEffect = keyframes`
   100% { background-position: 200% 0; }
 `;
 
-const fadeAnim = keyframes`
-  0% { opacity: 0; transform: translateY(10px); filter: blur(4px); }
-  100% { opacity: 1; transform: translateY(0); filter: blur(0); }
-`;
 
 const slideAnim = keyframes`
   0% { opacity: 0; transform: translateX(-15px) scale(0.95); }
@@ -183,6 +183,7 @@ const JournalContent = styled.div`
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
+  gap: 5px;
   
 `;
 
@@ -204,6 +205,7 @@ const ButtonGroup = styled.div`
 
 const ActionButton = styled.button`
   background-color: #5e2ca5;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: #fff;
   border: none;
   padding: 12px 20px;
@@ -280,12 +282,13 @@ const SortDropdown = styled(FilterDropdown)`
 `;
 
 const RangeDropdown = styled(FilterDropdown)`
-  width: 300px;
+  
 `;
 
 const FilterGroup = styled.div`
   margin-bottom: 15px;
 `;
+
 
 const SortGroup = styled(FilterGroup)`
   display: flex;
@@ -318,30 +321,13 @@ const FilterSelect = styled.select`
 
 const FilterButtonGroup = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 10px;
   margin-top: 15px;
 `;
 
-const FilterButton = styled.button`
-  background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
-  color: #fff;
-  border: none;
-  padding: 12px 20px;
-  border-radius: 8px;
-  cursor: pointer;
-  text-decoration: none;
-  font-size: 1.1em;
-  transition: all 0.3s ease;
-  
-  &:hover {
-    background-color: ${props => props.clear ? '#555' : '#4a1a8d'};
-    transform: scale(1.05);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
+const FilterButton = styled(ActionButton)`
+ 
 `;
 const SortOption = styled.div`
   display: flex;
@@ -388,7 +374,6 @@ const StyledDatePicker = styled(DatePicker)`
   color: #fff;
   padding: 11px;
   border-radius: 8px;
-  width: 100%;
   cursor: pointer;
   font-size: 11px;
 
@@ -399,12 +384,10 @@ const StyledDatePicker = styled(DatePicker)`
 `;
 
 const TableContainer = styled.div`
-  bottom: 15px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  margin-top: 20px;
   position: relative;
   box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  overflow-x: hidden;
   
   thead {
     position: sticky;
@@ -421,14 +404,14 @@ const TableContainer = styled.div`
   }
   
   ::-webkit-scrollbar {
-    width: 0px;
+    width: 1px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: #7425C9;
-    border-radius: 3px;
+    border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
@@ -439,6 +422,8 @@ const TradeTable = styled.table`
   width: 100%;
   border-collapse: separate;
   border-spacing: 1px;
+  overflow-y: auto;
+  overflow-x: hidden;
 `;
 
 const TableHeader = styled.th`
@@ -475,7 +460,7 @@ const TableCell = styled.td`
       return value > 0 ? '#00d1b2' : value < 0 ? '#ff4560' : '#fff';
     }
     if (props.column === 'result') {
-      if (props.value === 'Win') return '#00e676';
+      if (props.value === 'Win') return '#00D1B2';
       if (props.value === 'Loss') return '#ff5252';
       if (props.value === 'Breakeven') return '#ff9300';
       if (props.value === 'Missed') return '#9370db';
@@ -483,6 +468,14 @@ const TableCell = styled.td`
     return '#fff';
   }};
   position: relative;
+
+  // Додаємо стилі для першої колонки
+  &:first-child {
+    max-width: 105px !important; // Задаємо фіксовану ширину
+    overflow: hidden; // Обрізаємо вміст, якщо він не вміщається
+  }
+
+  
 
 
   
@@ -494,6 +487,7 @@ const TableRow = styled.tr`
   transition: background-color 0.3s ease, transform 0.2s ease;  // Плавні переходи
   background-color: rgb(37, 37, 37);     // Темно-сірий фон
   overflow-x: hidden;                    // Приховує горизонтальний overflow
+  cursor: pointer;                       // Курсор-вказівник для кращого UX
   
   &:hover {                              // Стилі при наведенні
     background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
@@ -528,23 +522,22 @@ const TableRow = styled.tr`
   ${props => props.selected && css`      // Стилі для вибраного стану
     && {                                // Підвищена специфічність
       background-color: #7425c966;      // Фіолетовий фон
-      transform: scale(1.005);          // Легке збільшення
       overflow-x: hidden;               // Приховує горизонтальний overflow
     }
   `}
 
   ${props => props.isSubtrade && css`    // Стилі для субрядків
     & > td {                            // Усі клітинки
-      padding-left: 20px;               // Відступ зліва
-      overflow-x: hidden;  
+      
       background-color: rgba(80, 100, 160, 0.4);          
     }
 
-    & > td:first-child::before {        // Псевдоелемент для першої клітинки
+    & > td:first-child::before { 
+      overflow: hidden;           
       content: '↳';                    // Стрілка
       position: absolute;              // Абсолютне позиціонування
       left: 12px;                       // Відступ зліва
-      color: #5C9DF5;                  // Синій колір
+      color: rgb(18, 122, 227);                
     }
   `}
 
@@ -560,29 +553,14 @@ const ButtonsContainer = styled.div`
   gap: 8px;
   justify-content: flex-start;
   align-items: center;
-  padding: 0 10px;
-  white-space: nowrap;
-  width: auto;
+
+  // Стилі для субтрейдів застосовуємо напряму до div, якщо isSubtrade === true
+  ${props => props.isSubtrade && css`
+    padding-left: 20px; // Відступ зліва для всього контейнера
+  `}
 `;
 
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 
-  &:hover {
-    opacity: 0.8;
-  }
-
-  img {
-    width: 20px;
-    height: 20px;
-  }
-`;
 
 const Popup = styled.div`
   position: fixed;
@@ -631,6 +609,7 @@ const CheckboxContainer = styled.div`
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   width: 16px;
   height: 16px;
+  min-width: 16px;
   cursor: pointer;
   appearance: none;
   border: 2px solid #B886EE;
@@ -662,12 +641,15 @@ const DeleteSelectedButton = styled(ActionButton)`
   background: #ff4757;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  padding: 6px 20px;
 `;
 
 const AddSubtradeButton = styled(ActionButton)`
   background: #5C9DF5;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  padding: 6px 20px;
+
 `;
 
 const ArrowContainer = styled.div`
@@ -689,7 +671,6 @@ const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 16px;
   color: #fff;
   height: 40px;
 
@@ -722,7 +703,7 @@ const ConfirmationPopup = styled(Popup)`
 const TradeCalendarContainer = styled.div`
   display: flex;
   gap: 5px;
-  margin: 20px 0;
+  margin-top: 20px;
   width: 100%;
 `;
 
@@ -888,6 +869,7 @@ function TradeJournal() {
   const [selectedTrades, setSelectedTrades] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [tradeRelations, setTradeRelations] = useState({});
+  const [expandedTrades, setExpandedTrades] = useState([]);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -902,6 +884,19 @@ function TradeJournal() {
       try {
         const loadedTrades = await window.electronAPI.getTrades();
         setTrades(loadedTrades || []);
+        
+        // Створюємо мапу зв'язків між батьківськими трейдами та субтрейдами
+        const relations = {};
+        loadedTrades?.forEach(trade => {
+          if (trade.parentTradeId) {
+            if (!relations[trade.parentTradeId]) {
+              relations[trade.parentTradeId] = [];
+            }
+            relations[trade.parentTradeId].push(trade.id);
+          }
+        });
+        
+        setTradeRelations(relations);
       } catch (error) {
         console.error('Error loading trades:', error);
         setTrades([]);
@@ -1052,7 +1047,8 @@ function TradeJournal() {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedTrades(filteredAndSortedTrades.map(trade => trade.id));
+      // Вибираємо тільки ті трейди, які видимі в інтерфейсі
+      setSelectedTrades(displayedTrades.map(trade => trade.id));
     } else {
       setSelectedTrades([]);
     }
@@ -1060,8 +1056,55 @@ function TradeJournal() {
 
   const handleDeleteSelected = async () => {
     try {
-      await Promise.all(selectedTrades.map(id => window.electronAPI.deleteTrade(id)));
-      setTrades(trades.filter(trade => !selectedTrades.includes(trade.id)));
+      // Зберігаємо всі ID субтрейдів для батьківських трейдів, які будуть видалені
+      const subtradeIdsToDelete = [];
+      const parentIdsToUpdate = new Set();
+      
+      // Для кожного вибраного трейду
+      selectedTrades.forEach(id => {
+        // Якщо це батьківський трейд і він має субтрейди
+        if (tradeRelations[id]?.length > 0) {
+          // Додаємо всі його субтрейди до списку на видалення
+          subtradeIdsToDelete.push(...tradeRelations[id]);
+        } 
+        // Якщо це субтрейд
+        else {
+          // Знаходимо його батька
+          const parentId = trades.find(t => t.id === id)?.parentTradeId;
+          if (parentId) {
+            parentIdsToUpdate.add(parentId);
+          }
+        }
+      });
+      
+      // Видаляємо всі вибрані трейди та їх субтрейди
+      const idsToDelete = [...selectedTrades, ...subtradeIdsToDelete];
+      await Promise.all(idsToDelete.map(id => window.electronAPI.deleteTrade(id)));
+      
+      // Оновлюємо стан зв'язків для батьківських трейдів
+      const newRelations = { ...tradeRelations };
+      
+      // Видаляємо всі зв'язки з видаленими батьківськими трейдами
+      selectedTrades.forEach(id => {
+        if (newRelations[id]) {
+          delete newRelations[id];
+        }
+      });
+      
+      // Оновлюємо зв'язки для батьківських трейдів, у яких видалені субтрейди
+      parentIdsToUpdate.forEach(parentId => {
+        if (newRelations[parentId]) {
+          newRelations[parentId] = newRelations[parentId].filter(id => !selectedTrades.includes(id));
+        }
+      });
+      
+      setTradeRelations(newRelations);
+      
+      // Оновлюємо список трейдів
+      setTrades(prevTrades => 
+        prevTrades.filter(trade => !idsToDelete.includes(trade.id))
+      );
+      
       setSelectedTrades([]);
       setShowDeleteConfirmation(false);
     } catch (error) {
@@ -1116,10 +1159,16 @@ function TradeJournal() {
       await window.electronAPI.saveTrade(subtrade);
       
       // Оновлюємо стан зв'язків
-      setTradeRelations(prev => ({
-        ...prev,
-        [selectedTrade.id]: [...(prev[selectedTrade.id] || []), subtrade.id]
-      }));
+      const newRelations = {
+        ...tradeRelations,
+        [selectedTrade.id]: [...(tradeRelations[selectedTrade.id] || []), subtrade.id]
+      };
+      setTradeRelations(newRelations);
+      
+      // Автоматично розгортаємо батьківський трейд
+      if (!expandedTrades.includes(selectedTrade.id)) {
+        setExpandedTrades([...expandedTrades, selectedTrade.id]);
+      }
 
       // Оновлюємо список трейдів
       const updatedTrades = await window.electronAPI.getTrades();
@@ -1137,25 +1186,50 @@ function TradeJournal() {
       { 
         Header: 'Actions',
         accessor: 'actions',
-        width: 70,
-        Cell: ({ row }) => (
-          <ButtonsContainer>
-            <Checkbox
-              type="checkbox"
-              checked={selectedTrades.includes(row.original.id)}
-              onChange={() => handleSelectTrade(row.original.id)}
-            />
-            <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
-              <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
-            </ActionButton>
-            <ActionButton 
-              onClick={() => handleDelete(row.original.id)} 
-              style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
-            >
-              <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-            </ActionButton>
-          </ButtonsContainer>
-        )
+        width: 40,
+        Cell: ({ row }) => {
+          const hasSubtrades = tradeRelations[row.original.id]?.length > 0;
+          const isExpanded = expandedTrades.includes(row.original.id);
+          const isSubtrade = !!row.original.parentTradeId; // Перевіряємо, чи це субтрейд
+          
+          return (
+            <ButtonsContainer isSubtrade={isSubtrade}>
+              <Checkbox
+                type="checkbox"
+                checked={selectedTrades.includes(row.original.id)}
+                onChange={() => handleSelectTrade(row.original.id)}
+              />
+              <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
+                <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
+              </ActionButton>
+              <ActionButton 
+                onClick={() => handleDelete(row.original.id)} 
+                style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
+              >
+                <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
+              </ActionButton>
+              {hasSubtrades && !row.original.parentTradeId && (
+                <ActionButton 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(row.original.id);
+                  }}
+                  style={{  
+                    padding: '0px',
+                    minWidth: 'auto', 
+                    background: isExpanded ? 'rgb(52, 152, 219, 0)' : 'rgb(52, 152, 219, 0)'
+                  }}
+                >
+                  {isExpanded ? (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>▲</span>
+                  ) : (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>▼</span>
+                  )}
+                </ActionButton>
+              )}
+            </ButtonsContainer>
+          );
+        }
       },
       { Header: 'No.', accessor: 'no', width: 60 },
       { Header: 'Date', accessor: 'date', width: 120 },
@@ -1177,12 +1251,20 @@ function TradeJournal() {
         width: 80 
       },
     ],
-    [selectedTrades] // Додаємо залежність від selectedTrades
+    [selectedTrades, tradeRelations, expandedTrades, toggleExpand]
   );
+
+  const displayedTrades = React.useMemo(() => {
+    return filteredAndSortedTrades.filter(trade => {
+      if (!trade.parentTradeId) return true;
+      
+      return expandedTrades.includes(trade.parentTradeId);
+    });
+  }, [filteredAndSortedTrades, expandedTrades]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ 
     columns, 
-    data: filteredAndSortedTrades,
+    data: displayedTrades,
     initialState: {
       sortBy: [{ id: 'no', desc: true }]
     }
@@ -1227,18 +1309,59 @@ function TradeJournal() {
 
   const handleDelete = async (tradeId) => {
     try {
+      // Перевіряємо чи це основний трейд з субтрейдами
+      if (tradeRelations[tradeId]?.length > 0) {
+        // Якщо це основний трейд з субтрейдами, видаляємо всі його субтрейди
+        await Promise.all(tradeRelations[tradeId].map(subtrade => 
+          window.electronAPI.deleteTrade(subtrade)
+        ));
+        
+        // Видаляємо зв'язки з цим трейдом
+        const newRelations = { ...tradeRelations };
+        delete newRelations[tradeId];
+        setTradeRelations(newRelations);
+      } 
+      // Якщо це субтрейд, то оновлюємо список субтрейдів у батьківського трейду
+      else {
+        const parentId = trades.find(t => t.id === tradeId)?.parentTradeId;
+        if (parentId && tradeRelations[parentId]) {
+          const newRelations = { ...tradeRelations };
+          newRelations[parentId] = newRelations[parentId].filter(id => id !== tradeId);
+          setTradeRelations(newRelations);
+        }
+      }
+      
+      // Видаляємо сам трейд
       await window.electronAPI.deleteTrade(tradeId);
-      setTrades(prevTrades => prevTrades.filter(trade => trade.id !== tradeId));
+      
+      // Оновлюємо список трейдів
+      setTrades(prevTrades => prevTrades.filter(trade => 
+        trade.id !== tradeId && trade.parentTradeId !== tradeId
+      ));
+      
       setDeletePopup(null);
     } catch (error) {
       console.error('Error deleting trade:', error);
     }
   };
 
+  const toggleExpand = (tradeId) => {
+    setExpandedTrades(prev => 
+      prev.includes(tradeId) 
+        ? prev.filter(id => id !== tradeId) 
+        : [...prev, tradeId]
+    );
+  };
+
+  const handleRowClick = (tradeId, isActionCell) => {
+    if (!isActionCell) {
+      navigate(`/trade/${tradeId}`);
+    }
+  };
+
   const TradeCalendar = () => {
     const [activePairIndex, setActivePairIndex] = useState({});
 
-    // Оновлюємо активний індекс кожні 2 секунди
     useEffect(() => {
       const interval = setInterval(() => {
         setActivePairIndex(prev => {
@@ -1258,12 +1381,10 @@ function TradeJournal() {
       return () => clearInterval(interval);
     }, []);
 
-    // Get current week dates
     const getCurrentWeekDates = () => {
       const curr = new Date();
       const week = [];
       
-      // Starting Monday
       curr.setDate(curr.getDate() - curr.getDay() + 1);
       
       for (let i = 0; i < 7; i++) {
@@ -1277,7 +1398,6 @@ function TradeJournal() {
     const weekDates = getCurrentWeekDates();
     const today = new Date();
 
-    // Get trades for specific date
     const getTradesForDate = (date) => {
       return trades.filter(trade => {
         const tradeDate = new Date(trade.date);
@@ -1302,12 +1422,10 @@ function TradeJournal() {
       const pairs = [];
 
       dayTrades.forEach(trade => {
-        // Для profitLoss прибираємо '%' і конвертуємо в число
         const profitValue = trade.profitLoss ? 
           parseFloat(trade.profitLoss.replace(/[^-\d.]/g, '')) : 0;
         totalProfitLoss += profitValue;
 
-        // Для gainedPoints прибираємо '$' і конвертуємо в число
         const gainedValue = trade.gainedPoints ? 
           parseFloat(trade.gainedPoints.replace(/[^-\d.]/g, '')) : 0;
         totalGainedPoints += gainedValue;
@@ -1340,7 +1458,6 @@ function TradeJournal() {
           const dayResults = calculateDayResult(dayTrades);
           const isToday = date.toDateString() === today.toDateString();
           
-          // Визначаємо, яку пару відображати
           const currentPairIndex = activePairIndex[index] || 0;
           const currentPair = dayResults.pairs[currentPairIndex];
 
@@ -1420,7 +1537,7 @@ function TradeJournal() {
                       isClearable={true}
                       placeholderText="Select date range"
                       dateFormat="yyyy-MM-dd"
-                      locale="en-GB"
+                      locale="en-gb"
                     />
                     <FilterButtonGroup>
                       <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
@@ -1588,7 +1705,7 @@ function TradeJournal() {
           <SelectAllContainer>
             <div>
               <Checkbox
-                checked={selectedTrades.length === filteredAndSortedTrades.length && filteredAndSortedTrades.length > 0}
+                checked={selectedTrades.length === displayedTrades.length && displayedTrades.length > 0}
                 onChange={handleSelectAll}
               />
               <span>Select All Trades</span>
@@ -1643,6 +1760,8 @@ function TradeJournal() {
                         {...row.getRowProps()} 
                         selected={isSelected}
                         isSubtrade={isSubtrade}
+                        onClick={() => handleRowClick(row.original.id, false)}
+                        style={{ cursor: 'pointer' }}
                       >
                         {row.cells.map(cell => (
                           <TableCell 
@@ -1651,6 +1770,14 @@ function TradeJournal() {
                             style={{ width: cell.column.width }}
                             column={cell.column.id}
                             value={row.original[cell.column.id]}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (cell.column.id === 'actions') {
+                                handleRowClick(row.original.id, true);
+                              } else {
+                                handleRowClick(row.original.id, false);
+                              }
+                            }}
                           >
                             {cell.render('Cell')}
                           </TableCell>
