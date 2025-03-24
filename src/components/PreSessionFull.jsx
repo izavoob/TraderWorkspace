@@ -145,11 +145,11 @@ const Container = styled.div`
   max-width: 1820px;
   margin: 0 auto;
   background-color: #1a1a1a;
-  padding: 20px;
   position: relative;
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
+  padding: 20px;
 `;
 
 const Header = styled.header`
@@ -157,9 +157,9 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
@@ -233,7 +233,6 @@ const Subtitle = styled.h2`
 `;
 // Нова структура контенту
 const Content = styled.div`
-  padding: 20px;
   width: 100%;
   box-sizing: border-box;
 `;
@@ -243,13 +242,11 @@ const TwoColumnSection = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 40px;
-  margin-bottom: 40px;
   width: 100%;
 `;
 
 // Секція на всю ширину
 const FullWidthSection = styled.div`
-  margin-bottom: 40px;
   width: 100%;
 `;
 
@@ -257,7 +254,8 @@ const FullWidthSection = styled.div`
 const SectionBlock = styled.div`
   background-color: #2e2e2e;
   border: 2px solid #5e2ca5;
-  border-radius: 15px;
+  border-radius: 8px;
+  margin-top: 20px;
   padding: 30px;
   box-sizing: border-box;
   height: fit-content;
@@ -467,7 +465,7 @@ const ButtonGroup = styled.div`
   display: flex;
   justify-content: flex-end;
   gap: 20px;
-  margin-top: 40px;
+  margin-top: 20px;
 `;
 
 const Button = styled.button`
@@ -520,7 +518,7 @@ const Quote = styled.div`
 
 const AcceptButton = styled.button`
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: 8px;
   border: none;
   background: ${props => props.accepted ? '#2ecc71' : '#3e3e3e'};
   color: white;
@@ -588,7 +586,7 @@ const ModalCloseButton = styled.button`
 // Компоненти для завантаження зображень
 const DropZone = styled.div`
   border: 2px dashed ${props => props.isDragActive ? '#B886EE' : '#5e2ca5'};
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 40px 20px;
   text-align: center;
   color: #fff;
@@ -625,7 +623,7 @@ const ImageUploadForm = styled.form`
   transform: translate(-50%, -50%);
   background: #2e2e2e;
   padding: 30px;
-  border-radius: 15px;
+  border-radius: 8px;
   border: 2px solid #5e2ca5;
   width: 90%;
   max-width: 600px;
@@ -645,7 +643,7 @@ const ProcessList = styled.div`
 const ProcessItem = styled.div`
   background: #3e3e3e;
   border: 1px solid #5e2ca5;
-  border-radius: 10px;
+  border-radius: 8px;
   padding: 20px;
   position: relative;
 `;
@@ -711,7 +709,7 @@ const ProcessImageUpload = styled.div`
     width: 100%;
     height: 100%;
     object-fit: contain;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
   }
 
@@ -874,7 +872,7 @@ const ChartDropZone = styled.div`
     width: 100%;
     height: 100%;
     object-fit: contain;
-    border-radius: 6px;
+    border-radius: 8px;
     cursor: pointer;
   }
 
@@ -1033,7 +1031,7 @@ const PlanInput = styled.textarea`
   min-height: 40px;
   background: #3e3e3e;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: 8px;
   color: white;
   padding: 8px;
   resize: vertical;

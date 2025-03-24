@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled, { css, keyframes } from 'styled-components';
 import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend, ArcElement, RadialLinearScale, PolarAreaController } from 'chart.js';
@@ -306,6 +306,7 @@ const StatCard = styled.div`
   position: relative;
   transition: all 0.3s ease;
   backdrop-filter: blur(5px);
+  cursor: pointer; /* Добавляем курсор pointer, чтобы показать, что элемент кликабельный */
 
   &:hover {
     transform: translateY(-5px);
@@ -545,6 +546,7 @@ function Home() {
   });
   const [isStatsAnimating, setIsStatsAnimating] = useState(false);
   const navigate = useNavigate();
+  const executionChartRef = useRef(null);
 
   const galleryItems = [
     { title: 'Trading Journal', path: '/trade-journal', description: 'Analyze your future trades in one place using our advanced tools and indicators.' },
@@ -780,6 +782,10 @@ function Home() {
   const handleSettings = () => {
     navigate('/settings');
   };
+  
+  const navigateTo = (path) => {
+    navigate(path);
+  };
 
   const chartOptions = {
     responsive: true,
@@ -867,11 +873,7 @@ function Home() {
         }
       },
       legend: {
-        position: 'right',
-        labels: {
-          color: 'white',
-          font: { size: 10 }
-        }
+        display: false, // Убираем легенду
       }
     },
     scales: {
@@ -1018,12 +1020,13 @@ function Home() {
         }
       }
     },
+    responsive: true,
+    maintainAspectRatio: false,
     animation: {
-      y: {
-        easing: 'easeOutBounce',
-        duration: 1000,
-        from: 1000
-      }
+      animateScale: true,
+      animateRotate: true,
+      easing: 'easeOutElastic',
+      duration: 1000
     }
   };
 
@@ -1115,12 +1118,12 @@ function Home() {
         
         <ContentWrapper>
           <StatsContent>
-            <StatCard isAnimating={isStatsAnimating}>
+            <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/trade-journal')}>
               <StatLabel>Total Trades</StatLabel>
               <StatValue>{tradeStats.totalTrades}</StatValue>
             </StatCard>
 
-            <StatCard isAnimating={isStatsAnimating}>
+            <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/daily-routine/pre-session')}>
               <StatLabel>Total Routines</StatLabel>
               <StatValue>{tradeStats.totalRoutines}</StatValue>
             </StatCard>
@@ -1139,7 +1142,7 @@ function Home() {
               </GainedRRContainer>
             </StatCard>
 
-            <StatCard isAnimating={isStatsAnimating}>
+            <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/risk-management')}>
               <StatLabel>Revenue</StatLabel>
               <RevenueValue value={tradeStats.totalRevenue}>
                 {tradeStats.totalRevenue.toFixed(2)}%
@@ -1151,12 +1154,12 @@ function Home() {
               <StatValue>{tradeStats.bestWeekday}</StatValue>
             </StatCard>
 
-            <StatCard isAnimating={isStatsAnimating}>
+            <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/statistics/analytics')}>
               <StatLabel>Best Pair</StatLabel>
               <StatValue>{tradeStats.bestPair}</StatValue>
             </StatCard>
 
-            <StatCard isAnimating={isStatsAnimating}>
+            <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/statistics/analytics')}>
               <StatLabel>Best Session</StatLabel>
               <StatValue>{tradeStats.bestSession}</StatValue>
             </StatCard>
@@ -1181,7 +1184,12 @@ function Home() {
               <Doughnut key={chartKey} data={followingPlanData} options={doughnutOptions} />
             </ChartContainer>
             <ChartContainer>
-              <Bar key={chartKey} data={executionData} options={executionOptions} />
+              <Bar 
+                key={chartKey} 
+                data={executionData} 
+                options={executionOptions}
+                ref={executionChartRef}
+              />
             </ChartContainer>
           </ChartContent>
         </ContentWrapper>
