@@ -107,7 +107,6 @@ const DailyRoutineContainer = styled.div`
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
-  position: relative;
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
@@ -119,16 +118,16 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -143,7 +142,7 @@ const BackButton = styled.button`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -194,8 +193,9 @@ const Subtitle = styled.h2`
 `;
 
 const JournalContent = styled.div`
-  padding: 20px;
+  margin-top: 20px;
   width: 100%;
+  gap: 5px;
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
@@ -206,7 +206,6 @@ const JournalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   z-index: 999;
-  min-height: 50px;
   flex-direction: row;
   width: 100%;
 `;
@@ -218,7 +217,12 @@ const ButtonGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background-color: #5e2ca5;
+  background-color: ${props => props.primary ? 'transparent' : '#5e2ca5'};
+  background: ${props => props.primary ? 
+    'linear-gradient(90deg, rgb(232, 137, 0), rgb(184, 134, 238), rgb(255, 140, 0)) 0% 0% / 200% 200%' : 
+    '#5e2ca5'};
+  animation: ${props => props.primary ? gradientAnimation : 'none'} 3s ease infinite;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: #fff;
   border: none;
   padding: 12px 20px;
@@ -250,7 +254,7 @@ const ActionButton = styled.button`
   }
 
   &:hover {
-    background-color: #4a1a8d;
+    background-color: ${props => props.primary ? 'transparent' : '#4a1a8d'};
     transform: scale(1.05);
     
     &::before {
@@ -267,7 +271,6 @@ const ActionButton = styled.button`
 const TableContainer = styled.div`
   flex: 1;
   overflow: auto;
-  margin-top: 20px;
   position: relative;
   
   thead {
@@ -407,7 +410,7 @@ const EditableSelect = styled.select`
   border: 1px solid #5e2ca5;
   background: #3e3e3e;
   color: #fff;
-  border-radius: 4px;
+  border-radius: 8px;
 
   &:focus {
     outline: none;
@@ -421,8 +424,8 @@ const FilterDropdown = styled.div`
   right: 0;
   width: 200px;
   background: #2e2e2e;
-  border: 1px solid #5e2ca5;
-  border-radius: 10px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+  border-radius: 8px;
   padding: 15px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
@@ -457,7 +460,6 @@ const FilterSelect = styled.select`
   width: 100%;
   padding: 8px;
   background: #3e3e3e;
-  border: 1px solid #5e2ca5;
   border-radius: 8px;
   color: #fff;
   font-size: 14px;
@@ -507,10 +509,22 @@ const StyledDatePicker = styled(DatePicker)`
 const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
+  padding-bottom: 10px;
+  padding-top: 10px;
   gap: 12px;
-  margin-top: 16px;
   color: #fff;
-  height: 40px;
+
+  > div {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+  }
+
+  > div:last-child {
+    margin-left: auto;
+    display: flex;
+    gap: 12px;
+  }
 `;
 
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
@@ -518,6 +532,7 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   height: 16px;
   cursor: pointer;
   appearance: none;
+  padding: 7px 0px;
   border: 2px solid #B886EE;
   border-radius: 4px;
   background-color: transparent;
@@ -546,6 +561,7 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
 
 const DeleteSelectedButton = styled(ActionButton)`
   background: #ff4757;
+  padding: 6px 20px;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
 `;
@@ -557,7 +573,7 @@ const Popup = styled.div`
   transform: translate(-50%, -50%);
   background: #2e2e2e;
   padding: 20px;
-  border-radius: 10px;
+  border-radius: 8px;
   border: 2px solid #5e2ca5;
   text-align: center;
   z-index: 1000;
@@ -584,6 +600,7 @@ const ActionButtonsContainer = styled.div`
 
 const AddSubsessionButton = styled(ActionButton)`
   background: #5C9DF5;
+  padding: 6px 20px;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
 `;
@@ -1116,7 +1133,7 @@ const confirmDelete = async (id) => {
               checked={selectedEntries.length === data.length && data.length > 0}
               onChange={handleSelectAll}
               />
-              <span>Select All Entries</span>
+              <span style={{ padding: '7px 0px' }}>Select All days</span>
               {selectedEntries.length > 0 && (
               <DeleteSelectedButton
                   onClick={() => setShowDeleteConfirmation(true)}

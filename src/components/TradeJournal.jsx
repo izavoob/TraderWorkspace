@@ -192,7 +192,6 @@ const JournalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   z-index: 999;
-  min-height: 50px;
   flex-direction: row;
   width: 100%;
 `;
@@ -204,7 +203,11 @@ const ButtonGroup = styled.div`
 `;
 
 const ActionButton = styled.button`
-  background-color: #5e2ca5;
+  background-color: ${props => props.primary ? 'transparent' : '#5e2ca5'};
+  background: ${props => props.primary ? 
+    'linear-gradient(90deg, rgb(232, 137, 0), rgb(184, 134, 238), rgb(255, 140, 0)) 0% 0% / 200% 200%' : 
+    '#5e2ca5'};
+  animation: ${props => props.primary ? gradientAnimation : 'none'} 3s ease infinite;
   box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: #fff;
   border: none;
@@ -237,7 +240,7 @@ const ActionButton = styled.button`
   }
 
   &:hover {
-    background-color: #4a1a8d;
+    background-color: ${props => props.primary ? 'transparent' : '#4a1a8d'};
     transform: scale(1.05);
     
     &::before {
@@ -257,7 +260,7 @@ const FilterDropdown = styled.div`
   right: 0;
   width: 200px;
   background: #2e2e2e;
-  border: 1px solid #5e2ca5;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   border-radius: 10px;
   padding: 15px;
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
@@ -298,7 +301,6 @@ const SortGroup = styled(FilterGroup)`
 
 const FilterLabel = styled.label`
   display: block;
-  margin-bottom: 5px;
   color: #fff;
   font-size: 14px;
 `;
@@ -493,7 +495,7 @@ const TableRow = styled.tr`
   &:hover {                              // Стилі при наведенні
     background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
     transform: translateY(-1px);            // Легке підняття
-    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);  // Тінь
   }
   
   &:nth-child(even) {                    // Парні рядки
@@ -503,7 +505,7 @@ const TableRow = styled.tr`
      &:hover {                              // Стилі при наведенні
     background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
     transform: translateY(-1px);            // Легке підняття
-    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);  // Тінь
   }
 
     
@@ -515,7 +517,7 @@ const TableRow = styled.tr`
    &:hover {                              // Стилі при наведенні
     background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
     transform: translateY(-1px);            // Легке підняття
-    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);  // Тінь
   }
 
   }
@@ -598,14 +600,6 @@ const PopupButton = styled.button`
   }
 `;
 
-const CheckboxContainer = styled.div`
-  opacity: ${props => props.selected ? 1 : 0};
-  transition: opacity 0.2s ease;
-
-  ${TableRow}:hover & {
-    opacity: 0.8;
-  }
-`;
 
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   width: 16px;
@@ -671,10 +665,10 @@ const ArrowContainer = styled.div`
 const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
+  padding-bottom: 10px;
+  padding-top: 10px;
   gap: 12px;
   color: #fff;
-  height: 40px;
 
   > div {
     display: flex;
@@ -851,29 +845,275 @@ const MetricsValue = styled.span`
   font-weight: bold;
 `;
 
+// Добавляем новые стилизованные компоненты для активных фильтров
+const ActiveFiltersContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+`;
+
+const ActiveFilterItem = styled.div`
+  background-color: rgb(174, 143, 223, 0.4);
+  color: #fff;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: all 0.2s ease;
+  
+  &:hover {
+    background-color: #3e3e3e;
+  }
+`;
+const FilterValue = styled.span`
+  color: ${props => {
+    // For the 'result' filter specifically
+    if (props.children === 'Win') return '#00D1B2';
+    if (props.children === 'Loss') return '#ff5252';
+    if (props.children === 'Breakeven') return '#ff9300';
+    if (props.children === 'Missed') return '#9370db';
+    
+    // For the direction filter
+    if (props.children === 'Long') return '#00D1B2';
+    if (props.children === 'Short') return '#ff5252';
+    
+    // Default color for other filter values
+    return '#fff';
+  }};
+  font-weight: 500;
+`;
+
+const RemoveFilterButton = styled.button`
+  background: none;
+  border: none;
+  color: #ff4757;
+  cursor: pointer;
+  padding: 0;
+  font-size: 21px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  
+  &:hover {
+    color: #ff7b86;
+  }
+`;
+
+const ClearAllButton = styled(ActionButton)`
+  background-color: #3e3e3e;
+  padding: 4px 12px;
+  font-size: 12px;
+  height: 28px;
+  
+  &:hover {
+    background-color: #4a1a8d;
+  }
+`;
+
+const FilterCheckbox = styled.input.attrs({ type: 'checkbox' })`
+  margin-right: 8px;
+  cursor: pointer;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 2px solid #B886EE;
+  border-radius: 4px;
+  background-color: transparent;
+  position: relative;
+
+  &:checked {
+    background-color: #7425C9;
+    &:after {
+      content: '';
+      position: absolute;
+      left: 4px;
+      top: 1px;
+      width: 4px;
+      height: 8px;
+      border: solid white;
+      border-width: 0 2px 2px 0;
+      transform: rotate(45deg);
+    }
+  }
+
+  &:hover {
+    border-color: #B886EE;
+  }
+`;
+
+const FilterOption = styled.div`
+  display: flex;
+  align-items: center;
+  padding: 6px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: background-color 0.2s;
+
+  &:hover {
+    background-color: #3e3e3e;
+  }
+
+  label {
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    width: 100%;
+  }
+`;
+
+const MultiSelectDropdown = styled.div`
+  position: relative;
+  width: 100%;
+  margin-bottom: 10px;
+`;
+
+const DropdownToggle = styled.div`
+  background: #3e3e3e;
+  border-radius: 8px;
+  padding: 8px 12px;
+  color: #fff;
+  font-size: 14px;
+  cursor: pointer;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+
+  &:hover {
+    background: #4a1a8d;
+  }
+
+  &:after {
+    content: '▼';
+    font-size: 10px;
+    margin-left: 8px;
+  }
+`;
+
+const DropdownMenu = styled.div`
+  position: absolute;
+  top: 100%;
+  left: 0;
+  width: 100%;
+  background: #2e2e2e;
+  border: 1px solid #5e2ca5;
+  border-radius: 8px;
+  margin-top: 5px;
+  max-height: 150px;
+  overflow-y: auto;
+  z-index: 10;
+  display: ${props => props.isOpen ? 'block' : 'none'};
+  
+  ::-webkit-scrollbar {
+    width: 4px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 2px;
+  }
+`;
+
+const SelectedItems = styled.div`
+  font-size: 13px;
+  color: #B886EE;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+  text-align: center;
+`;
+
 function TradeJournal() {
   const [trades, setTrades] = useState([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
   const [showRangeDropdown, setShowRangeDropdown] = useState(false);
   const [showSortDropdown, setShowSortDropdown] = useState(false);
-  const [dateRange, setDateRange] = useState([null, null]);
+  const [dateRange, setDateRange] = useState(() => {
+    // Восстанавливаем диапазон дат из localStorage
+    try {
+      const savedRange = localStorage.getItem('tradeJournal_dateRange');
+      if (savedRange) {
+        const parsed = JSON.parse(savedRange);
+        return [
+          parsed[0] ? new Date(parsed[0]) : null,
+          parsed[1] ? new Date(parsed[1]) : null
+        ];
+      }
+    } catch (error) {
+      console.error('Error restoring date range from localStorage:', error);
+    }
+    return [null, null];
+  });
   const [startDate, endDate] = dateRange;
-  const [filterCriteria, setFilterCriteria] = useState({
-    pair: '',
-    session: '',
-    direction: '',
-    result: ''
+  const [filterCriteria, setFilterCriteria] = useState(() => {
+    // Восстанавливаем критерии фильтрации из localStorage
+    try {
+      const savedFilters = localStorage.getItem('tradeJournal_filters');
+      if (savedFilters) {
+        return JSON.parse(savedFilters);
+      }
+    } catch (error) {
+      console.error('Error restoring filters from localStorage:', error);
+    }
+    return {
+      pair: [],
+      session: [],
+      direction: [],
+      result: []
+    };
   });
   const [deletePopup, setDeletePopup] = useState(null);
-  const [sortConfig, setSortConfig] = useState({
-    key: 'date',
-    direction: 'desc'
+  const [sortConfig, setSortConfig] = useState(() => {
+    // Восстанавливаем настройки сортировки из localStorage
+    try {
+      const savedSort = localStorage.getItem('tradeJournal_sortConfig');
+      if (savedSort) {
+        return JSON.parse(savedSort);
+      }
+    } catch (error) {
+      console.error('Error restoring sort config from localStorage:', error);
+    }
+    return {
+      key: 'date',
+      direction: 'desc'
+    };
   });
   const [selectedTrades, setSelectedTrades] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [tradeRelations, setTradeRelations] = useState({});
-  const [expandedTrades, setExpandedTrades] = useState([]);
-  const [allSubtradesExpanded, setAllSubtradesExpanded] = useState(false);
+  const [expandedTrades, setExpandedTrades] = useState(() => {
+    // Восстанавливаем состояние развернутых трейдов из localStorage
+    try {
+      const savedExpanded = localStorage.getItem('tradeJournal_expandedTrades');
+      if (savedExpanded) {
+        return JSON.parse(savedExpanded);
+      }
+    } catch (error) {
+      console.error('Error restoring expanded trades from localStorage:', error);
+    }
+    return [];
+  });
+  const [allSubtradesExpanded, setAllSubtradesExpanded] = useState(() => {
+    // Восстанавливаем состояние кнопки показа/скрытия всех субтрейдов
+    try {
+      const savedState = localStorage.getItem('tradeJournal_allSubtradesExpanded');
+      if (savedState) {
+        return JSON.parse(savedState);
+      }
+    } catch (error) {
+      console.error('Error restoring allSubtradesExpanded from localStorage:', error);
+    }
+    return false;
+  });
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -882,6 +1122,37 @@ function TradeJournal() {
   const filterButtonRef = useRef(null);
   const rangeButtonRef = useRef(null);
   const sortButtonRef = useRef(null);
+  const [openDropdowns, setOpenDropdowns] = useState({
+    pair: false,
+    session: false,
+    direction: false,
+    result: false
+  });
+
+  // Сохраняем настройки фильтров, сортировки и состояние развернутых трейдов
+  useEffect(() => {
+    localStorage.setItem('tradeJournal_filters', JSON.stringify(filterCriteria));
+  }, [filterCriteria]);
+
+  useEffect(() => {
+    // Сохраняем только даты без времени
+    const dateRangeToSave = dateRange.map(date => 
+      date ? date.toISOString().split('T')[0] : null
+    );
+    localStorage.setItem('tradeJournal_dateRange', JSON.stringify(dateRangeToSave));
+  }, [dateRange]);
+
+  useEffect(() => {
+    localStorage.setItem('tradeJournal_sortConfig', JSON.stringify(sortConfig));
+  }, [sortConfig]);
+
+  useEffect(() => {
+    localStorage.setItem('tradeJournal_expandedTrades', JSON.stringify(expandedTrades));
+  }, [expandedTrades]);
+
+  useEffect(() => {
+    localStorage.setItem('tradeJournal_allSubtradesExpanded', JSON.stringify(allSubtradesExpanded));
+  }, [allSubtradesExpanded]);
 
   useEffect(() => {
     const loadTrades = async () => {
@@ -926,6 +1197,9 @@ function TradeJournal() {
           !event.target.closest('.sort-dropdown')) {
         setShowSortDropdown(false);
       }
+      if (!event.target.closest('.multi-select-dropdown')) {
+        closeAllDropdowns();
+      }
     };
 
     document.addEventListener('mousedown', handleClickOutside);
@@ -933,12 +1207,19 @@ function TradeJournal() {
   }, []);
 
   const handleSort = (key) => {
-    setSortConfig((prevConfig) => ({
-      key,
-      direction: prevConfig.key === key && prevConfig.direction === 'asc' 
-        ? 'desc' 
-        : 'asc'
-    }));
+    setSortConfig((prevConfig) => {
+      const newConfig = {
+        key,
+        direction: prevConfig.key === key && prevConfig.direction === 'asc' 
+          ? 'desc' 
+          : 'asc'
+      };
+      
+      // Сохраняем в localStorage
+      localStorage.setItem('tradeJournal_sortConfig', JSON.stringify(newConfig));
+      
+      return newConfig;
+    });
   };
 
   const sortTrades = React.useCallback((trades) => {
@@ -1028,10 +1309,10 @@ function TradeJournal() {
       const inDateRange = startDate && endDate && tradeDate ? 
         (tradeDate >= startDate && tradeDate <= new Date(endDate.setHours(23, 59, 59, 999))) : true;
   
-      const matchesPair = !filterCriteria.pair || trade.pair === filterCriteria.pair;
-      const matchesSession = !filterCriteria.session || trade.session === filterCriteria.session;
-      const matchesDirection = !filterCriteria.direction || trade.direction === filterCriteria.direction;
-      const matchesResult = !filterCriteria.result || trade.result === filterCriteria.result;
+      const matchesPair = filterCriteria.pair.length === 0 || filterCriteria.pair.includes(trade.pair);
+      const matchesSession = filterCriteria.session.length === 0 || filterCriteria.session.includes(trade.session);
+      const matchesDirection = filterCriteria.direction.length === 0 || filterCriteria.direction.includes(trade.direction);
+      const matchesResult = filterCriteria.result.length === 0 || filterCriteria.result.includes(trade.result);
   
       return inDateRange && matchesPair && matchesSession && matchesDirection && matchesResult;
     });
@@ -1275,28 +1556,45 @@ function TradeJournal() {
   });
 
   const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilterCriteria(prev => ({
-      ...prev,
-      [name]: value
-    }));
+    const { name, value, checked } = e.target;
+    
+    setFilterCriteria(prev => {
+      // Если чекбокс отмечен, добавляем значение в массив
+      // Если снят, убираем значение из массива
+      const updatedValues = checked 
+        ? [...prev[name], value]
+        : prev[name].filter(item => item !== value);
+      
+      return {
+        ...prev,
+        [name]: updatedValues
+      };
+    });
   };
 
   const handleFilterClear = () => {
+    // Очищаем все фильтры и сохраняем в localStorage
     setFilterCriteria({
-      pair: '',
-      session: '',
-      direction: '',
-      result: ''
+      pair: [],
+      session: [],
+      direction: [],
+      result: []
     });
+    // Очищаем localStorage для фильтров
+    localStorage.removeItem('tradeJournal_filters');
   };
-  
+
   const handleFilterApply = () => {
     setShowFilterDropdown(false);
   };
 
   const handleRangeApply = () => {
     setShowRangeDropdown(false);
+  };
+
+  const clearDateRange = () => {
+    setDateRange([null, null]);
+    localStorage.removeItem('tradeJournal_dateRange');
   };
 
   const handleAddTrade = () => {
@@ -1370,6 +1668,13 @@ function TradeJournal() {
     }
     // Інвертуємо стан кнопки
     setAllSubtradesExpanded(!allSubtradesExpanded);
+  };
+
+  const resetSortConfig = () => {
+    const defaultConfig = { key: 'date', direction: 'desc' };
+    setSortConfig(defaultConfig);
+    localStorage.setItem('tradeJournal_sortConfig', JSON.stringify(defaultConfig));
+    setShowSortDropdown(false);
   };
 
   const handleRowClick = (tradeId, isActionCell) => {
@@ -1525,6 +1830,176 @@ function TradeJournal() {
     );
   };
 
+  // Функция для сброса всех фильтров, сортировок и диапазона дат
+  const clearAllFilters = () => {
+    console.log("Очистка всех фильтров");
+    
+    // Сбрасываем фильтры на пустые массивы
+    setFilterCriteria({
+      pair: [],
+      session: [],
+      direction: [],
+      result: []
+    });
+    
+    // Сбрасываем диапазон дат
+    setDateRange([null, null]);
+    
+    // Сбрасываем настройки сортировки
+    setSortConfig({
+      key: 'date',
+      direction: 'desc'
+    });
+    
+    // Очищаем localStorage
+    localStorage.removeItem('tradeJournal_filters');
+    localStorage.removeItem('tradeJournal_dateRange');
+    localStorage.setItem('tradeJournal_sortConfig', JSON.stringify({ key: 'date', direction: 'desc' }));
+  };
+
+  // Функция для удаления отдельного фильтра
+  const handleRemoveFilterValue = (filterName, valueToRemove) => {
+    console.log(`Удаление фильтра: ${filterName}, значение: ${valueToRemove}`);
+    
+    // Создаем новый объект фильтров
+    const newFilters = { ...filterCriteria };
+    
+    // Удаляем указанное значение из соответствующего массива
+    newFilters[filterName] = newFilters[filterName].filter(value => value !== valueToRemove);
+    
+    // Устанавливаем новые фильтры
+    setFilterCriteria(newFilters);
+    
+    // Сохраняем в localStorage
+    localStorage.setItem('tradeJournal_filters', JSON.stringify(newFilters));
+  };
+
+  // Компонент ActiveFilters для отображения активных фильтров
+  const ActiveFilters = () => {
+    if (!hasActiveFilters) return null;
+    
+    return (
+      <ActiveFiltersContainer>
+        {/* Отображаем активные фильтры */}
+        {Object.entries(filterCriteria).map(([key, values]) => {
+          if (!Array.isArray(values) || values.length === 0) return null;
+          
+          const filterLabels = {
+            pair: 'Pair',
+            session: 'Session',
+            direction: 'Direction',
+            result: 'Result'
+          };
+          
+          return values.map((value, index) => (
+            <ActiveFilterItem key={`${key}-${value}-${index}`}>
+              <FilterLabel>{filterLabels[key]}:</FilterLabel>
+              <FilterValue>{value}</FilterValue>
+              <RemoveFilterButton 
+                onClick={(e) => {
+                  e.stopPropagation(); // Предотвращаем всплытие события
+                  e.preventDefault(); // Предотвращаем стандартное поведение
+                  handleRemoveFilterValue(key, value);
+                }}
+                type="button"
+              >
+                ×
+              </RemoveFilterButton>
+            </ActiveFilterItem>
+          ));
+        })}
+        
+        {/* Отображаем диапазон дат */}
+        {(startDate || endDate) && (
+          <ActiveFilterItem>
+            <FilterLabel>Date range:</FilterLabel>
+            <FilterValue>
+              {formatDate(startDate)} - {formatDate(endDate)}
+            </FilterValue>
+            <RemoveFilterButton 
+              onClick={(e) => {
+                e.stopPropagation(); // Предотвращаем всплытие события
+                e.preventDefault(); // Предотвращаем стандартное поведение
+                clearDateRange();
+              }} 
+              type="button"
+            >
+              ×
+            </RemoveFilterButton>
+          </ActiveFilterItem>
+        )}
+        
+        {/* Отображаем активную сортировку */}
+        {(sortConfig.key !== 'date' || sortConfig.direction !== 'desc') && (
+          <ActiveFilterItem>
+            <FilterLabel>Sort:</FilterLabel>
+            <FilterValue>
+              {sortConfig.key === 'date' ? 'Date' : 
+               sortConfig.key === 'no' ? 'No.' : 
+               sortConfig.key === 'profitLoss' ? 'Profit %' : 
+               sortConfig.key === 'gainedPoints' ? 'Profit $' : 
+               sortConfig.key === 'result' ? 'Result' : sortConfig.key}
+              {sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}
+            </FilterValue>
+            <RemoveFilterButton 
+              onClick={(e) => {
+                e.stopPropagation(); // Предотвращаем всплытие события
+                e.preventDefault(); // Предотвращаем стандартное поведение
+                resetSortConfig();
+              }} 
+              type="button"
+            >
+              ×
+            </RemoveFilterButton>
+          </ActiveFilterItem>
+        )}
+        
+        {/* Кнопка очистки всех фильтров */}
+        <ClearAllButton 
+          onClick={(e) => {
+            e.stopPropagation(); // Предотвращаем всплытие события
+            e.preventDefault(); // Предотвращаем стандартное поведение
+            clearAllFilters();
+          }} 
+          type="button"
+        >
+          Clear All
+        </ClearAllButton>
+      </ActiveFiltersContainer>
+    );
+  };
+
+  const toggleDropdown = (dropdownName) => {
+    setOpenDropdowns(prev => ({
+      ...prev,
+      [dropdownName]: !prev[dropdownName]
+    }));
+  };
+
+  const closeAllDropdowns = () => {
+    setOpenDropdowns({
+      pair: false,
+      session: false,
+      direction: false,
+      result: false
+    });
+  };
+
+  // Функция для форматирования дат
+  const formatDate = (date) => {
+    if (!date) return '';
+    return new Date(date).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: '2-digit',
+      year: 'numeric'
+    });
+  };
+
+  // Определяем, есть ли активные фильтры, сортировка или диапазон дат
+  const hasActiveFilters = Object.values(filterCriteria).some(value => Array.isArray(value) && value.length > 0) || 
+                          startDate || endDate || 
+                          (sortConfig.key !== 'date' || sortConfig.direction !== 'desc');
+
   return (
     <>
       <GlobalStyle />
@@ -1542,7 +2017,7 @@ function TradeJournal() {
               <ActionButton primary onClick={handleAddTrade}>Add new Trade</ActionButton>
             </ButtonGroup>
             <ButtonGroup>
-              <ActionButton onClick={toggleAllSubtrades}>
+              <ActionButton onClick={toggleAllSubtrades} style={{ backgroundColor: 'rgb(92, 157, 245)' }}>
                 {allSubtradesExpanded ? 'Hide Subtrades ▲' : 'Show Subtrades ▼'}
               </ActionButton>
               
@@ -1566,7 +2041,7 @@ function TradeJournal() {
                       locale="en-gb"
                     />
                     <FilterButtonGroup>
-                      <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
+                      <FilterButton clear onClick={clearDateRange}>Clear</FilterButton>
                       <FilterButton onClick={handleRangeApply}>Apply</FilterButton>
                     </FilterButtonGroup>
                   </RangeDropdown>
@@ -1584,69 +2059,129 @@ function TradeJournal() {
                   <FilterDropdown className="filter-dropdown">
                     <FilterGroup>
                       <FilterLabel>Pair</FilterLabel>
-                      <FilterSelect
-                        name="pair"
-                        value={filterCriteria.pair}
-                        onChange={handleFilterChange}
-                      >
-                        <option value="">All Pairs</option>
-                        <option value="EURUSD">EURUSD</option>
-                        <option value="GBPUSD">GBPUSD</option>
-                        <option value="USDJPY">USDJPY</option>
-                        <option value="GER40">GER40</option>
-                        <option value="XAUUSD">XAUUSD</option>
-                        <option value="XAGUSD">XAGUSD</option>
-                      </FilterSelect>
+                      <MultiSelectDropdown className="multi-select-dropdown">
+                        <DropdownToggle onClick={() => toggleDropdown('pair')}>
+                          {filterCriteria.pair.length > 0 ? (
+                            <SelectedItems>
+                              {filterCriteria.pair.join(', ')}
+                            </SelectedItems>
+                          ) : (
+                            <SelectedItems>All</SelectedItems>
+                          )}
+                        </DropdownToggle>
+                        <DropdownMenu isOpen={openDropdowns.pair}>
+                          {['EURUSD', 'GBPUSD', 'USDJPY', 'GER40', 'XAUUSD', 'XAGUSD'].map(pair => (
+                            <FilterOption key={pair}>
+                              <label>
+                                <FilterCheckbox
+                                  name="pair"
+                                  value={pair}
+                                  checked={filterCriteria.pair.includes(pair)}
+                                  onChange={handleFilterChange}
+                                />
+                                {pair}
+                              </label>
+                            </FilterOption>
+                          ))}
+                        </DropdownMenu>
+                      </MultiSelectDropdown>
                     </FilterGroup>
 
                     <FilterGroup>
                       <FilterLabel>Session</FilterLabel>
-                      <FilterSelect
-                        name="session"
-                        value={filterCriteria.session}
-                        onChange={handleFilterChange}
-                      >
-                        <option value="">All Sessions</option>
-                        <option value="Asia">Asia</option>
-                        <option value="Frankfurt">Frankfurt</option>
-                        <option value="London">London</option>
-                        <option value="New York">New York</option>
-                      </FilterSelect>
+                      <MultiSelectDropdown className="multi-select-dropdown">
+                        <DropdownToggle onClick={() => toggleDropdown('session')}>
+                          {filterCriteria.session.length > 0 ? (
+                            <SelectedItems>
+                              {filterCriteria.session.join(', ')}
+                            </SelectedItems>
+                          ) : (
+                            <SelectedItems>All</SelectedItems>
+                          )}
+                        </DropdownToggle>
+                        <DropdownMenu isOpen={openDropdowns.session}>
+                          {['Asia', 'Frankfurt', 'London', 'New York'].map(session => (
+                            <FilterOption key={session}>
+                              <label>
+                                <FilterCheckbox
+                                  name="session"
+                                  value={session}
+                                  checked={filterCriteria.session.includes(session)}
+                                  onChange={handleFilterChange}
+                                />
+                                {session}
+                              </label>
+                            </FilterOption>
+                          ))}
+                        </DropdownMenu>
+                      </MultiSelectDropdown>
                     </FilterGroup>
 
                     <FilterGroup>
                       <FilterLabel>Direction</FilterLabel>
-                      <FilterSelect
-                        name="direction"
-                        value={filterCriteria.direction}
-                        onChange={handleFilterChange}
-                      >
-                        <option value="">All Directions</option>
-                        <option value="Long">Long</option>
-                        <option value="Short">Short</option>
-                      </FilterSelect>
+                      <MultiSelectDropdown className="multi-select-dropdown">
+                        <DropdownToggle onClick={() => toggleDropdown('direction')}>
+                          {filterCriteria.direction.length > 0 ? (
+                            <SelectedItems>
+                              {filterCriteria.direction.join(', ')}
+                            </SelectedItems>
+                          ) : (
+                            <SelectedItems>All</SelectedItems>
+                          )}
+                        </DropdownToggle>
+                        <DropdownMenu isOpen={openDropdowns.direction}>
+                          {['Long', 'Short'].map(direction => (
+                            <FilterOption key={direction}>
+                              <label>
+                                <FilterCheckbox
+                                  name="direction"
+                                  value={direction}
+                                  checked={filterCriteria.direction.includes(direction)}
+                                  onChange={handleFilterChange}
+                                />
+                                {direction}
+                              </label>
+                            </FilterOption>
+                          ))}
+                        </DropdownMenu>
+                      </MultiSelectDropdown>
                     </FilterGroup>
 
                     <FilterGroup>
                       <FilterLabel>Result</FilterLabel>
-                      <FilterSelect
-                        name="result"
-                        value={filterCriteria.result}
-                        onChange={handleFilterChange}
-                      >
-                        <option value="">All Results</option>
-                        <option value="Win">Win</option>
-                        <option value="Loss">Loss</option>
-                        <option value="Breakeven">Breakeven</option>
-                        <option value="Missed">Missed</option>
-                      </FilterSelect>
+                      <MultiSelectDropdown className="multi-select-dropdown">
+                        <DropdownToggle onClick={() => toggleDropdown('result')}>
+                          {filterCriteria.result.length > 0 ? (
+                            <SelectedItems>
+                              {filterCriteria.result.join(', ')}
+                            </SelectedItems>
+                          ) : (
+                            <SelectedItems>All</SelectedItems>
+                          )}
+                        </DropdownToggle>
+                        <DropdownMenu isOpen={openDropdowns.result}>
+                          {['Win', 'Loss', 'Breakeven', 'Missed'].map(result => (
+                            <FilterOption key={result}>
+                              <label>
+                                <FilterCheckbox
+                                  name="result"
+                                  value={result}
+                                  checked={filterCriteria.result.includes(result)}
+                                  onChange={handleFilterChange}
+                                />
+                                {result}
+                              </label>
+                            </FilterOption>
+                          ))}
+                        </DropdownMenu>
+                      </MultiSelectDropdown>
                     </FilterGroup>
 
                     <FilterButtonGroup>
                       <FilterButton clear onClick={handleFilterClear}>Clear</FilterButton>
                       <FilterButton onClick={handleFilterApply}>Apply</FilterButton>
                     </FilterButtonGroup>
-                  </FilterDropdown>
+                    </FilterDropdown>
                 )}
               </div>
 
@@ -1711,10 +2246,7 @@ function TradeJournal() {
                     <FilterButtonGroup>
                       <FilterButton 
                         clear 
-                        onClick={() => {
-                          setSortConfig({ key: 'date', direction: 'desc' });
-                          setShowSortDropdown(false);
-                        }}
+                        onClick={resetSortConfig}
                       >
                         Reset
                       </FilterButton>
@@ -1734,7 +2266,10 @@ function TradeJournal() {
                 checked={selectedTrades.length === displayedTrades.length && displayedTrades.length > 0}
                 onChange={handleSelectAll}
               />
-              <span>Select All Trades</span>
+              <span style={{ padding: '7px 0px' }}>Select All Trades</span>
+              
+              {/* Добавляем отображение активных фильтров */}
+              <ActiveFilters />
             </div>
             <div>
               {selectedTrades.length === 1 && (
