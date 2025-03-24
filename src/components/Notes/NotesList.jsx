@@ -53,7 +53,8 @@ const NotificationMessage = styled.div`
 const NotesSection = styled.div`
   
   background: #2e2e2e;
-  border-radius: 15px;
+  border-radius: 8px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   
 `;
 
@@ -145,7 +146,7 @@ const TagBadge = styled.span`
 const AddNoteButton = styled.button`
   background: rgba(94, 44, 165, 0.1);
   border: 2px dashed #5e2ca5;
-  border-radius: 15px;
+  border-radius: 8px;
   padding: 27px;
   cursor: pointer;
   display: flex;

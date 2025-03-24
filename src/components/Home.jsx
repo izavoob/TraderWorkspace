@@ -1,16 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import styled, { css, keyframes } from 'styled-components';
-import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend, ArcElement } from 'chart.js';
-import { Bar, Doughnut } from 'react-chartjs-2';
-import UpdateIcon from '../assets/icons/update-icon.svg';
-import SettingsIcon from '../assets/icons/settings-icon.svg';
-import HideMenuIcon from '../assets/icons/hide-menu-icon.svg';
-import ShowMenuIcon from '../assets/icons/show-menu-icon.svg';
-import ArrowLeftIcon from '../assets/icons/arrow-left-icon.svg';
-import ArrowRightIcon from '../assets/icons/arrow-right-icon.svg';
+import { Chart as ChartJS, CategoryScale, LinearScale, BarElement, Title as ChartTitle, Tooltip, Legend, ArcElement, RadialLinearScale, PolarAreaController } from 'chart.js';
+import { Bar, Doughnut, PolarArea } from 'react-chartjs-2';
+import MenuOpenTwoToneIcon from '@mui/icons-material/MenuOpenTwoTone';
+import CachedTwoToneIcon from '@mui/icons-material/CachedTwoTone';
+import SettingsTwoToneIcon from '@mui/icons-material/SettingsTwoTone';
 
-ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend, ArcElement);
+ChartJS.register(CategoryScale, LinearScale, BarElement, ChartTitle, Tooltip, Legend, ArcElement, RadialLinearScale, PolarAreaController);
 
 const fadeInScale = keyframes`
   from {
@@ -59,32 +56,47 @@ const gradientAnimation = keyframes`
   100% { background-position: 0% 50%; }
 `;
 
-const Sidebar = styled.div`
+const Overlay = styled.div`
   position: fixed;
   top: 0;
   left: 0;
-  width: ${props => props.isCollapsed ? '0' : '300px'};
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);
+  opacity: ${props => props.isVisible ? 1 : 0};
+  visibility: ${props => props.isVisible ? 'visible' : 'hidden'};
+  transition: all 0.3s ease;
+  z-index: 999;
+`;
+
+const Sidebar = styled.div`
+  position: fixed;
+  top: 0;
+  left: ${props => props.isCollapsed ? '-350px' : '0'};
+  width: 300px;
   height: 100vh;
-  background-color: #1a1a1a;
-  padding: ${props => props.isCollapsed ? '0' : '20px'};
+  background-color: rgb(26 26 26 / 20%);
+  padding: 20px;
+  padding-top: 70px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
   z-index: 1000;
   display: flex;
   flex-direction: column;
   gap: 15px;
-  overflow: hidden;
-  transition: all 0.3s ease;
+  transition: left 0.3s ease;
+  overflow-y: auto;
 `;
 
 const ToggleButton = styled.button`
   position: fixed;
-  top: 20px;
-  left: ${props => props.isCollapsed ? '20px' : '320px'};
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  top: 25px;
+  left: ${props => props.isCollapsed ? '25px' : '320px'};
+  background: rgb(26, 26, 46);
   border: none;
   cursor: pointer;
   width: 36px;
-  height: 36px;
+  height: ${props => (props.isCollapsed ? '116px' : '36px')};
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -92,28 +104,43 @@ const ToggleButton = styled.button`
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   z-index: 1001;
   transition: all 0.3s ease;
-
-  &:hover {
-    transform: scale(1.1);
+  overflow: hidden;
+  
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgb(94, 44, 165);
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
-  img {
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.05);
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
+  }
+
+  svg {
     width: 24px;
     height: 24px;
-    filter: brightness(0) invert(1);
+    color: #fff;
+    transform: ${props => props.isCollapsed ? 'scaleX(-1)' : 'scaleX(1)'};
+    transition: transform 0.3s ease;
+    z-index: 1;
   }
 `;
 
 const MainContent = styled.div`
-  margin-left: ${props => props.isCollapsed ? '42px' : '297px'};
   padding: 20px;
-  background-color: #1a1a1a;
+  background-color:rgb(46, 46, 46);
   color: #fff;
-  margin-top: 30px;
-  margin-right: 25px;
-  margin-bottom: 25px;
-  transition: margin-left 0.3s ease;
-  height: calc(100vh - 85px);
+  height: calc(100vh - 40px);
+  gap: 10px;
   overflow: hidden;
   position: relative;
   display: flex;
@@ -127,7 +154,7 @@ const Header = styled.header`
   padding: 20px;
   border-radius: 10px;
   color: #fff;
-  margin-bottom: 20px;
+  
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 15px rgba(116, 37, 201, 0.3);
   border: 1px solid rgba(255, 255, 255, 0.1);
@@ -135,8 +162,9 @@ const Header = styled.header`
 
 const TopRightButtons = styled.div`
   position: fixed;
-  top: 30px;
-  right: 20px;
+  flex-direction: column-reverse;
+  top: 40px;
+  right: 25px;
   display: flex;
   gap: 15px;
   z-index: 1001;
@@ -203,57 +231,58 @@ const MenuButton = styled(Link)`
 
 const StatsContent = styled.div`
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 20px;
-  width: 85%;
-  max-width: ${props => props.isCollapsed ? '1600px' : '1400px'};
-  margin: 0 auto;
-  padding: 15px;
+  grid-template-columns: repeat(2, 1fr);
+  width: 100%;
+  gap: 10px;
   overflow: hidden;
-  transition: max-width 0.3s ease;
-  grid-auto-rows: minmax(min-content, 180px); // Фіксуємо висоту рядків
+  padding: 15px;
+  
+  
 `;
 
 const ChartContent = styled.div`
   display: grid;
-  grid-template-columns: repeat(2, 1fr); // Змінюємо на 2 колонки
-  grid-template-rows: repeat(2, 1fr); // 2 ряди
-  gap: 20px;
+  grid-template-columns: repeat(2, 1fr);
+  grid-template-rows: repeat(2, 1fr);
+  gap: 15px;
   width: 100%;
-  height: 100%;
-  padding: 20px;
+  padding: 15px;
   box-sizing: border-box;
-  max-width: 1400px; // Збільшуємо максимальну ширину
-  margin: 0 auto;
+  
   overflow: hidden;
 `;
 
 const ChartContainer = styled.div`
-  background: rgba(116, 37, 201, 0.1);
-  border-radius: 13px;
-  padding: 15px;
+  background: linear-gradient(-90deg, rgb(39, 18, 61), rgb(92, 43, 144), rgb(28, 9, 49));
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 10s ease infinite;
+  border-radius: 8px;
   display: flex;
   align-items: center;
   justify-content: center;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(116, 37, 201, 0.2);
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   backdrop-filter: blur(5px);
   transition: all 0.3s ease;
+  height: 100%;
+  max-height: 300px;
+  position: relative;
+  overflow: hidden;
 
   &:hover {
     transform: scale(1.01);
     box-shadow: 0 6px 20px rgba(116, 37, 201, 0.3);
   }
 
-  ${({ isAnimating }) =>
-    isAnimating &&
-    css`
-      animation: ${fadeInScale} 0.5s ease-out;
-    `}
-
   & > canvas {
     max-width: 100% !important;
     max-height: 100% !important;
+    width: auto !important;
+    height: auto !important;
+    position: absolute !important;
+    padding: 5px;
+    top: 50% !important;
+    left: 50% !important;
+    transform: translate(-50%, -50%) !important;
   }
 `;
 
@@ -264,63 +293,39 @@ const MetricsContainer = styled.div`
 `;
 
 const StatCard = styled.div`
-  background: rgba(116, 37, 201, 0.1);
-  border-radius: 13px;
-  padding: 30px;
+  background: linear-gradient(90deg, rgb(39, 18, 61), rgb(92, 43, 144), rgb(28, 9, 49));
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 10s ease infinite;
+  border-radius: 8px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: white;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 1.2;
   position: relative;
   transition: all 0.3s ease;
-  border: 1px solid rgba(116, 37, 201, 0.2);
   backdrop-filter: blur(5px);
 
   &:hover {
     transform: translateY(-5px);
     border-color: rgba(116, 37, 201, 0.5);
-    animation: ${glowEffect} 2s infinite;
+    animation: ${pulseAnimation} 2s ease-in-out infinite;
   }
 
   &::before {
     content: '';
     position: absolute;
     inset: 0;
-    border-radius: 13px;
+    border-radius: 8px;
     padding: 1px;
-    background: linear-gradient(
-      45deg, 
-      rgba(116, 37, 201, 0.5),
-      rgba(184, 134, 238, 0.5)
-    );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
   }
-
-  ${({ isAnimating }) =>
-    isAnimating &&
-    css`
-      animation: ${fadeInScale} 0.5s ease-out, ${pulseAnimation} 2s ease-in-out infinite;
-    `}
 `;
 
-const WinrateContainer = styled.div`
-  display: flex;
-  gap: 10px;
-  margin: 10px 0;
-`;
-
-const WinrateBox = styled.div`
-  padding: 8px 16px;
-  border-radius: 8px;
-  background-color: ${props => props.type === 'long' ? 'rgba(75, 192, 192, 0.2)' : 'rgba(255, 99, 132, 0.2)'};
-  color: ${props => props.type === 'long' ? '#4bc0c0' : '#ff6384'};
-  font-weight: bold;
-`;
 
 const GainedRRContainer = styled.div`
   display: flex;
@@ -331,9 +336,9 @@ const GainedRRContainer = styled.div`
 `;
 
 const RRValue = styled.div`
-  font-size: 1.2em;
+  font-size: 1em;
   font-weight: bold;
-  color: ${props => props.type === 'gained' ? '#4bc0c0' : '#B886EE'};
+  color: ${props => props.type === 'gained' ? '#4bc0c0' : '#000000'};
 `;
 
 const RRSeparator = styled.span`
@@ -342,25 +347,33 @@ const RRSeparator = styled.span`
 `;
 
 const StatValue = styled.div`
-  font-size: 1.5em;
+  font-size: 1em;
   font-weight: bold;
-  color: #B886EE;
+  color:rgb(255, 255, 255);
   margin: 10px 0;
   text-align: center;
 `;
 
+const RevenueValue = styled(StatValue)`
+  color: ${props => {
+    if (props.value > 0) return 'rgb(0, 209, 178)';
+    if (props.value < 0) return 'rgb(255, 82, 82)';
+    return 'rgb(255, 255, 255)';
+  }};
+`;
+
 const StatLabel = styled.div`
   font-size: 0.9em;
-  color: #888;
+  color:rgb(255, 255, 255);
   text-align: center;
   margin-bottom: 5px;
 `;
 
 const IconButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: rgb(26, 26, 46);
   border: none;
   cursor: pointer;
-  width: 36px;
+  width: 116px;
   height: 36px;
   border-radius: 6px;
   display: flex;
@@ -368,16 +381,32 @@ const IconButton = styled.button`
   justify-content: center;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   position: relative;
+  overflow: hidden;
 
-  &:hover {
-    transform: scale(1.1);
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: rgb(94, 44, 165);
+    opacity: 0;
+    transition: opacity 0.3s ease;
   }
 
-  transition: transform 0.2s ease;
+  &:hover {
+    background-color: #4a1a8d;
+    transform: scale(1.05);
+    
+    &::before {
+      opacity: 1;
+      animation: ${shineEffect} 1.5s linear infinite;
+    }
+  }
 
-  img {
+  svg {
     width: 24px;
     height: 24px;
+    color: #fff;
+    z-index: 1;
   }
 
   &:hover::after {
@@ -396,7 +425,7 @@ const IconButton = styled.button`
     box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
   }
 
-  &.update-button:active img {
+  &.update-button:active svg {
     animation: ${iconRotate} 0.5s linear;
   }
 `;
@@ -432,19 +461,15 @@ const SlideNavigation = styled.div`
   align-items: center;
   justify-content: center;
   gap: 30px;
-  padding: 20px 0;
-  height: 80px; // Фіксована висота для навігації
   margin-top: auto;
 `;
 
 const ContentWrapper = styled.div`
   flex: 1;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  flex-direction: row;
+  
   overflow: hidden;
-  margin-bottom: 20px;
 `;
 
 const NavigationArrow = styled.div`
@@ -496,8 +521,9 @@ const SlideIndicator = styled.div`
 `;
 
 function Home() {
-  const [isCollapsed, setIsCollapsed] = useState(false);
+  const [isCollapsed, setIsCollapsed] = useState(true);
   const [activeSlide, setActiveSlide] = useState(0);
+  const [chartKey, setChartKey] = useState(0);
   const [tradeStats, setTradeStats] = useState({
     totalTrades: 0,
     winningRatio: 0,
@@ -513,6 +539,9 @@ function Home() {
     pairStats: {},
     followingPlanPercentage: 0,
     executionCoefficient: 100,
+    totalRoutines: 0,
+    totalRevenue: 0,
+    narrativeAccuracy: 0
   });
   const [isStatsAnimating, setIsStatsAnimating] = useState(false);
   const navigate = useNavigate();
@@ -542,20 +571,46 @@ function Home() {
     try {
       setIsStatsAnimating(true);
       const trades = await window.electronAPI.getTrades();
+      const presessions = await window.electronAPI.getAllPresessions();
+      
       if (trades && trades.length > 0) {
-        const stats = calculateStats(trades);
+        const stats = calculateStats(trades, presessions);
         setTradeStats(stats);
+      } else {
+        // Установите значения по умолчанию, если нет трейдов
+        setTradeStats({
+          totalTrades: 0,
+          winningRatio: 0,
+          missedRatio: 0,
+          breakevenRatio: 0,
+          losingRatio: 0,
+          longWinrate: 0,
+          shortWinrate: 0,
+          averageRR: 0,
+          bestSession: 'N/A',
+          bestWeekday: 'N/A',
+          bestPair: 'N/A',
+          gainedRR: 0,
+          potentialRR: 0,
+          weekdayStats: {},
+          pairStats: {},
+          followingPlanPercentage: 0,
+          executionCoefficient: 100,
+          totalRoutines: presessions?.length || 0,
+          totalRevenue: 0,
+          narrativeAccuracy: 0
+        });
       }
       setTimeout(() => {
         setIsStatsAnimating(false);
       }, 500);
     } catch (error) {
-      console.error('Error fetching trade data:', error);
+      console.error('Error fetching data:', error);
       setIsStatsAnimating(false);
     }
   };
 
-  const calculateStats = (trades) => {
+  const calculateStats = (trades, presessions) => {
     if (!trades || trades.length === 0) {
       return {
         totalTrades: 0,
@@ -572,11 +627,17 @@ function Home() {
         pairStats: {},
         followingPlanPercentage: 0,
         executionCoefficient: 100,
+        totalRoutines: presessions?.length || 0,
+        totalRevenue: 0,
+        narrativeAccuracy: 0
       };
     }
 
     const validTrades = trades.filter(trade => trade.result);
     const winningTrades = validTrades.filter(trade => trade.result === 'Win');
+    const missedTrades = validTrades.filter(trade => trade.result === 'Missed');
+    const breakevenTrades = validTrades.filter(trade => trade.result === 'Breakeven');
+    const losingTrades = validTrades.filter(trade => !['Win', 'Missed', 'Breakeven'].includes(trade.result));
     const longTrades = validTrades.filter(trade => trade.direction === 'Long');
     const shortTrades = validTrades.filter(trade => trade.direction === 'Short');
     const longWins = longTrades.filter(trade => trade.result === 'Win');
@@ -592,6 +653,26 @@ function Home() {
       .reduce((sum, trade) => sum + (parseFloat(trade.rr) || 0), 0);
 
     const potentialRR = gainedRR + missedRR;
+
+    // Рахуємо загальний прибуток/збиток
+    const totalRevenue = validTrades.reduce((sum, trade) => {
+      const profitLoss = parseFloat(trade.profitLoss) || 0;
+      return sum + profitLoss;
+    }, 0);
+
+    // Рахуємо Narrative Accuracy
+    let narrativeAccuracy = 0;
+    if (presessions && presessions.length > 0) {
+      const presessionsWithOutcome = presessions.filter(session => 
+        session.outcome && session.outcome.toString().trim() !== '');
+      
+      const correctNarratives = presessionsWithOutcome.filter(session => 
+        session.outcome === session.narrative);
+        
+      narrativeAccuracy = presessionsWithOutcome.length > 0 
+        ? (correctNarratives.length / presessionsWithOutcome.length) * 100 
+        : 0;
+    }
 
     // Рахуємо статистику по парах
     const pairStats = validTrades.reduce((acc, trade) => {
@@ -664,13 +745,15 @@ function Home() {
     const followingPlanPercentage = (followingPlanTrades.length / validTrades.length) * 100;
 
     // Розрахунок Coefficient Execution
-    const missedTrades = validTrades.filter(trade => trade.result === 'Missed');
     const missedPercentage = (missedTrades.length / validTrades.length) * 100;
     const executionCoefficient = 100 - missedPercentage;
 
     return {
       totalTrades: validTrades.length,
       winningRatio: validTrades.length > 0 ? (winningTrades.length / validTrades.length) * 100 : 0,
+      missedRatio: validTrades.length > 0 ? (missedTrades.length / validTrades.length) * 100 : 0,
+      breakevenRatio: validTrades.length > 0 ? (breakevenTrades.length / validTrades.length) * 100 : 0,
+      losingRatio: validTrades.length > 0 ? (losingTrades.length / validTrades.length) * 100 : 0,
       longWinrate: longTrades.length > 0 ? (longWins.length / longTrades.length) * 100 : 0,
       shortWinrate: shortTrades.length > 0 ? (shortWins.length / shortTrades.length) * 100 : 0,
       averageRR,
@@ -683,10 +766,14 @@ function Home() {
       pairStats,
       followingPlanPercentage,
       executionCoefficient,
+      totalRoutines: presessions?.length || 0,
+      totalRevenue,
+      narrativeAccuracy
     };
   };
 
   const handleUpdate = () => {
+    setChartKey(prevKey => prevKey + 1);
     fetchTradeData();
   };
 
@@ -694,13 +781,16 @@ function Home() {
     navigate('/settings');
   };
 
-  const toggleSidebar = () => {
-    setIsCollapsed(!isCollapsed);
-  };
-
   const chartOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      animateScale: true,
+      animateRotate: true,
+      easing: 'easeOutQuart',
+      mode: 'show',
+      duration: 1000
+    },
     plugins: {
       legend: {
         position: 'top',
@@ -735,41 +825,79 @@ function Home() {
   };
 
   const weekdayChartData = {
-    labels: ['Win', 'Loss'],
+    labels: ['Win', 'Missed', 'Breakeven', 'Loss'],
     datasets: [{
       data: [
-        tradeStats.winningRatio, // Відсоток виграшних трейдів
-        100 - tradeStats.winningRatio // Відсоток програшних трейдів
+        tradeStats.winningRatio,
+        tradeStats.missedRatio || 0,
+        tradeStats.breakevenRatio || 0,
+        tradeStats.losingRatio || 0
       ],
       backgroundColor: [
-        'rgba(75, 192, 192, 0.8)', // Зелений для Win
-        'rgba(255, 99, 132, 0.8)'  // Червоний для Loss
+        'rgba(0, 209, 178, 0.8)',  // Win - зелений (00D1B2)
+        'rgba(147, 112, 219, 0.8)', // Missed - фіолетовий (9370db)
+        'rgba(255, 147, 0, 0.8)',   // Breakeven - оранжевий (ff9300)
+        'rgba(255, 82, 82, 0.8)'    // Loss - червоний (ff5252)
       ],
       borderColor: [
-        'rgb(75, 192, 192)',
-        'rgb(255, 99, 132)'
+        'rgb(0, 209, 178)',
+        'rgb(147, 112, 219)',
+        'rgb(255, 147, 0)',
+        'rgb(255, 82, 82)'
       ],
       borderWidth: 1
     }]
   };
 
   const weekdayOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
+    ...chartOptions,
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: 'white',
-          font: { size: 12 }
-        }
-      },
+      ...chartOptions.plugins,
       title: {
         display: true,
         text: 'Overall Winrate',
         color: 'white',
         font: { size: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
+        }
+      },
+      legend: {
+        position: 'right',
+        labels: {
+          color: 'white',
+          font: { size: 10 }
+        }
       }
+    },
+    scales: {
+      r: {
+        ticks: {
+          backdropColor: 'transparent',
+          color: 'rgba(255, 255, 255, 0.7)',
+          font: { size: 10 }
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        angleLines: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        },
+        pointLabels: {
+          color: 'white',
+          font: { size: 12 }
+        }
+      }
+    },
+    animation: {
+      animateScale: true,
+      animateRotate: true,
+      easing: 'easeOutBounce',
+      duration: 1000
     }
   };
 
@@ -799,26 +927,53 @@ function Home() {
         100 - tradeStats.followingPlanPercentage
       ],
       backgroundColor: [
-        'rgba(116, 37, 201, 0.8)',
-        'rgba(255, 99, 132, 0.8)'
+        'rgba(0, 209, 178, 0.8)',  // Зелений (00D1B2)
+        'rgba(255, 82, 82, 0.8)'   // Червоний (ff5252)
       ],
       borderColor: [
-        'rgb(116, 37, 201)',
-        'rgb(255, 99, 132)'
+        'rgb(0, 209, 178)',
+        'rgb(255, 82, 82)'
+      ],
+      borderWidth: 1
+    }]
+  };
+
+  const narrativeAccuracyData = {
+    labels: ['Correct Narratives', 'Incorrect Narratives'],
+    datasets: [{
+      data: [
+        tradeStats.narrativeAccuracy,
+        100 - tradeStats.narrativeAccuracy
+      ],
+      backgroundColor: [
+        'rgba(0, 209, 178, 0.8)',  // Зелений (00D1B2)
+        'rgba(255, 82, 82, 0.8)'   // Червоний (ff5252)
+      ],
+      borderColor: [
+        'rgb(0, 209, 178)',
+        'rgb(255, 82, 82)'
       ],
       borderWidth: 1
     }]
   };
 
   const executionData = {
-    labels: ['Execution Coefficient'],
+    labels: ['Executed', 'Not Executed'],
     datasets: [{
-      label: 'Execution %',
-      data: [tradeStats.executionCoefficient],
-      backgroundColor: 'rgba(75, 192, 192, 0.5)',
-      borderColor: 'rgb(75, 192, 192)',
-      borderWidth: 1,
-      barThickness: 50
+      label: 'Percentage',
+      data: [
+        tradeStats.executionCoefficient, 
+        100 - tradeStats.executionCoefficient
+      ],
+      backgroundColor: [
+        'rgba(0, 209, 178, 0.8)',  // Зелений (00D1B2)
+        'rgba(255, 82, 82, 0.8)'   // Червоний (ff5252)
+      ],
+      borderColor: [
+        'rgb(0, 209, 178)',
+        'rgb(255, 82, 82)'
+      ],
+      borderWidth: 1
     }]
   };
 
@@ -831,6 +986,13 @@ function Home() {
         text: 'Execution Coefficient',
         color: 'white',
         font: { size: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
+        }
       }
     },
     scales: {
@@ -841,10 +1003,52 @@ function Home() {
           color: 'white',
           font: { size: 12 },
           callback: value => `${value}%`
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
         }
       },
       x: {
-        ticks: { color: 'white', font: { size: 12 } }
+        ticks: { 
+          color: 'white',
+          font: { size: 12 }
+        },
+        grid: {
+          color: 'rgba(255, 255, 255, 0.1)'
+        }
+      }
+    },
+    animation: {
+      y: {
+        easing: 'easeOutBounce',
+        duration: 1000,
+        from: 1000
+      }
+    }
+  };
+
+  const narrativeAccuracyOptions = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: {
+      animateScale: true,
+      animateRotate: true,
+      easing: 'easeOutBounce',
+      duration: 1000
+    },
+    plugins: {
+      title: {
+        display: true,
+        text: 'Narrative Accuracy',
+        color: 'white',
+        font: { size: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
+        }
       }
     }
   };
@@ -852,149 +1056,135 @@ function Home() {
   const doughnutOptions = {
     responsive: true,
     maintainAspectRatio: false,
+    animation: {
+      animateScale: true,
+      animateRotate: true,
+      easing: 'easeOutBounce',
+      duration: 1000
+    },
     plugins: {
-      legend: {
-        position: 'bottom',
-        labels: {
-          color: 'white',
-          font: { size: 12 }
-        }
-      },
       title: {
         display: true,
         text: 'Following The Plan',
         color: 'white',
         font: { size: 14 }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            return `${context.raw.toFixed(2)}%`;
+          }
+        }
+      },
+      legend: {
+        display: true,
+        labels: {
+          color: 'white',
+          font: { size: 12 }
+        }
       }
     }
   };
 
   return (
     <>
+      <Overlay isVisible={!isCollapsed} onClick={() => setIsCollapsed(true)} />
       <Sidebar isCollapsed={isCollapsed}>
-        <Header>
-          <Greeting>{getGreeting()}</Greeting>
-          <WorkPhrase>Let's get to work!</WorkPhrase>
-        </Header>
         {galleryItems.map((item) => (
           <MenuButton key={item.path} to={item.path}>
             {item.title}
           </MenuButton>
         ))}
       </Sidebar>
-      <ToggleButton isCollapsed={isCollapsed} onClick={toggleSidebar}>
-        <img 
-          src={isCollapsed ? ShowMenuIcon : HideMenuIcon} 
-          alt={isCollapsed ? "Show menu" : "Hide menu"}
-        />
+      <ToggleButton isCollapsed={isCollapsed} onClick={() => setIsCollapsed(!isCollapsed)}>
+        <MenuOpenTwoToneIcon />
       </ToggleButton>
-      <MainContent isCollapsed={isCollapsed}>
+      <MainContent>
+        <Header>
+          <Greeting>{getGreeting()}</Greeting>
+          <WorkPhrase>Let's get to work!</WorkPhrase>
+        </Header>
         <TopRightButtons>
           <IconButton className="update-button" data-tooltip="Update Statistics" onClick={handleUpdate}>
-            <img src={UpdateIcon} alt="Update" />
+            <CachedTwoToneIcon />
           </IconButton>
           <IconButton data-tooltip="Open Settings" onClick={handleSettings}>
-            <img src={SettingsIcon} alt="Settings" />
+            <SettingsTwoToneIcon />
           </IconButton>
         </TopRightButtons>
         
-        <SlideContainer>
-          <Slide active={activeSlide === 0} direction="prev">
-            <ContentWrapper>
-              <StatsContent isCollapsed={isCollapsed}>
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Total Trades</StatLabel>
-                  <StatValue>{tradeStats.totalTrades}</StatValue>
-                </StatCard>
+        <ContentWrapper>
+          <StatsContent>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Total Trades</StatLabel>
+              <StatValue>{tradeStats.totalTrades}</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Best Pair</StatLabel>
-                  <StatValue>{tradeStats.bestPair}</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Total Routines</StatLabel>
+              <StatValue>{tradeStats.totalRoutines}</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Average RR</StatLabel>
-                  <StatValue>{tradeStats.averageRR.toFixed(2)}R</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Average RR</StatLabel>
+              <StatValue>{tradeStats.averageRR.toFixed(2)}R</StatValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Best Session</StatLabel>
-                  <StatValue>{tradeStats.bestSession}</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Gained & Potential RR</StatLabel>
+              <GainedRRContainer>
+                <RRValue type="gained">{tradeStats.gainedRR.toFixed(2)}R</RRValue>
+                <RRSeparator>—</RRSeparator>
+                <RRValue type="potential">{tradeStats.potentialRR.toFixed(2)}R</RRValue>
+              </GainedRRContainer>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Best Weekday</StatLabel>
-                  <StatValue>{tradeStats.bestWeekday}</StatValue>
-                </StatCard>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Revenue</StatLabel>
+              <RevenueValue value={tradeStats.totalRevenue}>
+                {tradeStats.totalRevenue.toFixed(2)}%
+              </RevenueValue>
+            </StatCard>
 
-                <StatCard isAnimating={isStatsAnimating}>
-                  <StatLabel>Gained & Potential RR</StatLabel>
-                  <GainedRRContainer>
-                    <RRValue type="gained">{tradeStats.gainedRR.toFixed(2)}R</RRValue>
-                    <RRSeparator>—</RRSeparator>
-                    <RRValue type="potential">{tradeStats.potentialRR.toFixed(2)}R</RRValue>
-                  </GainedRRContainer>
-                </StatCard>
-              </StatsContent>
-            </ContentWrapper>
-            <SlideNavigation>
-              <NavigationArrow onClick={() => setActiveSlide(0)}>
-                <img src={ArrowLeftIcon} alt="Previous" />
-              </NavigationArrow>
-              <SlideIndicator active={activeSlide === 0} />
-              <SlideIndicator active={activeSlide === 1} />
-              <NavigationArrow onClick={() => setActiveSlide(1)}>
-                <img src={ArrowRightIcon} alt="Next" />
-              </NavigationArrow>
-            </SlideNavigation>
-          </Slide>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Best Weekday</StatLabel>
+              <StatValue>{tradeStats.bestWeekday}</StatValue>
+            </StatCard>
 
-          <Slide active={activeSlide === 1} direction="next">
-            <ContentWrapper>
-              <ChartContent>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Doughnut 
-                    data={weekdayChartData} 
-                    options={weekdayOptions}
-                  />
-                </ChartContainer>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Bar 
-                    data={directionWinrateData} 
-                    options={{
-                      ...chartOptions,
-                      plugins: {
-                        ...chartOptions.plugins,
-                        title: {
-                          display: true,
-                          text: 'Long/Short Win Rate',
-                          color: 'white',
-                          font: { size: 14 }
-                        }
-                      }
-                    }}
-                  />
-                </ChartContainer>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Doughnut data={followingPlanData} options={doughnutOptions} />
-                </ChartContainer>
-                <ChartContainer isAnimating={isStatsAnimating}>
-                  <Bar data={executionData} options={executionOptions} />
-                </ChartContainer>
-              </ChartContent>
-            </ContentWrapper>
-            <SlideNavigation>
-              <NavigationArrow onClick={() => setActiveSlide(0)}>
-                <img src={ArrowLeftIcon} alt="Previous" />
-              </NavigationArrow>
-              <SlideIndicator active={activeSlide === 0} />
-              <SlideIndicator active={activeSlide === 1} />
-              <NavigationArrow onClick={() => setActiveSlide(1)}>
-                <img src={ArrowRightIcon} alt="Next" />
-              </NavigationArrow>
-            </SlideNavigation>
-          </Slide>
-        </SlideContainer>
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Best Pair</StatLabel>
+              <StatValue>{tradeStats.bestPair}</StatValue>
+            </StatCard>
+
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Best Session</StatLabel>
+              <StatValue>{tradeStats.bestSession}</StatValue>
+            </StatCard>
+          </StatsContent>
+
+          <ChartContent>
+            <ChartContainer>
+              <PolarArea 
+                key={chartKey}
+                data={weekdayChartData} 
+                options={weekdayOptions}
+              />
+            </ChartContainer>
+            <ChartContainer>
+              <Doughnut 
+                key={chartKey}
+                data={narrativeAccuracyData} 
+                options={narrativeAccuracyOptions}
+              />
+            </ChartContainer>
+            <ChartContainer>
+              <Doughnut key={chartKey} data={followingPlanData} options={doughnutOptions} />
+            </ChartContainer>
+            <ChartContainer>
+              <Bar key={chartKey} data={executionData} options={executionOptions} />
+            </ChartContainer>
+          </ChartContent>
+        </ContentWrapper>
       </MainContent>
     </>
   );

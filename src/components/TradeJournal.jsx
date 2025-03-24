@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
 import styled, { createGlobalStyle, css, keyframes } from 'styled-components';
@@ -7,6 +7,10 @@ import EditIcon from '../assets/icons/edit-icon.svg';
 import DeleteIcon from '../assets/icons/delete-icon.svg';
 import DatePicker from 'react-datepicker';
 import "react-datepicker/dist/react-datepicker.css";
+import { registerLocale } from 'react-datepicker';
+import { enGB } from 'date-fns/locale';
+
+registerLocale('en-gb', enGB);
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -16,7 +20,7 @@ const GlobalStyle = createGlobalStyle`
     width: 100%;
     background-color: #1a1a1a;
     overflow-x: hidden;
-    overflow-y: auto;
+    overflow-y: hidden;
   }
   ::-webkit-scrollbar {
     width: 4px;
@@ -37,7 +41,7 @@ const DatePickerStyles = createGlobalStyle`
   .react-datepicker {
     background-color: #2e2e2e;
     border: 1px solid #5e2ca5;
-    font-family: inherit;
+    font-family: Roboto, sans-serif;
   }
 
   .react-datepicker__header {
@@ -81,6 +85,12 @@ const shineEffect = keyframes`
   100% { background-position: 200% 0; }
 `;
 
+
+const slideAnim = keyframes`
+  0% { opacity: 0; transform: translateX(-15px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+`;
+
 const TradeJournalContainer = styled.div`
   max-width: 1820px;
   margin: 0 auto;
@@ -97,9 +107,9 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
@@ -121,7 +131,7 @@ const BackButton = styled.button`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -131,7 +141,6 @@ const BackButton = styled.button`
 
   &:hover {
     opacity: 1;
-    transform: scale(1.1);
   }
 
   &:active {
@@ -174,6 +183,8 @@ const JournalContent = styled.div`
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
+  gap: 5px;
+  
 `;
 
 const JournalHeader = styled.div`
@@ -194,6 +205,7 @@ const ButtonGroup = styled.div`
 
 const ActionButton = styled.button`
   background-color: #5e2ca5;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: #fff;
   border: none;
   padding: 12px 20px;
@@ -270,12 +282,13 @@ const SortDropdown = styled(FilterDropdown)`
 `;
 
 const RangeDropdown = styled(FilterDropdown)`
-  width: 300px;
+  
 `;
 
 const FilterGroup = styled.div`
   margin-bottom: 15px;
 `;
+
 
 const SortGroup = styled(FilterGroup)`
   display: flex;
@@ -308,24 +321,13 @@ const FilterSelect = styled.select`
 
 const FilterButtonGroup = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 10px;
   margin-top: 15px;
 `;
 
-const FilterButton = styled.button`
-  background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
-  color: #fff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
-  transition: transform 0.2s ease;
-
-  &:hover {
-    transform: scale(1.05);
-  }
+const FilterButton = styled(ActionButton)`
+ 
 `;
 const SortOption = styled.div`
   display: flex;
@@ -372,7 +374,6 @@ const StyledDatePicker = styled(DatePicker)`
   color: #fff;
   padding: 11px;
   border-radius: 8px;
-  width: 100%;
   cursor: pointer;
   font-size: 11px;
 
@@ -383,31 +384,35 @@ const StyledDatePicker = styled(DatePicker)`
 `;
 
 const TableContainer = styled.div`
-  flex: 1;
-  overflow: auto;
-  margin-top: 20px;
   position: relative;
+  bottom: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  overflow-x: hidden;
   
   thead {
     position: sticky;
     top: 0;
     z-index: 1;
-    background: #2e2e2e;
+    background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+    background-size: 200% 200%;
+    animation: ${gradientAnimation} 5s ease infinite;
   }
 
   tbody {
     overflow-y: auto;
+    overflow-x: hidden;
   }
   
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 1px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: #7425C9;
-    border-radius: 3px;
+    border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
@@ -417,17 +422,18 @@ const TableContainer = styled.div`
 const TradeTable = styled.table`
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0;
-  background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
-
+  border-spacing: 1px;
+  overflow-y: auto;
+  overflow-x: hidden;
 `;
 
 const TableHeader = styled.th`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
-  border: 1px solid #5e2ca5;
   padding: 12px;
-  text-align: center;
+  font-size: 14px;
+  text-align: center
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  text-transform: uppercase;
   color: #fff;
   font-weight: bold;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
@@ -447,47 +453,98 @@ const TableHeader = styled.th`
 `;
 
 const TableCell = styled.td`
-  border: 1px solid #5e2ca5;
   padding: 6px;
   text-align: center;
-  color: #fff;
-  background-color: #2e2e2e;
+  color: ${props => {
+    if (props.column === 'profitLoss' || props.column === 'gainedPoints') {
+      const value = props.value ? parseFloat(props.value.toString().replace(/[^-\d.]/g, '')) : 0;
+      return value > 0 ? '#00d1b2' : value < 0 ? '#ff4560' : '#fff';
+    }
+    if (props.column === 'result') {
+      if (props.value === 'Win') return '#00D1B2';
+      if (props.value === 'Loss') return '#ff5252';
+      if (props.value === 'Breakeven') return '#ff9300';
+      if (props.value === 'Missed') return '#9370db';
+    }
+    return '#fff';
+  }};
   position: relative;
+
+  // Додаємо стилі для першої колонки
+  &:first-child {
+    max-width: 105px !important; // Задаємо фіксовану ширину
+    overflow: hidden; // Обрізаємо вміст, якщо він не вміщається
+  }
+
+  
+
+
+  
+  
 `;
 
 const TableRow = styled.tr`
-  position: relative;
-  &:nth-child(even) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
+  position: relative;                    // Для позиціонування дочірніх елементів
+  transition: background-color 0.3s ease, transform 0.2s ease;  // Плавні переходи
+  background-color: rgb(37, 37, 37);     // Темно-сірий фон
+  overflow-x: hidden;                    // Приховує горизонтальний overflow
+  cursor: pointer;                       // Курсор-вказівник для кращого UX
+  
+  &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
   }
-  &:nth-child(odd) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
+  
+  &:nth-child(even) {                    // Парні рядки
+    background-color: rgb(62, 62, 62);
+    overflow-x: hidden;
+
+     &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
   }
 
-  ${props => props.selected && css`
-    && {
-      background-color: rgba(116, 37, 201, 0.3) !important;
+    
+  }
+  &:nth-child(odd) {                     // Непарні рядки
+    background-color: rgb(37, 37, 37); 
+    overflow-x: hidden;
+
+   &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(116, 37, 201, 0.2);  // Тінь
+  }
+
+  }
+
+  ${props => props.selected && css`      // Стилі для вибраного стану
+    && {                                // Підвищена специфічність
+      background-color: #7425c966;      // Фіолетовий фон
+      overflow-x: hidden;               // Приховує горизонтальний overflow
     }
   `}
 
-  ${props => props.isSubtrade && css`
-    & > td {
-      background-color: rgba(92, 157, 245, 0.05) !important;
-      border-left: 2px solid #5C9DF5;
-      padding-left: 20px !important;
+  ${props => props.isSubtrade && css`    // Стилі для субрядків
+    & > td {                            // Усі клітинки
+      
+      background-color: rgba(80, 100, 160, 0.4);          
     }
 
-    & > td:first-child::before {
-      content: '↳';
-      position: absolute;
-      left: 5px;
-      color: #5C9DF5;
+    & > td:first-child::before { 
+      overflow: hidden;           
+      content: '↳';                    // Стрілка
+      position: absolute;              // Абсолютне позиціонування
+      left: 12px;                       // Відступ зліва
+      color: rgb(18, 122, 227);                
     }
   `}
 
-  &:hover {
+  &:hover {                              // Стилі при наведенні для чекбокса
     .checkbox-container {
-      opacity: ${props => props.selected ? 1 : 0.8};
+      opacity: ${props => props.selected ? 1 : 0.8};  // Прозорість залежно від стану
     }
   }
 `;
@@ -497,29 +554,14 @@ const ButtonsContainer = styled.div`
   gap: 8px;
   justify-content: flex-start;
   align-items: center;
-  padding: 0 10px;
-  white-space: nowrap;
-  width: auto;
+
+  // Стилі для субтрейдів застосовуємо напряму до div, якщо isSubtrade === true
+  ${props => props.isSubtrade && css`
+    padding-left: 20px; // Відступ зліва для всього контейнера
+  `}
 `;
 
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
 
-  &:hover {
-    opacity: 0.8;
-  }
-
-  img {
-    width: 20px;
-    height: 20px;
-  }
-`;
 
 const Popup = styled.div`
   position: fixed;
@@ -568,6 +610,7 @@ const CheckboxContainer = styled.div`
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   width: 16px;
   height: 16px;
+  min-width: 16px;
   cursor: pointer;
   appearance: none;
   border: 2px solid #B886EE;
@@ -599,12 +642,15 @@ const DeleteSelectedButton = styled(ActionButton)`
   background: #ff4757;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  padding: 6px 20px;
 `;
 
 const AddSubtradeButton = styled(ActionButton)`
   background: #5C9DF5;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
+  padding: 6px 20px;
+
 `;
 
 const ArrowContainer = styled.div`
@@ -625,8 +671,8 @@ const ArrowContainer = styled.div`
 const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
+  margin-bottom: 10px;
   gap: 12px;
-  margin-top: 16px;
   color: #fff;
   height: 40px;
 
@@ -656,6 +702,155 @@ const ConfirmationPopup = styled(Popup)`
   }
 `;
 
+const TradeCalendarContainer = styled.div`
+  display: flex;
+  gap: 5px;
+  margin-top: 20px;
+  margin-bottom: 15px;
+  width: 100%;
+`;
+
+const CalendarDay = styled.div`
+  flex: 1;
+  background-color: #252525;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  height: 125px;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+  box-sizing: border-box;
+
+  ${props => props.hasData && `
+    opacity: 1;
+  `}
+
+  ${props => props.isToday && `
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 10px;
+      background: linear-gradient(45deg, #7425c9, #b886ee);
+      -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+  `}
+
+  ${props => {
+    if (!props.hasData || !props.dayResults) return '';
+    
+    const { totalProfitLoss, results } = props.dayResults;
+    
+    if (totalProfitLoss > 0) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(0, 230, 118, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (totalProfitLoss < 0) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 82, 82, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (results && results.includes('Breakeven')) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 147, 0, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (results && results.includes('Missed')) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(147, 112, 219, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    }
+    return '';
+  }}
+`;
+
+const CalendarDayHeader = styled.div`
+  font-size: 1.2em;
+  color: rgb(230, 243, 255);
+  font-weight: bold;
+  margin-bottom: 8px;
+`;
+
+const CalendarDayMetrics = styled.div`
+  font-size: 1em;
+  position: relative;
+  z-index: 1;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const PairContainer = styled.div`
+  height: 20px;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+`;
+
+const PairText = styled.span`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  animation: ${slideAnim} 0.5s ease forwards;
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(45deg, #b886ee, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const MetricsValue = styled.span`
+  ${props => {
+    const numericValue = props.type === 'profit' || props.type === 'loss' 
+      ? parseFloat(props.value) || 0 
+      : 0;
+
+    if (numericValue === 0) return 'color: #fff;';
+    
+    if (numericValue > 0) return 'color: #00e676;';
+    if (numericValue < 0) return 'color: #ff5252;';
+    
+    if (props.type === 'breakeven') return 'color: #ff9300;';
+    if (props.type === 'missed') return 'color: #9370db;';
+    return 'color: #fff;';
+  }}
+  font-weight: bold;
+`;
+
 function TradeJournal() {
   const [trades, setTrades] = useState([]);
   const [showFilterDropdown, setShowFilterDropdown] = useState(false);
@@ -677,6 +872,8 @@ function TradeJournal() {
   const [selectedTrades, setSelectedTrades] = useState([]);
   const [showDeleteConfirmation, setShowDeleteConfirmation] = useState(false);
   const [tradeRelations, setTradeRelations] = useState({});
+  const [expandedTrades, setExpandedTrades] = useState([]);
+  const [allSubtradesExpanded, setAllSubtradesExpanded] = useState(false);
   
   const navigate = useNavigate();
   const location = useLocation();
@@ -691,6 +888,19 @@ function TradeJournal() {
       try {
         const loadedTrades = await window.electronAPI.getTrades();
         setTrades(loadedTrades || []);
+        
+        // Створюємо мапу зв'язків між батьківськими трейдами та субтрейдами
+        const relations = {};
+        loadedTrades?.forEach(trade => {
+          if (trade.parentTradeId) {
+            if (!relations[trade.parentTradeId]) {
+              relations[trade.parentTradeId] = [];
+            }
+            relations[trade.parentTradeId].push(trade.id);
+          }
+        });
+        
+        setTradeRelations(relations);
       } catch (error) {
         console.error('Error loading trades:', error);
         setTrades([]);
@@ -777,6 +987,25 @@ function TradeJournal() {
           return sortConfig.direction === 'asc' ? noA - noB : noB - noA;
         }
         
+        if (sortConfig.key === 'profitLoss') {
+          const profitA = parseFloat(a.profitLoss?.replace('%', '') || 0);
+          const profitB = parseFloat(b.profitLoss?.replace('%', '') || 0);
+          return sortConfig.direction === 'asc' ? profitA - profitB : profitB - profitA;
+        }
+        
+        if (sortConfig.key === 'gainedPoints') {
+          const gainedA = parseFloat(a.gainedPoints?.replace(/[^-\d.]/g, '') || 0);
+          const gainedB = parseFloat(b.gainedPoints?.replace(/[^-\d.]/g, '') || 0);
+          return sortConfig.direction === 'asc' ? gainedA - gainedB : gainedB - gainedA;
+        }
+        
+        if (sortConfig.key === 'result') {
+          const resultOrder = { 'Win': 0, 'Breakeven': 1, 'Missed': 2, 'Loss': 3 };
+          const resultA = resultOrder[a.result] !== undefined ? resultOrder[a.result] : 999;
+          const resultB = resultOrder[b.result] !== undefined ? resultOrder[b.result] : 999;
+          return sortConfig.direction === 'asc' ? resultA - resultB : resultB - resultA;
+        }
+        
         return 0;
       });
 
@@ -822,7 +1051,8 @@ function TradeJournal() {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedTrades(filteredAndSortedTrades.map(trade => trade.id));
+      // Вибираємо тільки ті трейди, які видимі в інтерфейсі
+      setSelectedTrades(displayedTrades.map(trade => trade.id));
     } else {
       setSelectedTrades([]);
     }
@@ -830,8 +1060,55 @@ function TradeJournal() {
 
   const handleDeleteSelected = async () => {
     try {
-      await Promise.all(selectedTrades.map(id => window.electronAPI.deleteTrade(id)));
-      setTrades(trades.filter(trade => !selectedTrades.includes(trade.id)));
+      // Зберігаємо всі ID субтрейдів для батьківських трейдів, які будуть видалені
+      const subtradeIdsToDelete = [];
+      const parentIdsToUpdate = new Set();
+      
+      // Для кожного вибраного трейду
+      selectedTrades.forEach(id => {
+        // Якщо це батьківський трейд і він має субтрейди
+        if (tradeRelations[id]?.length > 0) {
+          // Додаємо всі його субтрейди до списку на видалення
+          subtradeIdsToDelete.push(...tradeRelations[id]);
+        } 
+        // Якщо це субтрейд
+        else {
+          // Знаходимо його батька
+          const parentId = trades.find(t => t.id === id)?.parentTradeId;
+          if (parentId) {
+            parentIdsToUpdate.add(parentId);
+          }
+        }
+      });
+      
+      // Видаляємо всі вибрані трейди та їх субтрейди
+      const idsToDelete = [...selectedTrades, ...subtradeIdsToDelete];
+      await Promise.all(idsToDelete.map(id => window.electronAPI.deleteTrade(id)));
+      
+      // Оновлюємо стан зв'язків для батьківських трейдів
+      const newRelations = { ...tradeRelations };
+      
+      // Видаляємо всі зв'язки з видаленими батьківськими трейдами
+      selectedTrades.forEach(id => {
+        if (newRelations[id]) {
+          delete newRelations[id];
+        }
+      });
+      
+      // Оновлюємо зв'язки для батьківських трейдів, у яких видалені субтрейди
+      parentIdsToUpdate.forEach(parentId => {
+        if (newRelations[parentId]) {
+          newRelations[parentId] = newRelations[parentId].filter(id => !selectedTrades.includes(id));
+        }
+      });
+      
+      setTradeRelations(newRelations);
+      
+      // Оновлюємо список трейдів
+      setTrades(prevTrades => 
+        prevTrades.filter(trade => !idsToDelete.includes(trade.id))
+      );
+      
       setSelectedTrades([]);
       setShowDeleteConfirmation(false);
     } catch (error) {
@@ -846,6 +1123,12 @@ function TradeJournal() {
 
     const selectedTrade = trades.find(trade => trade.id === selectedTrades[0]);
     if (!selectedTrade) return;
+    
+    // Перевіряємо чи вибраний трейд не є вже субтрейдом
+    if (selectedTrade.parentTradeId) {
+      alert("Неможливо створити субтрейд з іншого субтрейду");
+      return;
+    }
 
     try {
       // Створюємо копію трейду без певних полів
@@ -880,10 +1163,16 @@ function TradeJournal() {
       await window.electronAPI.saveTrade(subtrade);
       
       // Оновлюємо стан зв'язків
-      setTradeRelations(prev => ({
-        ...prev,
-        [selectedTrade.id]: [...(prev[selectedTrade.id] || []), subtrade.id]
-      }));
+      const newRelations = {
+        ...tradeRelations,
+        [selectedTrade.id]: [...(tradeRelations[selectedTrade.id] || []), subtrade.id]
+      };
+      setTradeRelations(newRelations);
+      
+      // Автоматично розгортаємо батьківський трейд
+      if (!expandedTrades.includes(selectedTrade.id)) {
+        setExpandedTrades([...expandedTrades, selectedTrade.id]);
+      }
 
       // Оновлюємо список трейдів
       const updatedTrades = await window.electronAPI.getTrades();
@@ -901,25 +1190,50 @@ function TradeJournal() {
       { 
         Header: 'Actions',
         accessor: 'actions',
-        width: 80,
-        Cell: ({ row }) => (
-          <ButtonsContainer>
-            <Checkbox
-              type="checkbox"
-              checked={selectedTrades.includes(row.original.id)}
-              onChange={() => handleSelectTrade(row.original.id)}
-            />
-            <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
-              <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
-            </ActionButton>
-            <ActionButton 
-              onClick={() => handleDelete(row.original.id)} 
-              style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
-            >
-              <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-            </ActionButton>
-          </ButtonsContainer>
-        )
+        width: 40,
+        Cell: ({ row }) => {
+          const hasSubtrades = tradeRelations[row.original.id]?.length > 0;
+          const isExpanded = expandedTrades.includes(row.original.id);
+          const isSubtrade = !!row.original.parentTradeId; // Перевіряємо, чи це субтрейд
+          
+          return (
+            <ButtonsContainer isSubtrade={isSubtrade}>
+              <Checkbox
+                type="checkbox"
+                checked={selectedTrades.includes(row.original.id)}
+                onChange={() => handleSelectTrade(row.original.id)}
+              />
+              <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '6px', minWidth: 'auto' }}>
+                <img src={EditIcon} alt="Edit" style={{ width: '18px', height: '18px' }} />
+              </ActionButton>
+              <ActionButton 
+                onClick={() => handleDelete(row.original.id)} 
+                style={{ padding: '6px', minWidth: 'auto', background: '#ff4757' }}
+              >
+                <img src={DeleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} />
+              </ActionButton>
+              {hasSubtrades && !row.original.parentTradeId && (
+                <ActionButton 
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    toggleExpand(row.original.id);
+                  }}
+                  style={{  
+                    padding: '0px',
+                    minWidth: 'auto', 
+                    background: isExpanded ? 'rgb(52, 152, 219, 0)' : 'rgb(52, 152, 219, 0)'
+                  }}
+                >
+                  {isExpanded ? (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>▲</span>
+                  ) : (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>▼</span>
+                  )}
+                </ActionButton>
+              )}
+            </ButtonsContainer>
+          );
+        }
       },
       { Header: 'No.', accessor: 'no', width: 60 },
       { Header: 'Date', accessor: 'date', width: 120 },
@@ -929,24 +1243,32 @@ function TradeJournal() {
       { Header: 'Result', accessor: 'result', width: 100 },
       { Header: 'Category', accessor: 'category', width: 80 },
       { 
-        Header: 'Profit in %', 
+        Header: 'Profit %', 
         accessor: 'profitLoss',
         Cell: ({ value }) => `${value || 0}%`,
         width: 80 
       },
       { 
-        Header: 'Profit in $', 
+        Header: 'Profit $', 
         accessor: 'gainedPoints',
         Cell: ({ value }) => value || '$0.00',
         width: 80 
       },
     ],
-    [selectedTrades] // Додаємо залежність від selectedTrades
+    [selectedTrades, tradeRelations, expandedTrades, toggleExpand]
   );
+
+  const displayedTrades = React.useMemo(() => {
+    return filteredAndSortedTrades.filter(trade => {
+      if (!trade.parentTradeId) return true;
+      
+      return expandedTrades.includes(trade.parentTradeId);
+    });
+  }, [filteredAndSortedTrades, expandedTrades]);
 
   const { getTableProps, getTableBodyProps, headerGroups, rows, prepareRow } = useTable({ 
     columns, 
-    data: filteredAndSortedTrades,
+    data: displayedTrades,
     initialState: {
       sortBy: [{ id: 'no', desc: true }]
     }
@@ -991,12 +1313,216 @@ function TradeJournal() {
 
   const handleDelete = async (tradeId) => {
     try {
+      // Перевіряємо чи це основний трейд з субтрейдами
+      if (tradeRelations[tradeId]?.length > 0) {
+        // Якщо це основний трейд з субтрейдами, видаляємо всі його субтрейди
+        await Promise.all(tradeRelations[tradeId].map(subtrade => 
+          window.electronAPI.deleteTrade(subtrade)
+        ));
+        
+        // Видаляємо зв'язки з цим трейдом
+        const newRelations = { ...tradeRelations };
+        delete newRelations[tradeId];
+        setTradeRelations(newRelations);
+      } 
+      // Якщо це субтрейд, то оновлюємо список субтрейдів у батьківського трейду
+      else {
+        const parentId = trades.find(t => t.id === tradeId)?.parentTradeId;
+        if (parentId && tradeRelations[parentId]) {
+          const newRelations = { ...tradeRelations };
+          newRelations[parentId] = newRelations[parentId].filter(id => id !== tradeId);
+          setTradeRelations(newRelations);
+        }
+      }
+      
+      // Видаляємо сам трейд
       await window.electronAPI.deleteTrade(tradeId);
-      setTrades(trades.filter((trade) => trade.id !== tradeId));
+      
+      // Оновлюємо список трейдів
+      setTrades(prevTrades => prevTrades.filter(trade => 
+        trade.id !== tradeId && trade.parentTradeId !== tradeId
+      ));
+      
       setDeletePopup(null);
     } catch (error) {
       console.error('Error deleting trade:', error);
     }
+  };
+
+  const toggleExpand = (tradeId) => {
+    setExpandedTrades(prev => 
+      prev.includes(tradeId) 
+        ? prev.filter(id => id !== tradeId) 
+        : [...prev, tradeId]
+    );
+  };
+
+  const toggleAllSubtrades = () => {
+    if (allSubtradesExpanded) {
+      // Згортаємо всі субтрейди
+      setExpandedTrades([]);
+    } else {
+      // Розгортаємо всі трейди, у яких є субтрейди
+      const parentIds = trades
+        .filter(trade => tradeRelations[trade.id] && tradeRelations[trade.id].length > 0)
+        .map(trade => trade.id);
+      setExpandedTrades(parentIds);
+    }
+    // Інвертуємо стан кнопки
+    setAllSubtradesExpanded(!allSubtradesExpanded);
+  };
+
+  const handleRowClick = (tradeId, isActionCell) => {
+    if (!isActionCell) {
+      navigate(`/trade/${tradeId}`);
+    }
+  };
+
+  const TradeCalendar = () => {
+    const [activePairIndex, setActivePairIndex] = useState({});
+
+    useEffect(() => {
+      const interval = setInterval(() => {
+        setActivePairIndex(prev => {
+          const newState = { ...prev };
+          weekDates.forEach((date, idx) => {
+            const dayTrades = getTradesForDate(date);
+            const dayResults = calculateDayResult(dayTrades);
+            if (dayResults.pairs.length > 1) {
+              const currentIndex = prev[idx] !== undefined ? prev[idx] : 0;
+              newState[idx] = (currentIndex + 1) % dayResults.pairs.length;
+            }
+          });
+          return newState;
+        });
+      }, 2000);
+
+      return () => clearInterval(interval);
+    }, []);
+
+    const getCurrentWeekDates = () => {
+      const curr = new Date();
+      const week = [];
+      
+      // Змінюємо логіку, щоб неділя належала до поточного тижня
+      // Віднімаємо від поточної дати номер дня тижня (0-6, де 0 - неділя)
+      // для неділі це буде -0, для понеділка -1, вівторка -2, і т.д.
+      curr.setDate(curr.getDate() - ((curr.getDay() + 6) % 7));
+      
+      for (let i = 0; i < 7; i++) {
+        week.push(new Date(curr));
+        curr.setDate(curr.getDate() + 1);
+      }
+      
+      return week;
+    };
+
+    const weekDates = getCurrentWeekDates();
+    const today = new Date();
+
+    const getTradesForDate = (date) => {
+      return trades.filter(trade => {
+        const tradeDate = new Date(trade.date);
+        return tradeDate.toDateString() === date.toDateString();
+      });
+    };
+
+    const calculateDayResult = (dayTrades) => {
+      if (!dayTrades || dayTrades.length === 0) {
+        return {
+          totalProfitLoss: 0,
+          totalGainedPoints: 0,
+          pairs: [],
+          results: [],
+          hasData: false
+        };
+      }
+
+      let totalProfitLoss = 0;
+      let totalGainedPoints = 0;
+      const results = [];
+      const pairs = [];
+
+      dayTrades.forEach(trade => {
+        const profitValue = trade.profitLoss ? 
+          parseFloat(trade.profitLoss.replace(/[^-\d.]/g, '')) : 0;
+        totalProfitLoss += profitValue;
+
+        const gainedValue = trade.gainedPoints ? 
+          parseFloat(trade.gainedPoints.replace(/[^-\d.]/g, '') || 0) : 0;
+        totalGainedPoints += gainedValue;
+
+        results.push(trade.result);
+        if (trade.pair && !pairs.includes(trade.pair)) {
+          pairs.push(trade.pair);
+        }
+      });
+
+      return {
+        totalProfitLoss: parseFloat(totalProfitLoss.toFixed(2)),
+        totalGainedPoints: parseFloat(totalGainedPoints.toFixed(2)),
+        pairs,
+        results,
+        hasData: true
+      };
+    };
+
+    const formatDate = (date) => {
+      const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+      return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+    };
+
+    return (
+      <TradeCalendarContainer>
+        {weekDates.map((date, index) => {
+          const dayTrades = getTradesForDate(date);
+          const dayResults = calculateDayResult(dayTrades);
+          const isToday = date.toDateString() === today.toDateString();
+          
+          const currentPairIndex = activePairIndex[index] || 0;
+          const currentPair = dayResults.pairs[currentPairIndex];
+
+          return (
+            <CalendarDay 
+              key={index}
+              hasData={dayResults.hasData}
+              isToday={isToday}
+              dayResults={dayResults}
+            >
+              <CalendarDayHeader>{formatDate(date)}</CalendarDayHeader>
+              {dayResults.hasData && (
+                <CalendarDayMetrics>
+                  <PairContainer>
+                    {currentPair && (
+                      <PairText key={`${index}-${currentPairIndex}`}>
+                        {currentPair}
+                      </PairText>
+                    )}
+                  </PairContainer>
+                  <MetricsValue 
+                    type={dayResults.totalProfitLoss > 0 ? 'profit' : 'loss'}
+                    value={dayResults.totalProfitLoss}
+                  >
+                    {dayResults.totalProfitLoss === 0 ? '0%' :
+                     dayResults.totalProfitLoss > 0 ? `+${dayResults.totalProfitLoss}%` :
+                     `${dayResults.totalProfitLoss}%`}
+                  </MetricsValue>
+                  <MetricsValue 
+                    type={dayResults.totalGainedPoints > 0 ? 'profit' : 'loss'}
+                    value={dayResults.totalGainedPoints}
+                  >
+                    {dayResults.totalGainedPoints === 0 ? '$0.00' :
+                     dayResults.totalGainedPoints > 0 ? `+$${dayResults.totalGainedPoints.toFixed(2)}` :
+                     `$${dayResults.totalGainedPoints.toFixed(2)}`}
+                  </MetricsValue>
+                </CalendarDayMetrics>
+              )}
+            </CalendarDay>
+          );
+        })}
+      </TradeCalendarContainer>
+    );
   };
 
   return (
@@ -1010,11 +1536,16 @@ function TradeJournal() {
           <Subtitle>Let's analyze your trades!</Subtitle>
         </Header>
         <JournalContent>
+          <TradeCalendar />
           <JournalHeader>
             <ButtonGroup>
               <ActionButton primary onClick={handleAddTrade}>Add new Trade</ActionButton>
             </ButtonGroup>
             <ButtonGroup>
+              <ActionButton onClick={toggleAllSubtrades}>
+                {allSubtradesExpanded ? 'Hide Subtrades ▲' : 'Show Subtrades ▼'}
+              </ActionButton>
+              
               <div style={{ position: 'relative' }}>
                 <ActionButton 
                   ref={rangeButtonRef}
@@ -1032,6 +1563,7 @@ function TradeJournal() {
                       isClearable={true}
                       placeholderText="Select date range"
                       dateFormat="yyyy-MM-dd"
+                      locale="en-gb"
                     />
                     <FilterButtonGroup>
                       <FilterButton clear onClick={() => setDateRange([null, null])}>Clear</FilterButton>
@@ -1147,6 +1679,33 @@ function TradeJournal() {
                         <span>No. {sortConfig.key === 'no' && 
                           (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
                       </SortOption>
+                      
+                      <SortOption 
+                        selected={sortConfig.key === 'profitLoss'}
+                        onClick={() => handleSort('profitLoss')}
+                      >
+                        <RadioButton selected={sortConfig.key === 'profitLoss'} />
+                        <span>Profit % {sortConfig.key === 'profitLoss' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+                      
+                      <SortOption 
+                        selected={sortConfig.key === 'gainedPoints'}
+                        onClick={() => handleSort('gainedPoints')}
+                      >
+                        <RadioButton selected={sortConfig.key === 'gainedPoints'} />
+                        <span>Profit $ {sortConfig.key === 'gainedPoints' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
+                      
+                      <SortOption 
+                        selected={sortConfig.key === 'result'}
+                        onClick={() => handleSort('result')}
+                      >
+                        <RadioButton selected={sortConfig.key === 'result'} />
+                        <span>Result {sortConfig.key === 'result' && 
+                          (sortConfig.direction === 'asc' ? '↑' : '↓')}</span>
+                      </SortOption>
                     </SortGroup>
 
                     <FilterButtonGroup>
@@ -1172,7 +1731,7 @@ function TradeJournal() {
           <SelectAllContainer>
             <div>
               <Checkbox
-                checked={selectedTrades.length === filteredAndSortedTrades.length && filteredAndSortedTrades.length > 0}
+                checked={selectedTrades.length === displayedTrades.length && displayedTrades.length > 0}
                 onChange={handleSelectAll}
               />
               <span>Select All Trades</span>
@@ -1227,12 +1786,24 @@ function TradeJournal() {
                         {...row.getRowProps()} 
                         selected={isSelected}
                         isSubtrade={isSubtrade}
+                        onClick={() => handleRowClick(row.original.id, false)}
+                        style={{ cursor: 'pointer' }}
                       >
                         {row.cells.map(cell => (
                           <TableCell 
                             key={cell.column.id}
                             {...cell.getCellProps()} 
                             style={{ width: cell.column.width }}
+                            column={cell.column.id}
+                            value={row.original[cell.column.id]}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (cell.column.id === 'actions') {
+                                handleRowClick(row.original.id, true);
+                              } else {
+                                handleRowClick(row.original.id, false);
+                              }
+                            }}
                           >
                             {cell.render('Cell')}
                           </TableCell>
