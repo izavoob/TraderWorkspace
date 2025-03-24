@@ -108,7 +108,6 @@ const DailyRoutineContainer = styled.div`
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
-  position: relative;
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
@@ -120,16 +119,16 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
@@ -195,11 +194,12 @@ const Subtitle = styled.h2`
 `;
 
 const JournalContent = styled.div`
-  padding: 20px;
   width: 100%;
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
+  gap: 15px;
+  margin-top: 10px;
 `;
 
 const JournalHeader = styled.div`
@@ -268,7 +268,6 @@ const ActionButton = styled.button`
 const TableContainer = styled.div`
   flex: 1;
   overflow: auto;
-  margin-top: 20px;
   position: relative;
   
   thead {
@@ -509,7 +508,6 @@ const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
   gap: 12px;
-  margin-top: 16px;
   color: #fff;
   height: 40px;
 `;
