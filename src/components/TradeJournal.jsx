@@ -263,7 +263,6 @@ const FilterDropdown = styled.div`
   box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   border-radius: 10px;
   padding: 15px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
   transform-origin: top right;
   animation: dropDown 0.3s ease;
@@ -845,30 +844,6 @@ const MetricsValue = styled.span`
   font-weight: bold;
 `;
 
-// Добавляем новые стилизованные компоненты для активных фильтров
-const ActiveFiltersContainer = styled.div`
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  align-items: center;
-`;
-
-const ActiveFilterItem = styled.div`
-  background-color: rgb(174, 143, 223, 0.4);
-  color: #fff;
-  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
-  padding: 4px 8px;
-  border-radius: 6px;
-  font-size: 12px;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  transition: all 0.2s ease;
-  
-  &:hover {
-    background-color: #3e3e3e;
-  }
-`;
 const FilterValue = styled.span`
   color: ${props => {
     // For the 'result' filter specifically
@@ -892,27 +867,86 @@ const RemoveFilterButton = styled.button`
   border: none;
   color: #ff4757;
   cursor: pointer;
-  padding: 0;
-  font-size: 21px;
+  padding: 6px;
+  font-size: 22px;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 16px;
-  height: 16px;
+  min-width: 28px;
+  min-height: 28px;
+  position: relative;
+  z-index: 20;
   
   &:hover {
     color: #ff7b86;
+    transform: scale(1.2);
+  }
+  
+  &:focus {
+    outline: none;
+    color: #ff7b86;
+    transform: scale(1.2);
+  }
+  
+  &:active {
+    transform: scale(0.95);
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    z-index: -1;
   }
 `;
 
-const ClearAllButton = styled(ActionButton)`
-  background-color: #3e3e3e;
-  padding: 4px 12px;
-  font-size: 12px;
-  height: 28px;
-  
+// Додаю стилізований компонент для кнопки очищення фільтрів
+const ClearAllButton = styled.button`
+  background-color: #5e2ca5;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 16px;
+  margin-left: 10px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
+  position: relative;
+  z-index: 30;
+  box-shadow: rgba(0, 0, 0, 0.3) 0px 3px 8px;
+
   &:hover {
-    background-color: #4a1a8d;
+    background-color: #7425C9;
+    transform: translateY(-2px);
+    box-shadow: rgba(0, 0, 0, 0.4) 0px 5px 12px;
+  }
+  
+  &:focus {
+    outline: none;
+    background-color: #7425C9;
+    transform: translateY(-2px);
+  }
+  
+  &:active {
+    transform: translateY(1px);
+    box-shadow: rgba(0, 0, 0, 0.2) 0px 2px 4px;
+  }
+  
+  &::after {
+    content: '';
+    position: absolute;
+    top: -8px;
+    left: -8px;
+    right: -8px;
+    bottom: -8px;
+    z-index: -1;
   }
 `;
 
@@ -1154,29 +1188,36 @@ function TradeJournal() {
     localStorage.setItem('tradeJournal_allSubtradesExpanded', JSON.stringify(allSubtradesExpanded));
   }, [allSubtradesExpanded]);
 
-  useEffect(() => {
-    const loadTrades = async () => {
-      try {
-        const loadedTrades = await window.electronAPI.getTrades();
-        setTrades(loadedTrades || []);
-        
-        // Створюємо мапу зв'язків між батьківськими трейдами та субтрейдами
-        const relations = {};
-        loadedTrades?.forEach(trade => {
-          if (trade.parentTradeId) {
-            if (!relations[trade.parentTradeId]) {
-              relations[trade.parentTradeId] = [];
-            }
-            relations[trade.parentTradeId].push(trade.id);
+  // Виношу функцію loadTrades за межі useEffect
+  const loadTrades = async () => {
+    console.log("ВИКОНУЄТЬСЯ: loadTrades()");
+    try {
+      console.log("Спроба отримати трейди з API");
+      const loadedTrades = await window.electronAPI.getTrades();
+      console.log(`Отримано ${loadedTrades?.length || 0} трейдів з API`);
+      setTrades(loadedTrades || []);
+      
+      // Створюємо мапу зв'язків між батьківськими трейдами та субтрейдами
+      const relations = {};
+      loadedTrades?.forEach(trade => {
+        if (trade.parentTradeId) {
+          if (!relations[trade.parentTradeId]) {
+            relations[trade.parentTradeId] = [];
           }
-        });
-        
-        setTradeRelations(relations);
-      } catch (error) {
-        console.error('Error loading trades:', error);
-        setTrades([]);
-      }
-    };
+          relations[trade.parentTradeId].push(trade.id);
+        }
+      });
+      
+      setTradeRelations(relations);
+      console.log("Трейди успішно завантажені та відносини встановлені");
+    } catch (error) {
+      console.error('Error loading trades:', error);
+      setTrades([]);
+    }
+  };
+
+  useEffect(() => {
+    console.log("Початкове завантаження трейдів при монтуванні компонента");
     loadTrades();
   }, []);
 
@@ -1301,6 +1342,11 @@ function TradeJournal() {
   }, [sortConfig]);
 
   const filteredAndSortedTrades = React.useMemo(() => {
+    console.log("Перераховуємо filteredAndSortedTrades");
+    console.log("Поточні фільтри:", JSON.stringify(filterCriteria));
+    console.log("Діапазон дат:", startDate, endDate);
+    console.log("Конфігурація сортування:", JSON.stringify(sortConfig));
+    
     // Спочатку фільтруємо
     const filtered = trades.filter((trade) => {
       if (!trade) return false;
@@ -1317,7 +1363,12 @@ function TradeJournal() {
       return inDateRange && matchesPair && matchesSession && matchesDirection && matchesResult;
     });
 
-    return sortTrades(filtered);
+    console.log(`Відфільтровано ${filtered.length} з ${trades.length} трейдів`);
+    
+    const result = sortTrades(filtered);
+    console.log(`Після сортування: ${result.length} трейдів`);
+    
+    return result;
   }, [trades, filterCriteria, startDate, endDate, sortTrades]);
 
   const handleSelectTrade = (tradeId) => {
@@ -1582,6 +1633,9 @@ function TradeJournal() {
     });
     // Очищаем localStorage для фильтров
     localStorage.removeItem('tradeJournal_filters');
+    
+    // Применяем фильтры немедленно
+    setTimeout(() => applyFilters(), 0);
   };
 
   const handleFilterApply = () => {
@@ -1593,8 +1647,20 @@ function TradeJournal() {
   };
 
   const clearDateRange = () => {
+    console.log("ВИКОНУЄТЬСЯ: clearDateRange()");
+    console.log("Діапазон дат ДО скидання:", startDate, endDate);
+    
     setDateRange([null, null]);
     localStorage.removeItem('tradeJournal_dateRange');
+    
+    console.log("Діапазон дат ПІСЛЯ скидання: null, null");
+    
+    // Принудительно обновляем состояние и перезагружаем данные
+    console.log("Викликаю loadTrades() після скидання діапазону дат");
+    setTimeout(() => {
+      console.log("setTimeout спрацював для clearDateRange");
+      loadTrades();
+    }, 0);
   };
 
   const handleAddTrade = () => {
@@ -1671,10 +1737,22 @@ function TradeJournal() {
   };
 
   const resetSortConfig = () => {
+    console.log("ВИКОНУЄТЬСЯ: resetSortConfig()");
+    console.log("Конфігурація сортування ДО скидання:", JSON.stringify(sortConfig));
+    
     const defaultConfig = { key: 'date', direction: 'desc' };
     setSortConfig(defaultConfig);
     localStorage.setItem('tradeJournal_sortConfig', JSON.stringify(defaultConfig));
     setShowSortDropdown(false);
+    
+    console.log("Конфігурація сортування ПІСЛЯ скидання:", JSON.stringify(defaultConfig));
+    
+    // Принудительно обновляем состояние и перезагружаем данные
+    console.log("Викликаю loadTrades() після скидання сортування");
+    setTimeout(() => {
+      console.log("setTimeout спрацював для resetSortConfig");
+      loadTrades();
+    }, 0);
   };
 
   const handleRowClick = (tradeId, isActionCell) => {
@@ -1830,9 +1908,33 @@ function TradeJournal() {
     );
   };
 
+  // Функция для применения всех активных фильтров
+  const applyFilters = () => {
+    console.log("Застосування фільтрів");
+    
+    // Закрываем все выпадающие меню
+    setShowFilterDropdown(false);
+    setShowRangeDropdown(false);
+    setShowSortDropdown(false);
+    
+    // Закрываем все dropdown фильтров
+    setOpenDropdowns({
+      pair: false,
+      session: false,
+      direction: false,
+      result: false
+    });
+    
+    // Перезавантажуємо трейди, щоб оновити відображення
+    loadTrades();
+  };
+
   // Функция для сброса всех фильтров, сортировок и диапазона дат
   const clearAllFilters = () => {
-    console.log("Очистка всех фильтров");
+    console.log("ВИКОНУЄТЬСЯ: clearAllFilters()");
+    console.log("Фільтри ДО очищення:", JSON.stringify(filterCriteria));
+    console.log("Діапазон дат ДО очищення:", startDate, endDate);
+    console.log("Конфігурація сортування ДО очищення:", JSON.stringify(sortConfig));
     
     // Сбрасываем фильтры на пустые массивы
     setFilterCriteria({
@@ -1855,11 +1957,21 @@ function TradeJournal() {
     localStorage.removeItem('tradeJournal_filters');
     localStorage.removeItem('tradeJournal_dateRange');
     localStorage.setItem('tradeJournal_sortConfig', JSON.stringify({ key: 'date', direction: 'desc' }));
+    
+    console.log("Фільтри, дати та сортування ПІСЛЯ очищення встановлені в початковий стан");
+    
+    // Принудительно обновляем состояние и перезагружаем данные
+    console.log("Викликаю loadTrades() після очищення всіх фільтрів");
+    setTimeout(() => {
+      console.log("setTimeout спрацював для clearAllFilters");
+      loadTrades();
+    }, 0);
   };
 
   // Функция для удаления отдельного фильтра
   const handleRemoveFilterValue = (filterName, valueToRemove) => {
-    console.log(`Удаление фильтра: ${filterName}, значение: ${valueToRemove}`);
+    console.log(`ВИКОНУЄТЬСЯ: handleRemoveFilterValue(${filterName}, ${valueToRemove})`);
+    console.log(`Фільтри ДО видалення:`, JSON.stringify(filterCriteria));
     
     // Создаем новый объект фильтров
     const newFilters = { ...filterCriteria };
@@ -1867,106 +1979,20 @@ function TradeJournal() {
     // Удаляем указанное значение из соответствующего массива
     newFilters[filterName] = newFilters[filterName].filter(value => value !== valueToRemove);
     
+    console.log(`Фільтри ПІСЛЯ видалення:`, JSON.stringify(newFilters));
+    
     // Устанавливаем новые фильтры
     setFilterCriteria(newFilters);
     
     // Сохраняем в localStorage
     localStorage.setItem('tradeJournal_filters', JSON.stringify(newFilters));
-  };
-
-  // Компонент ActiveFilters для отображения активных фильтров
-  const ActiveFilters = () => {
-    if (!hasActiveFilters) return null;
     
-    return (
-      <ActiveFiltersContainer>
-        {/* Отображаем активные фильтры */}
-        {Object.entries(filterCriteria).map(([key, values]) => {
-          if (!Array.isArray(values) || values.length === 0) return null;
-          
-          const filterLabels = {
-            pair: 'Pair',
-            session: 'Session',
-            direction: 'Direction',
-            result: 'Result'
-          };
-          
-          return values.map((value, index) => (
-            <ActiveFilterItem key={`${key}-${value}-${index}`}>
-              <FilterLabel>{filterLabels[key]}:</FilterLabel>
-              <FilterValue>{value}</FilterValue>
-              <RemoveFilterButton 
-                onClick={(e) => {
-                  e.stopPropagation(); // Предотвращаем всплытие события
-                  e.preventDefault(); // Предотвращаем стандартное поведение
-                  handleRemoveFilterValue(key, value);
-                }}
-                type="button"
-              >
-                ×
-              </RemoveFilterButton>
-            </ActiveFilterItem>
-          ));
-        })}
-        
-        {/* Отображаем диапазон дат */}
-        {(startDate || endDate) && (
-          <ActiveFilterItem>
-            <FilterLabel>Date range:</FilterLabel>
-            <FilterValue>
-              {formatDate(startDate)} - {formatDate(endDate)}
-            </FilterValue>
-            <RemoveFilterButton 
-              onClick={(e) => {
-                e.stopPropagation(); // Предотвращаем всплытие события
-                e.preventDefault(); // Предотвращаем стандартное поведение
-                clearDateRange();
-              }} 
-              type="button"
-            >
-              ×
-            </RemoveFilterButton>
-          </ActiveFilterItem>
-        )}
-        
-        {/* Отображаем активную сортировку */}
-        {(sortConfig.key !== 'date' || sortConfig.direction !== 'desc') && (
-          <ActiveFilterItem>
-            <FilterLabel>Sort:</FilterLabel>
-            <FilterValue>
-              {sortConfig.key === 'date' ? 'Date' : 
-               sortConfig.key === 'no' ? 'No.' : 
-               sortConfig.key === 'profitLoss' ? 'Profit %' : 
-               sortConfig.key === 'gainedPoints' ? 'Profit $' : 
-               sortConfig.key === 'result' ? 'Result' : sortConfig.key}
-              {sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}
-            </FilterValue>
-            <RemoveFilterButton 
-              onClick={(e) => {
-                e.stopPropagation(); // Предотвращаем всплытие события
-                e.preventDefault(); // Предотвращаем стандартное поведение
-                resetSortConfig();
-              }} 
-              type="button"
-            >
-              ×
-            </RemoveFilterButton>
-          </ActiveFilterItem>
-        )}
-        
-        {/* Кнопка очистки всех фильтров */}
-        <ClearAllButton 
-          onClick={(e) => {
-            e.stopPropagation(); // Предотвращаем всплытие события
-            e.preventDefault(); // Предотвращаем стандартное поведение
-            clearAllFilters();
-          }} 
-          type="button"
-        >
-          Clear All
-        </ClearAllButton>
-      </ActiveFiltersContainer>
-    );
+    // Принудительно обновляем состояние и перезагружаем данные
+    console.log("Викликаю loadTrades() після видалення фільтра");
+    setTimeout(() => {
+      console.log("setTimeout спрацював для handleRemoveFilterValue");
+      loadTrades();
+    }, 0);
   };
 
   const toggleDropdown = (dropdownName) => {
@@ -1999,6 +2025,64 @@ function TradeJournal() {
   const hasActiveFilters = Object.values(filterCriteria).some(value => Array.isArray(value) && value.length > 0) || 
                           startDate || endDate || 
                           (sortConfig.key !== 'date' || sortConfig.direction !== 'desc');
+
+  // Оновлена функція для програмного скидання всіх фільтрів
+  const triggerClearFilters = () => {
+    console.log("Виклик функції triggerClearFilters");
+    
+    try {
+      console.log("⚠️ Пряме скидання всіх фільтрів");
+      
+      // Зберігаємо копії попередніх значень для логування
+      const oldFilters = JSON.stringify(filterCriteria);
+      const oldDateRange = JSON.stringify([startDate, endDate]);
+      const oldSortConfig = JSON.stringify(sortConfig);
+      
+      // Скидаємо всі фільтри
+      setFilterCriteria({
+        pair: [],
+        session: [],
+        direction: [],
+        result: []
+      });
+      
+      // Скидаємо діапазон дат
+      setDateRange([null, null]);
+      
+      // Скидаємо сортування
+      setSortConfig({
+        key: 'date',
+        direction: 'desc'
+      });
+      
+      // Очищаємо localStorage
+      localStorage.removeItem('tradeJournal_filters');
+      localStorage.removeItem('tradeJournal_dateRange');
+      localStorage.setItem('tradeJournal_sortConfig', JSON.stringify({ key: 'date', direction: 'desc' }));
+      
+      console.log(`❌ Скинуті фільтри. Старі: ${oldFilters}, Нові: []`);
+      console.log(`❌ Скинутий діапазон дат. Старий: ${oldDateRange}, Новий: [null,null]`);
+      console.log(`❌ Скинуте сортування. Старе: ${oldSortConfig}, Нове: {"key":"date","direction":"desc"}`);
+      
+      // Перезавантажуємо трейди з невеликою затримкою для оновлення стану
+      console.log("🔄 Заплановано перезавантаження трейдів");
+      setTimeout(() => {
+        console.log("🔄 Перезавантаження трейдів після скидання всіх фільтрів");
+        loadTrades();
+      }, 50);
+    } catch (error) {
+      console.error("❌ Помилка при скиданні всіх фільтрів:", error);
+    }
+  };
+
+  // Логування змін фільтрів
+  React.useEffect(() => {
+    console.log("Статус фільтрів змінився. hasActiveFilters:", hasActiveFilters);
+    console.log("Фільтри:", filterCriteria);
+    console.log("Дати:", startDate, endDate);
+    console.log("Сортування:", sortConfig);
+  }, [hasActiveFilters, filterCriteria, startDate, endDate, sortConfig]);
+
 
   return (
     <>
@@ -2268,8 +2352,6 @@ function TradeJournal() {
               />
               <span style={{ padding: '7px 0px' }}>Select All Trades</span>
               
-              {/* Добавляем отображение активных фильтров */}
-              <ActiveFilters />
             </div>
             <div>
               {selectedTrades.length === 1 && (
