@@ -682,6 +682,46 @@ const SelectAllContainer = styled.div`
   }
 `;
 
+// Додаємо новий контейнер для фільтрів
+const ActiveFiltersContainer = styled.div`
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  ::-webkit-scrollbar {
+    height: 3px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #7425C9;
+    border-radius: 2px;
+  }
+`;
+
+// Додаємо компонент для відображення активного фільтра
+const ActiveFilter = styled.div`
+  display: flex;
+  align-items: center;
+  background: rgba(94, 44, 165, 0.4);
+  border-radius: 20px;
+  padding: 0px 10px;
+  font-size: 12px;
+  white-space: nowrap;
+  border: 1px solid rgba(184, 134, 238, 0.6);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+  
+  &:hover {
+    background: rgba(116, 37, 201, 0.5);
+  }
+`;
+
+const ActiveFilterLabel = styled.span`
+  color: #B886EE;
+  font-weight: 500;
+  margin-right: 5px;
+`;
+
 const ConfirmationPopup = styled(Popup)`
   text-align: center;
 
@@ -867,7 +907,6 @@ const RemoveFilterButton = styled.button`
   border: none;
   color: #ff4757;
   cursor: pointer;
-  padding: 6px;
   font-size: 22px;
   display: flex;
   align-items: center;
@@ -909,7 +948,7 @@ const ClearAllButton = styled.button`
   color: white;
   border: none;
   border-radius: 6px;
-  padding: 8px 16px;
+  padding: 7px 16px;
   margin-left: 10px;
   cursor: pointer;
   font-size: 14px;
@@ -2083,6 +2122,54 @@ function TradeJournal() {
     console.log("Сортування:", sortConfig);
   }, [hasActiveFilters, filterCriteria, startDate, endDate, sortConfig]);
 
+  // Функція для відображення активних фільтрів
+  const renderActiveFilters = () => {
+    // Перевіряємо чи є активні фільтри, сортування або діапазон дат
+    if (!hasActiveFilters) return null;
+    
+    return (
+      <ActiveFiltersContainer>
+        {/* Відображення фільтрів за полями */}
+        {Object.entries(filterCriteria).map(([filterName, values]) => 
+          values.length > 0 && values.map(value => (
+            <ActiveFilter key={`${filterName}-${value}`}>
+              <ActiveFilterLabel>{filterName.charAt(0).toUpperCase() + filterName.slice(1)}:</ActiveFilterLabel>
+              <FilterValue>{value}</FilterValue>
+              <RemoveFilterButton onClick={() => handleRemoveFilterValue(filterName, value)}>×</RemoveFilterButton>
+            </ActiveFilter>
+          ))
+        )}
+        
+        {/* Відображення діапазону дат */}
+        {(startDate || endDate) && (
+          <ActiveFilter>
+            <ActiveFilterLabel>Date Range:</ActiveFilterLabel>
+            <span>{formatDate(startDate) || 'Start'} - {formatDate(endDate) || 'End'}</span>
+            <RemoveFilterButton onClick={clearDateRange}>×</RemoveFilterButton>
+          </ActiveFilter>
+        )}
+        
+        {/* Відображення сортування */}
+        {(sortConfig.key !== 'date' || sortConfig.direction !== 'desc') && (
+          <ActiveFilter>
+            <ActiveFilterLabel>Sorted by:</ActiveFilterLabel>
+            <span>
+              {sortConfig.key.charAt(0).toUpperCase() + sortConfig.key.slice(1)}
+              {sortConfig.direction === 'asc' ? ' ↑' : ' ↓'}
+            </span>
+            <RemoveFilterButton onClick={resetSortConfig}>×</RemoveFilterButton>
+          </ActiveFilter>
+        )}
+        
+        {/* Кнопка очищення всіх фільтрів */}
+        {hasActiveFilters && (
+          <ClearAllButton onClick={triggerClearFilters}>
+            Clear All
+          </ClearAllButton>
+        )}
+      </ActiveFiltersContainer>
+    );
+  };
 
   return (
     <>
@@ -2352,6 +2439,8 @@ function TradeJournal() {
               />
               <span style={{ padding: '7px 0px' }}>Select All Trades</span>
               
+              {/* Додаємо відображення активних фільтрів */}
+              {renderActiveFilters()}
             </div>
             <div>
               {selectedTrades.length === 1 && (
