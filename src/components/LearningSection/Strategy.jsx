@@ -107,6 +107,45 @@ const Content = styled.div`
   margin-right: auto;
 `;
 
+const NavButton = styled(Link)`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(45deg, #7425C9, #B886EE);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
+  color: white;
+  border: none;
+  border-radius: 15px;
+  padding: 20px 30px;
+  margin: 15px auto;
+  font-size: 1.2em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  width: 80%;
+  max-width: 400px;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(116, 37, 201, 0.4);
+  }
+  
+  &:active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(116, 37, 201, 0.4);
+  }
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 50px;
+`;
+
 function Strategy() {
   return (
     <StrategyContainer>
@@ -116,7 +155,11 @@ function Strategy() {
         <Subtitle>Let's develop your strategy!</Subtitle>
       </Header>
       <Content>
-        {/* Тут буде контент для розділу стратегій */}
+        <ButtonContainer>
+          <NavButton to="/learning-section/strategy/recommendations">
+            Рекомендації на основі статистики трейдів
+          </NavButton>
+        </ButtonContainer>
       </Content>
     </StrategyContainer>
   );

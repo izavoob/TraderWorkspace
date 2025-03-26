@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addExecutionItem: (section, name) => ipcRenderer.invoke('addExecutionItem', section, name),
   updateExecutionItem: (section, id, name) => ipcRenderer.invoke('updateExecutionItem', section, id, name),
   deleteExecutionItem: (section, id) => ipcRenderer.invoke('deleteExecutionItem', section, id),
+  getTradeRecommendations: () => ipcRenderer.invoke('getTradeRecommendations'),
   
   // Performance analysis methods
   savePerformanceAnalysis: (analysis) => ipcRenderer.invoke('savePerformanceAnalysis', analysis),

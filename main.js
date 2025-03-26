@@ -1,8 +1,9 @@
 const electron = require('electron');
-const { app, BrowserWindow, ipcMain } = electron;
+const { app, BrowserWindow, ipcMain, dialog, shell } = electron;
 const path = require('path');
 const sqlite3 = require('sqlite3').verbose();
 const fs = require('fs').promises;
+const fsSync = require('fs');
 const AccountsDB = require('./src/database/accountsDB');
 const ExecutionDB = require('./src/database/executionDB');
 const NotesDB = require('./src/database/notesDB');
@@ -11,6 +12,7 @@ const PerformanceDB = require('./src/database/performanceDB');
 const { migrateDatabase } = require('./migration');
 const STERDB = require('./src/database/sterDB');
 const DemonsDB = require('./src/database/demonsDB');
+const isDev = process.env.NODE_ENV === 'development';
 
 let db = null;
 let accountsDB = null;
@@ -134,7 +136,9 @@ async function initializeDatabase() {
     accountsDB = new AccountsDB(accountsDbPath);
     
     // Initialize execution database
+    console.log('Initializing execution database at:', executionDbPath);
     executionDB = new ExecutionDB(executionDbPath);
+    console.log('Execution database initialized successfully');
 
     // Initialize performance database
     performanceDB = new PerformanceDB(performanceDbPath);
@@ -287,203 +291,367 @@ ipcMain.handle('get-trade', async (event, id) => {
   });
 });
 
+// Додаємо функцію для перевірки вмісту бази даних execution перед збереженням трейду
+async function checkExecutionDBContent() {
+  const userDataPath = app.getPath('userData');
+  const executionDBPath = path.join(userDataPath, 'execution.db');
+  
+  if (!fsSync.existsSync(executionDBPath)) {
+    console.log('Execution database does not exist, nothing to check');
+    return;
+  }
+  
+  // Переконуємося, що база даних ініціалізована
+  await ensureDatabaseInitialized();
+  
+  console.log('Using executionDB instance from global variable for checking content');
+  
+  try {
+    // Перевіряємо вміст таблиці pointA
+    const pointAItems = await executionDB.getAllItems('pointA');
+    console.log('pointA items:', JSON.stringify(pointAItems, null, 2));
+    
+    // Конкретно перевіряємо елемент RB
+    const rbItem = await executionDB.getItemByName('pointA', 'RB');
+    console.log('RB item details:', rbItem ? JSON.stringify(rbItem, null, 2) : 'Not found');
+  } catch (error) {
+    console.error('Error checking execution DB content:', error);
+  }
+}
+
+// Додаємо перевірку перед збереженням трейду
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
-  return new Promise(async (resolve, reject) => {
-    try {
-      console.log('Початок збереження трейду');
-      
-      // Get next trade number
-      const row = await new Promise((res, rej) => {
-        db.get('SELECT MAX(no) as maxNo FROM trades', [], (err, row) => {
-          if (err) rej(err);
-          else res(row);
-        });
+  
+  console.log('Saving trade with data:', JSON.stringify({
+    id: trade.id,
+    no: trade.no,
+    pointA: trade.pointA,
+    trigger: trade.trigger,
+    result: trade.result
+  }, null, 2));
+  
+  // Перевіряємо вміст бази даних execution перед збереженням
+  await checkExecutionDBContent();
+  
+  // Присвоюємо номер трейду, якщо він відсутній
+  if (!trade.no) {
+    // Знаходимо максимальний номер трейду
+    const maxTradeNoResult = await new Promise((resolve, reject) => {
+      db.get('SELECT MAX(no) as maxNo FROM trades', [], (err, result) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(result);
+        }
       });
-      
-      const nextNo = (row.maxNo || 0) + 1;
-      const volumeConfirmationJson = JSON.stringify(Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : []);
-      
-      // Save trade
-      await new Promise((res, rej) => {
-        db.run(
-          `INSERT OR REPLACE INTO trades (
-            id, no, date, account, pair, direction, positionType, 
-            risk, result, rr, profitLoss, gainedPoints, 
-            followingPlan, bestTrade, session, pointA, trigger, 
-            volumeConfirmation, entryModel, entryTF, fta, 
-            slPosition, score, category, topDownAnalysis, 
-            execution, management, conclusion, parentTradeId, presession_id
-          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-          [
-            trade.id,
-            nextNo,
-            trade.date || '',
-            trade.account || '',
-            trade.pair || '',
-            trade.direction || '',
-            trade.positionType || '',
-            trade.risk || '',
-            trade.result || '',
-            trade.rr || '',
-            trade.profitLoss || '',
-            trade.gainedPoints || '',
-            trade.followingPlan ? 1 : 0,
-            trade.bestTrade ? 1 : 0,
-            trade.session || '',
-            trade.pointA || '',
-            trade.trigger || '',
-            volumeConfirmationJson,
-            trade.entryModel || '',
-            trade.entryTF || '',
-            trade.fta || '',
-            trade.slPosition || '',
-            trade.score || '',
-            trade.category || '',
-            JSON.stringify(trade.topDownAnalysis || []),
-            JSON.stringify(trade.execution || {}),
-            JSON.stringify(trade.management || {}),
-            JSON.stringify(trade.conclusion || {}),
-            trade.parentTradeId || null,
-            trade.presession_id || null
-          ],
-          function(err) {
-            if (err) rej(err);
-            else res();
+    });
+    
+    // Визначаємо новий номер трейду
+    const nextTradeNo = maxTradeNoResult.maxNo ? maxTradeNoResult.maxNo + 1 : 1;
+    trade.no = nextTradeNo;
+    console.log(`Assigned new trade number: ${trade.no}`);
+  }
+  
+  // Генеруємо ID для трейду, якщо його немає
+  if (!trade.id) {
+    trade.id = `trade_${Date.now()}_${Math.floor(Math.random() * 1000)}`;
+    console.log(`Generated new trade ID: ${trade.id}`);
+  }
+  
+  return new Promise((resolve, reject) => {
+    db.run(
+      `INSERT INTO trades (
+        id, no, date, pair, direction, session, positionType, risk, result,
+        pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition,
+        topDownAnalysis, execution, management, conclusion, presession_id
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        trade.id,
+        trade.no,
+        trade.date,
+        trade.pair,
+        trade.direction,
+        trade.session,
+        trade.positionType,
+        trade.risk,
+        trade.result,
+        trade.pointA,
+        trade.trigger,
+        JSON.stringify(trade.volumeConfirmation || []),
+        trade.entryModel,
+        trade.entryTF,
+        trade.fta,
+        trade.slPosition,
+        JSON.stringify(trade.topDownAnalysis || []),
+        JSON.stringify(trade.execution || {}),
+        JSON.stringify(trade.management || {}),
+        JSON.stringify(trade.conclusion || {}),
+        trade.presession_id
+      ],
+      async function(err) {
+        if (err) {
+          console.error('Error saving trade:', err);
+          reject(err);
+        } else {
+          console.log(`Trade saved successfully in database with ID: ${trade.id}`);
+          
+          try {
+            // Головна проблема! Необхідно зачекати завершення виклику updateExecutionTradesData
+            // перш ніж повертати результат
+            console.log('Starting execution DB update for new trade');
+            
+            // КРИТИЧНА ЗМІНА #1: Переконуємося, що volumeConfirmation є масивом перед оновленням execution DB
+            if (trade.volumeConfirmation && typeof trade.volumeConfirmation === 'string') {
+              try {
+                trade.volumeConfirmation = JSON.parse(trade.volumeConfirmation);
+              } catch (e) {
+                trade.volumeConfirmation = [];
+              }
+            }
+            
+            // Переконуємося, що executionDB ініціалізована
+            await ensureDatabaseInitialized();
+            
+            if (!executionDB) {
+              console.error('ERROR: executionDB is not initialized even after ensureDatabaseInitialized()');
+              throw new Error('ExecutionDB is not initialized');
+            }
+            
+            console.log('Using initialized global executionDB instance:', executionDB != null);
+            
+            // Оновлюємо трейд в базі даних execution
+            await updateExecutionTradesData(trade);
+            console.log('Execution DB update completed for new trade');
+          } catch (error) {
+            console.error('Error updating execution data:', error);
+            // Навіть якщо оновлення execution failed, ми все ще хочемо повернути успішний результат
+            // оскільки трейд був збережений в основній базі даних
           }
-        );
-      });
-
-      // Save notes if present
-      if (trade.notes && trade.notes.length > 0) {
-        for (const note of trade.notes) {
-          await notesDB.addNote({
-            ...note,
-            sourceType: 'trade',
-            sourceId: trade.id,
-            tradeNo: nextNo,
-            tradeDate: trade.date
+          
+          resolve({
+            id: trade.id,
+            no: trade.no
           });
         }
       }
-
-      console.log('Трейд успішно збережено');
-      resolve(true);
-    } catch (error) {
-      console.error('Error saving trade:', error);
-      reject(error);
-    }
+    );
   });
 });
 
 ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
   await ensureDatabaseInitialized();
-  return new Promise(async (resolve, reject) => {
-    try {
-      console.log('Початок оновлення трейду');
-      
-      const volumeConfirmationJson = JSON.stringify(Array.isArray(updatedTrade.volumeConfirmation) ? updatedTrade.volumeConfirmation : []);
-      
-      // Update trade
-      await new Promise((res, rej) => {
-        db.run(
-          `UPDATE trades SET 
-            date = ?, account = ?, pair = ?, direction = ?, 
-            positionType = ?, risk = ?, result = ?, rr = ?, 
-            profitLoss = ?, gainedPoints = ?, followingPlan = ?, 
-            bestTrade = ?, session = ?, pointA = ?, trigger = ?, 
-            volumeConfirmation = ?, entryModel = ?, entryTF = ?, 
-            fta = ?, slPosition = ?, score = ?, category = ?, 
-            topDownAnalysis = ?, execution = ?, management = ?, 
-            conclusion = ?, parentTradeId = ?, presession_id = ? 
-          WHERE id = ?`,
-          [
-            updatedTrade.date || '',
-            updatedTrade.account || '',
-            updatedTrade.pair || '',
-            updatedTrade.direction || '',
-            updatedTrade.positionType || '',
-            updatedTrade.risk || '',
-            updatedTrade.result || '',
-            updatedTrade.rr || '',
-            updatedTrade.profitLoss || '',
-            updatedTrade.gainedPoints || '',
-            updatedTrade.followingPlan ? 1 : 0,
-            updatedTrade.bestTrade ? 1 : 0,
-            updatedTrade.session || '',
-            updatedTrade.pointA || '',
-            updatedTrade.trigger || '',
-            volumeConfirmationJson,
-            updatedTrade.entryModel || '',
-            updatedTrade.entryTF || '',
-            updatedTrade.fta || '',
-            updatedTrade.slPosition || '',
-            updatedTrade.score || '',
-            updatedTrade.category || '',
-            JSON.stringify(updatedTrade.topDownAnalysis) || '[]',
-            JSON.stringify(updatedTrade.execution) || '{}',
-            JSON.stringify(updatedTrade.management) || '{}',
-            JSON.stringify(updatedTrade.conclusion) || '{}',
-            updatedTrade.parentTradeId || null,
-            updatedTrade.presession_id || null,
-            tradeId
-          ],
-          function(err) {
-            if (err) rej(err);
-            else res();
+  
+  console.log(`Updating trade with ID: ${tradeId}, updated data:`, JSON.stringify({
+    id: updatedTrade.id,
+    no: updatedTrade.no,
+    pointA: updatedTrade.pointA,
+    trigger: updatedTrade.trigger,
+    result: updatedTrade.result
+  }, null, 2));
+  
+  // Спочатку отримуємо поточні дані трейду для порівняння
+  const currentTrade = await new Promise((resolve, reject) => {
+    db.get('SELECT * FROM trades WHERE id = ?', [tradeId], (err, trade) => {
+      if (err) {
+        reject(err);
+      } else {
+        if (trade && trade.volumeConfirmation) {
+          try {
+            trade.volumeConfirmation = JSON.parse(trade.volumeConfirmation);
+          } catch (e) {
+            trade.volumeConfirmation = [];
           }
-        );
-      });
-
-      // Update or add notes
-      if (updatedTrade.notes && updatedTrade.notes.length > 0) {
-        console.log(`Обробка ${updatedTrade.notes.length} нотаток для трейду ID=${tradeId}`);
-        for (const note of updatedTrade.notes) {
-          if (note.id) {
-            console.log(`Оновлення існуючої нотатки з ID=${note.id}`);
-            // Оновлюємо існуючу нотатку
-            await notesDB.updateNote({
-              ...note,
-              source_type: 'trade',
-              source_id: tradeId,
-              trade_no: updatedTrade.no,
-              trade_date: updatedTrade.date
-            });
+        }
+        resolve(trade);
+      }
+    });
+  });
+  
+  if (!currentTrade) {
+    throw new Error(`Trade with ID ${tradeId} not found`);
+  }
+  
+  console.log(`Current trade data:`, JSON.stringify({
+    id: currentTrade.id,
+    no: currentTrade.no,
+    pointA: currentTrade.pointA,
+    trigger: currentTrade.trigger,
+    result: currentTrade.result
+  }, null, 2));
+  
+  // Перевіряємо volumeConfirmation у оновленому трейді
+  if (updatedTrade.volumeConfirmation && typeof updatedTrade.volumeConfirmation === 'string') {
+    try {
+      updatedTrade.volumeConfirmation = JSON.parse(updatedTrade.volumeConfirmation);
+    } catch (e) {
+      updatedTrade.volumeConfirmation = [];
+    }
+  }
+  
+  // Якщо дані елементів виконання змінилися, видалимо старі записи
+  if (currentTrade.pointA !== updatedTrade.pointA || 
+      currentTrade.trigger !== updatedTrade.trigger ||
+      currentTrade.entryModel !== updatedTrade.entryModel ||
+      currentTrade.entryTF !== updatedTrade.entryTF ||
+      currentTrade.fta !== updatedTrade.fta ||
+      currentTrade.slPosition !== updatedTrade.slPosition ||
+      currentTrade.pair !== updatedTrade.pair ||
+      currentTrade.direction !== updatedTrade.direction ||
+      currentTrade.session !== updatedTrade.session ||
+      currentTrade.positionType !== updatedTrade.positionType ||
+      JSON.stringify(currentTrade.volumeConfirmation) !== JSON.stringify(updatedTrade.volumeConfirmation)) {
+    
+    console.log('Execution parameters changed, removing old data');
+    // Видаляємо старі дані із execution DB
+    try {
+      await updateExecutionTradesData({...currentTrade, id: tradeId}, true);
+    } catch (error) {
+      console.error('Error removing old execution data:', error);
+    }
+  } else {
+    console.log('No execution parameters changed, skipping removal of old data');
+  }
+  
+  return new Promise((resolve, reject) => {
+    db.run(
+      `UPDATE trades SET 
+        no = ?, date = ?, pair = ?, direction = ?, session = ?, positionType = ?, 
+        risk = ?, result = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, 
+        entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, 
+        topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, 
+        presession_id = ?, updated_at = CURRENT_TIMESTAMP
+      WHERE id = ?`,
+      [
+        updatedTrade.no,
+        updatedTrade.date,
+        updatedTrade.pair,
+        updatedTrade.direction,
+        updatedTrade.session,
+        updatedTrade.positionType,
+        updatedTrade.risk,
+        updatedTrade.result,
+        updatedTrade.pointA,
+        updatedTrade.trigger,
+        JSON.stringify(updatedTrade.volumeConfirmation || []),
+        updatedTrade.entryModel,
+        updatedTrade.entryTF,
+        updatedTrade.fta,
+        updatedTrade.slPosition,
+        JSON.stringify(updatedTrade.topDownAnalysis || []),
+        JSON.stringify(updatedTrade.execution || {}),
+        JSON.stringify(updatedTrade.management || {}),
+        JSON.stringify(updatedTrade.conclusion || {}),
+        updatedTrade.presession_id,
+        tradeId
+      ],
+      async function(err) {
+        if (err) {
+          console.error('Error updating trade:', err);
+          reject(err);
+        } else {
+          console.log(`Trade updated successfully in database with ID: ${tradeId}`);
+          // Оновлюємо дані в execution DB
+          try {
+            // Додаємо id до оновленого трейду
+            updatedTrade.id = tradeId;
+            console.log('Starting execution DB update for updated trade');
             
-            // Оновлюємо зображення для нотатки
-            if (note.images && note.images.length > 0) {
-              for (const image of note.images) {
-                if (!image.id) {
-                  await notesDB.addNoteImage(note.id, image.image_path);
+            // Ручне оновлення запису pointA якщо необхідно
+            if (updatedTrade.pointA) {
+              console.log(`Запускаємо ручне оновлення для pointA = "${updatedTrade.pointA}"`);
+              const userDataPath = app.getPath('userData');
+              const executionDBPath = path.join(userDataPath, 'execution.db');
+              
+              if (fsSync.existsSync(executionDBPath)) {
+                const manualDb = new sqlite3.Database(executionDBPath);
+                
+                try {
+                  // Отримуємо поточний запис
+                  const row = await new Promise((resolveQuery, rejectQuery) => {
+                    manualDb.get(`SELECT * FROM pointA WHERE name = ?`, [updatedTrade.pointA], (err, row) => {
+                      if (err) {
+                        console.error(`Помилка при запиті до pointA для "${updatedTrade.pointA}":`, err);
+                        rejectQuery(err);
+                      } else {
+                        resolveQuery(row);
+                      }
+                    });
+                  });
+                  
+                  if (row) {
+                    console.log(`Знайдено запис у pointA для "${updatedTrade.pointA}":`, row);
+                    
+                    // Розбираємо масив trades
+                    let tradesArray = [];
+                    try {
+                      tradesArray = JSON.parse(row.trades || '[]');
+                    } catch (e) {
+                      console.error('Помилка при розборі масиву trades:', e);
+                      tradesArray = [];
+                    }
+                    
+                    console.log(`Поточний масив trades:`, tradesArray);
+                    
+                    // Створюємо запис для трейду
+                    const tradeData = {
+                      id: updatedTrade.id,
+                      result: updatedTrade.result
+                    };
+                    
+                    // Перевіряємо, чи існує вже цей трейд
+                    const existingIndex = tradesArray.findIndex(t => t.id === updatedTrade.id);
+                    if (existingIndex !== -1) {
+                      tradesArray[existingIndex] = tradeData;
+                      console.log(`Трейд з id ${updatedTrade.id} оновлено у масиві`);
+                    } else {
+                      tradesArray.push(tradeData);
+                      console.log(`Трейд з id ${updatedTrade.id} додано до масиву`);
+                    }
+                    
+                    console.log(`Оновлений масив trades:`, tradesArray);
+                    
+                    // Оновлюємо запис в базі даних
+                    await new Promise((resolveUpdate, rejectUpdate) => {
+                      manualDb.run(
+                        `UPDATE pointA SET trades = ? WHERE name = ?`,
+                        [JSON.stringify(tradesArray), updatedTrade.pointA],
+                        function(err) {
+                          if (err) {
+                            console.error(`Помилка при оновленні pointA для "${updatedTrade.pointA}":`, err);
+                            rejectUpdate(err);
+                          } else {
+                            console.log(`Успішно оновлено pointA для "${updatedTrade.pointA}", змінено ${this.changes} рядків`);
+                            resolveUpdate();
+                          }
+                        }
+                      );
+                    });
+                  } else {
+                    console.error(`Запис pointA для "${updatedTrade.pointA}" не знайдено!`);
+                  }
+                } catch (manualError) {
+                  console.error('Помилка при ручному оновленні pointA:', manualError);
+                } finally {
+                  manualDb.close();
                 }
               }
             }
-          } else {
-            console.log('Створення нової нотатки для трейду');
-            // Створюємо нову нотатку
-            const newNoteId = await notesDB.addNote({
-              ...note,
-              source_type: 'trade',
-              source_id: tradeId,
-              trade_no: updatedTrade.no,
-              trade_date: updatedTrade.date
-            });
             
-            // Додаємо зображення до нової нотатки
-            if (note.images && note.images.length > 0) {
-              for (const image of note.images) {
-                await notesDB.addNoteImage(newNoteId, image.image_path);
-              }
-            }
+            // Після ручного оновлення викликаємо стандартну функцію оновлення
+            await updateExecutionTradesData(updatedTrade);
+            console.log('Execution DB update completed for updated trade');
+          } catch (error) {
+            console.error('Error updating execution data:', error);
           }
+          
+          resolve({
+            id: tradeId,
+            no: updatedTrade.no
+          });
         }
       }
-
-      resolve(true);
-    } catch (error) {
-      console.error('Error updating trade:', error);
-      reject(error);
-    }
+    );
   });
 });
 
@@ -536,28 +704,134 @@ ipcMain.handle('get-trades', async () => {
 
 ipcMain.handle('delete-trade', async (event, tradeId) => {
   await ensureDatabaseInitialized();
-  return new Promise(async (resolve, reject) => {
-    try {
-      // Спочатку видаляємо пов'язані нотатки
-      await notesDB.deleteNotesBySource('trade', tradeId);
-      
-      // Потім видаляємо сам трейд
-      await new Promise((resolveDelete, rejectDelete) => {
-        db.run('DELETE FROM trades WHERE id = ?', [tradeId], (err) => {
-          if (err) {
-            rejectDelete(err);
-          } else {
-            resolveDelete();
+  
+  console.log(`Deleting trade with ID: ${tradeId}`);
+  
+  try {
+    // Отримуємо дані трейду перед видаленням
+    const tradeToDelete = await new Promise((resolve, reject) => {
+      db.get('SELECT * FROM trades WHERE id = ?', [tradeId], (err, trade) => {
+        if (err) {
+          reject(err);
+        } else {
+          if (trade && trade.volumeConfirmation) {
+            try {
+              trade.volumeConfirmation = JSON.parse(trade.volumeConfirmation);
+            } catch (e) {
+              trade.volumeConfirmation = [];
+            }
           }
-        });
+          resolve(trade);
+        }
       });
-      
-      resolve(true);
-    } catch (error) {
-      console.error('Error deleting trade:', error);
-      reject(error);
+    });
+    
+    if (!tradeToDelete) {
+      throw new Error(`Trade with ID ${tradeId} not found`);
     }
-  });
+    
+    console.log(`Found trade to delete:`, JSON.stringify({
+      id: tradeToDelete.id,
+      no: tradeToDelete.no,
+      pointA: tradeToDelete.pointA,
+      result: tradeToDelete.result
+    }, null, 2));
+    
+    // Ручне видалення запису трейду з pointA таблиці
+    if (tradeToDelete.pointA) {
+      console.log(`Запускаємо ручне видалення для pointA = "${tradeToDelete.pointA}"`);
+      const userDataPath = app.getPath('userData');
+      const executionDBPath = path.join(userDataPath, 'execution.db');
+      
+      if (fsSync.existsSync(executionDBPath)) {
+        const manualDb = new sqlite3.Database(executionDBPath);
+        
+        try {
+          // Отримуємо поточний запис
+          const row = await new Promise((resolveQuery, rejectQuery) => {
+            manualDb.get(`SELECT * FROM pointA WHERE name = ?`, [tradeToDelete.pointA], (err, row) => {
+              if (err) {
+                console.error(`Помилка при запиті до pointA для "${tradeToDelete.pointA}":`, err);
+                rejectQuery(err);
+              } else {
+                resolveQuery(row);
+              }
+            });
+          });
+          
+          if (row) {
+            console.log(`Знайдено запис у pointA для "${tradeToDelete.pointA}":`, row);
+            
+            // Розбираємо масив trades
+            let tradesArray = [];
+            try {
+              tradesArray = JSON.parse(row.trades || '[]');
+            } catch (e) {
+              console.error('Помилка при розборі масиву trades:', e);
+              tradesArray = [];
+            }
+            
+            console.log(`Поточний масив trades:`, tradesArray);
+            
+            // Видаляємо трейд з масиву
+            const updatedTradesArray = tradesArray.filter(t => t.id !== tradeId);
+            
+            if (updatedTradesArray.length !== tradesArray.length) {
+              console.log(`Трейд з id ${tradeId} видалено з масиву`);
+              
+              // Оновлюємо запис в базі даних
+              await new Promise((resolveUpdate, rejectUpdate) => {
+                manualDb.run(
+                  `UPDATE pointA SET trades = ? WHERE name = ?`,
+                  [JSON.stringify(updatedTradesArray), tradeToDelete.pointA],
+                  function(err) {
+                    if (err) {
+                      console.error(`Помилка при оновленні pointA для "${tradeToDelete.pointA}":`, err);
+                      rejectUpdate(err);
+                    } else {
+                      console.log(`Успішно оновлено pointA для "${tradeToDelete.pointA}", змінено ${this.changes} рядків`);
+                      resolveUpdate();
+                    }
+                  }
+                );
+              });
+            } else {
+              console.log(`Трейд з id ${tradeId} не знайдено в масиві trades таблиці pointA`);
+            }
+          } else {
+            console.error(`Запис pointA для "${tradeToDelete.pointA}" не знайдено!`);
+          }
+        } catch (manualError) {
+          console.error('Помилка при ручному видаленні з pointA:', manualError);
+        } finally {
+          manualDb.close();
+        }
+      }
+    }
+    
+    // Видаляємо трейд з усіх таблиць execution DB
+    await updateExecutionTradesData({...tradeToDelete, id: tradeId}, true);
+    console.log('Successfully removed trade from execution DB tables');
+    
+    // Видаляємо трейд з основної бази даних
+    await new Promise((resolve, reject) => {
+      db.run('DELETE FROM trades WHERE id = ?', [tradeId], function(err) {
+        if (err) {
+          console.error('Error deleting trade:', err);
+          reject(err);
+        } else {
+          console.log(`Successfully deleted trade with ID ${tradeId}`);
+          resolve();
+        }
+      });
+    });
+    
+    // Повертаємо успішний результат
+    return { success: true, message: `Trade with ID ${tradeId} successfully deleted` };
+  } catch (error) {
+    console.error(`Error deleting trade with ID ${tradeId}:`, error);
+    throw error;
+  }
 });
 
 ipcMain.handle('save-file', async (event, file) => {
@@ -1557,4 +1831,319 @@ ipcMain.handle('getLinkedTrades', async (event, presessionId) => {
       resolve(trades);
     });
   });
+});
+
+// Функція для оновлення даних trades у базі даних execution
+async function updateExecutionTradesData(trade, isDelete = false) {
+  // Перевіряємо, чи ініціалізована executionDB
+  if (!executionDB) {
+    console.error('ERROR: executionDB is not initialized!');
+    await ensureDatabaseInitialized();
+    if (!executionDB) {
+      console.error('Critical error: executionDB still not initialized after ensureDatabaseInitialized()');
+      return;
+    }
+  }
+  
+  console.log(`Updating execution data for trade: ${trade.id}, pointA: ${trade.pointA}, isDelete: ${isDelete}`);
+
+  try {
+    // Якщо pointA існує у трейді
+    if (trade.pointA) {
+      console.log(`Оновлюємо pointA = "${trade.pointA}" через глобальний executionDB`);
+      
+      try {
+        // Отримуємо дані для елемента
+        const item = await executionDB.getItemByName('pointA', trade.pointA);
+        
+        if (!item) {
+          console.log(`УВАГА: Елемент pointA "${trade.pointA}" не знайдено у базі даних. Створюємо новий.`);
+          await executionDB.addItem('pointA', trade.pointA);
+          console.log(`Елемент pointA "${trade.pointA}" успішно створено`);
+        } else {
+          console.log(`Знайдено елемент pointA "${trade.pointA}" у базі даних`);
+        }
+        
+        // Тепер оновлюємо дані трейду
+        const tradeData = {
+          id: trade.id,
+          result: trade.result
+        };
+        
+        if (isDelete) {
+          await executionDB.removeTradeFromItem('pointA', trade.pointA, trade.id);
+          console.log(`Трейд ${trade.id} видалено з елемента pointA "${trade.pointA}"`);
+        } else {
+          await executionDB.updateItemTrades('pointA', trade.pointA, tradeData);
+          console.log(`Трейд ${trade.id} додано/оновлено для елемента pointA "${trade.pointA}"`);
+          
+          // Перевіримо, чи дані були успішно оновлені
+          const updatedItem = await executionDB.getItemByName('pointA', trade.pointA);
+          console.log(`Оновлені дані для pointA "${trade.pointA}":`, JSON.stringify(updatedItem?.trades || [], null, 2));
+        }
+      } catch (error) {
+        console.error(`Помилка при оновленні pointA "${trade.pointA}":`, error);
+      }
+    }
+
+    // Визначаємо секції та відповідні значення в трейді
+    const sections = {
+      trigger: trade.trigger,
+      entryModel: trade.entryModel,
+      entryTF: trade.entryTF,
+      fta: trade.fta,
+      slPosition: trade.slPosition,
+      pairs: trade.pair,
+      directions: trade.direction,
+      sessions: trade.session,
+      positionType: trade.positionType
+    };
+
+    console.log('Sections to update:', JSON.stringify(sections, null, 2));
+
+    // Обробка для volumeConfirmation, який може бути масивом
+    if (trade.volumeConfirmation) {
+      if (Array.isArray(trade.volumeConfirmation)) {
+        for (const item of trade.volumeConfirmation) {
+          if (isDelete) {
+            await executionDB.removeTradeFromItem('volumeConfirmation', item, trade.id);
+          } else {
+            await executionDB.updateItemTrades('volumeConfirmation', item, {
+              id: trade.id,
+              result: trade.result
+            });
+          }
+        }
+      } else if (typeof trade.volumeConfirmation === 'string') {
+        if (isDelete) {
+          await executionDB.removeTradeFromItem('volumeConfirmation', trade.volumeConfirmation, trade.id);
+        } else {
+          await executionDB.updateItemTrades('volumeConfirmation', trade.volumeConfirmation, {
+            id: trade.id,
+            result: trade.result
+          });
+        }
+      }
+    }
+
+    // Оновлюємо кожну секцію
+    for (const [section, value] of Object.entries(sections)) {
+      if (value) { // Перевіряємо, що значення існує
+        try {
+          console.log(`Updating section ${section} with value ${value} for trade ${trade.id}`);
+          if (isDelete) {
+            await executionDB.removeTradeFromItem(section, value, trade.id);
+          } else {
+            const tradeData = {
+              id: trade.id,
+              result: trade.result
+            };
+            console.log(`Adding trade data to ${section}/${value}:`, JSON.stringify(tradeData, null, 2));
+            await executionDB.updateItemTrades(section, value, tradeData);
+            console.log(`Successfully updated ${section}/${value}`);
+          }
+        } catch (error) {
+          console.error(`Error updating ${section} with value ${value}:`, error);
+        }
+      } else {
+        console.log(`Skipping section ${section} because value is empty`);
+      }
+    }
+  } catch (error) {
+    console.error('Помилка при оновленні даних execution:', error);
+  }
+}
+
+// Функція для аналізу трейдів та генерації рекомендацій
+async function analyzeTradesAndGenerateRecommendations() {
+  // Отримуємо шлях до бази даних execution
+  const userDataPath = app.getPath('userData');
+  const executionDBPath = path.join(userDataPath, 'execution.db');
+  
+  // Перевіряємо, чи існує база даних
+  if (!fsSync.existsSync(executionDBPath)) {
+    console.log('Execution database does not exist yet, skipping recommendations');
+    return [];
+  }
+
+  // Переконуємося, що база даних ініціалізована
+  await ensureDatabaseInitialized();
+  
+  console.log('Using executionDB instance from global variable for recommendations');
+
+  // Секції та їх читабельні назви для рекомендацій
+  const sections = {
+    pointA: 'Point A',
+    trigger: 'Trigger',
+    pointB: 'Point B',
+    entryModel: 'Entry Model',
+    entryTF: 'Entry Timeframe',
+    fta: 'FTA',
+    slPosition: 'Stop-Loss Position',
+    volumeConfirmation: 'Volume Confirmation'
+  };
+
+  // Мінімальна кількість трейдів для аналізу
+  const MIN_TRADES_COUNT = 5;
+  // Поріг вінрейту, нижче якого генеруються рекомендації
+  const WINRATE_THRESHOLD = 30; // 30%
+
+  const recommendations = [];
+
+  // Аналіз окремих параметрів
+  for (const [sectionKey, sectionName] of Object.entries(sections)) {
+    try {
+      const items = await executionDB.getAllItems(sectionKey);
+      
+      for (const item of items) {
+        if (item.trades && item.trades.length >= MIN_TRADES_COUNT) {
+          const totalTrades = item.trades.length;
+          const winTrades = item.trades.filter(t => t.result === 'Win').length;
+          const lossTrades = item.trades.filter(t => t.result === 'Loss').length;
+          const breakevenTrades = item.trades.filter(t => t.result === 'Breakeven').length;
+          const missedTrades = item.trades.filter(t => t.result === 'Missed').length;
+          const winrate = Math.round((winTrades / totalTrades) * 100);
+          
+          // Якщо вінрейт нижче порогу, створюємо рекомендацію
+          if (winrate < WINRATE_THRESHOLD) {
+            recommendations.push({
+              title: `Низький вінрейт для ${sectionName}: ${item.name}`,
+              description: `Ваш вінрейт для ${sectionName} "${item.name}" складає лише ${winrate}%. Рекомендуємо переглянути використання цього елементу у ваших трейдах або приділити більше уваги аналізу ситуацій, коли ви його використовуєте.`,
+              totalTrades,
+              winTrades,
+              lossTrades,
+              breakevenTrades,
+              missedTrades,
+              winrate,
+              relatedTrades: item.trades.map(t => t.id)
+            });
+          }
+        }
+      }
+    } catch (error) {
+      console.error(`Error analyzing ${sectionKey}:`, error);
+    }
+  }
+
+  // Аналіз комбінацій параметрів
+  // Отримуємо всі трейди
+  await ensureDatabaseInitialized();
+  const trades = await new Promise((resolve, reject) => {
+    db.all('SELECT * FROM trades', (err, rows) => {
+      if (err) {
+        reject(err);
+      } else {
+        // Парсимо JSON поля
+        rows.forEach(row => {
+          if (row.volumeConfirmation) {
+            try {
+              row.volumeConfirmation = JSON.parse(row.volumeConfirmation);
+            } catch (e) {
+              row.volumeConfirmation = [];
+            }
+          }
+        });
+        resolve(rows);
+      }
+    });
+  });
+
+  // Аналізуємо різні комбінації параметрів
+  // Комбінації, які ми будемо аналізувати:
+  const combinations = [
+    { key1: 'pointA', key2: 'trigger', name1: 'Point A', name2: 'Trigger' },
+    { key1: 'pointA', key2: 'entryModel', name1: 'Point A', name2: 'Entry Model' },
+    { key1: 'trigger', key2: 'entryModel', name1: 'Trigger', name2: 'Entry Model' },
+    { key1: 'entryModel', key2: 'entryTF', name1: 'Entry Model', name2: 'Entry Timeframe' },
+    { key1: 'slPosition', key2: 'pointA', name1: 'Stop-Loss Position', name2: 'Point A' }
+  ];
+
+  for (const combo of combinations) {
+    // Створюємо мапу для зберігання комбінацій
+    const combosMap = new Map();
+    
+    // Аналізуємо кожен трейд
+    for (const trade of trades) {
+      const value1 = trade[combo.key1];
+      let value2 = trade[combo.key2];
+      
+      // Якщо обидва значення є в трейді
+      if (value1 && value2) {
+        // Для масивів volumeConfirmation аналізуємо кожен елемент окремо
+        if (Array.isArray(value2)) {
+          for (const v2 of value2) {
+            const comboKey = `${value1}__${v2}`;
+            if (!combosMap.has(comboKey)) {
+              combosMap.set(comboKey, { 
+                value1, 
+                value2: v2, 
+                trades: [] 
+              });
+            }
+            
+            combosMap.get(comboKey).trades.push({
+              id: trade.id,
+              result: trade.result
+            });
+          }
+        } else {
+          const comboKey = `${value1}__${value2}`;
+          if (!combosMap.has(comboKey)) {
+            combosMap.set(comboKey, { 
+              value1, 
+              value2, 
+              trades: [] 
+            });
+          }
+          
+          combosMap.get(comboKey).trades.push({
+            id: trade.id,
+            result: trade.result
+          });
+        }
+      }
+    }
+    
+    // Аналізуємо кожну комбінацію
+    for (const [_, combo] of combosMap.entries()) {
+      if (combo.trades.length >= MIN_TRADES_COUNT) {
+        const totalTrades = combo.trades.length;
+        const winTrades = combo.trades.filter(t => t.result === 'Win').length;
+        const lossTrades = combo.trades.filter(t => t.result === 'Loss').length;
+        const breakevenTrades = combo.trades.filter(t => t.result === 'Breakeven').length;
+        const missedTrades = combo.trades.filter(t => t.result === 'Missed').length;
+        const winrate = Math.round((winTrades / totalTrades) * 100);
+        
+        // Якщо вінрейт нижче порогу, створюємо рекомендацію
+        if (winrate < WINRATE_THRESHOLD) {
+          recommendations.push({
+            title: `Проблемна комбінація: ${combo.value1} (${combo.name1}) + ${combo.value2} (${combo.name2})`,
+            description: `Комбінація ${combo.name1} "${combo.value1}" та ${combo.name2} "${combo.value2}" показує низький вінрейт в ${winrate}%. Рекомендуємо уникати цієї комбінації у майбутніх трейдах або переглянути стратегію її використання.`,
+            totalTrades,
+            winTrades,
+            lossTrades,
+            breakevenTrades,
+            missedTrades,
+            winrate,
+            relatedTrades: combo.trades.map(t => t.id)
+          });
+        }
+      }
+    }
+  }
+
+  // Сортуємо рекомендації за вінрейтом (від найнижчого до найвищого)
+  recommendations.sort((a, b) => a.winrate - b.winrate);
+  
+  return recommendations;
+}
+
+// Оновлюємо API для отримання рекомендацій
+ipcMain.handle('getTradeRecommendations', async (event) => {
+  try {
+    return await analyzeTradesAndGenerateRecommendations();
+  } catch (error) {
+    console.error('Error generating recommendations:', error);
+    return [];
+  }
 });
