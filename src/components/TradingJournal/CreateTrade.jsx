@@ -268,6 +268,7 @@ const FormInput = styled.input`
 const FormSelect = styled.select`
   padding: 8px;
   background-color: #3e3e3e;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   color: #fff;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
@@ -424,10 +425,47 @@ const ImageUploadArea = styled.div`
     border-color: #7425C9;
   }
 
-  img {
-    max-width: 100%;
-    max-height: 400px;
+  .screenshots-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    width: 100%;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .screenshot-item {
+    position: relative;
+    padding: 5px;
     border-radius: 8px;
+    overflow: hidden;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    
+    &:hover .delete-screenshot {
+      opacity: 1;
+    }
+  }
+
+  .add-more-photos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(94, 44, 165, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    color: #B886EE;
+    text-align: center;
+    padding: 10px;
+    
+    &:hover {
+      background: rgba(94, 44, 165, 0.2);
+    }
   }
 
   span {
@@ -595,6 +633,7 @@ const FullscreenModal = styled.div`
 const FullscreenImage = styled.img`
   max-width: 100%;
   max-height: 100%;
+  cursor: pointer;
   object-fit: contain;
   border: 2px solid #5e2ca5;
   border-radius: 8px;
@@ -804,6 +843,52 @@ const Modal = styled.div`
   z-index: 1000;
 `;
 
+const ScreenshotsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-start;
+`;
+
+const ScreenshotItem = styled.div`
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+  }
+  
+  &:hover ${DeleteButton} {
+    opacity: 1;
+  }
+`;
+
+const AddMorePhotos = styled.div`
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(94, 44, 165, 0.1);
+  border: 2px dashed #5e2ca5;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #B886EE;
+  text-align: center;
+  padding: 10px;
+  
+  &:hover {
+    background: rgba(94, 44, 165, 0.2);
+  }
+`;
+
 function CreateTrade() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -940,13 +1025,13 @@ function CreateTrade() {
     category: '',
     presession_id: presessionId,
     topDownAnalysis: [
-      { title: 'Daily Timeframe', screenshot: '', text: '' },
-      { title: '4h Timeframe', screenshot: '', text: '' },
-      { title: '1h Timeframe', screenshot: '', text: '' },
-      { title: '15/5m Timeframe', screenshot: '', text: '' },
+      { title: 'Daily Timeframe', screenshots: [], text: '' },
+      { title: '4h Timeframe', screenshots: [], text: '' },
+      { title: '1h Timeframe', screenshots: [], text: '' },
+      { title: '15/5m Timeframe', screenshots: [], text: '' },
     ],
-    execution: { screenshot: '', text: '' },
-    management: { screenshot: '', text: '' },
+    execution: { screenshots: [], text: '' },
+    management: { screenshots: [], text: '' },
     conclusion: { videoLink: '', text: '' },
     notes: [],
   });
@@ -1118,18 +1203,55 @@ function CreateTrade() {
     });
   };
 
+  const handleAddScreenshot = async (section, index, file) => {
+    try {
+      let buffer;
+      if (file instanceof Blob) {
+        buffer = await file.arrayBuffer();
+      } else {
+        // Якщо вже маємо шлях до файлу
+        return handleAddScreenshotPath(section, index, file);
+      }
+      
+      const filePath = await window.electronAPI.saveBlobAsFile(buffer);
+      handleAddScreenshotPath(section, index, filePath);
+    } catch (error) {
+      console.error('Error saving screenshot:', error);
+      alert('Failed to save screenshot.');
+    }
+  };
+
+  const handleAddScreenshotPath = (section, index, filePath) => {
+    setTrade(prev => {
+      if (section === 'topDownAnalysis') {
+        const updated = [...prev.topDownAnalysis];
+        updated[index] = { 
+          ...updated[index], 
+          screenshots: [...(updated[index].screenshots || []), filePath] 
+        };
+        return { ...prev, topDownAnalysis: updated };
+      } else {
+        return { 
+          ...prev, 
+          [section]: { 
+            ...prev[section], 
+            screenshots: [...(prev[section].screenshots || []), filePath] 
+          } 
+        };
+      }
+    });
+  };
+
   const handlePaste = async (section, index, e) => {
     const items = e.clipboardData.items;
     for (let item of items) {
       if (item.type.startsWith('image/')) {
         const blob = item.getAsFile();
         try {
-          const buffer = await blob.arrayBuffer();
-          const filePath = await window.electronAPI.saveBlobAsFile(buffer);
-          handleScreenshotChange(section, index, 'screenshot', filePath);
+          await handleAddScreenshot(section, index, blob);
         } catch (error) {
-          console.error('Error saving blob as file:', error);
-          alert('Failed to save screenshot.');
+          console.error('Error pasting image:', error);
+          alert('Failed to paste screenshot.');
         }
         e.preventDefault();
         return;
@@ -1137,14 +1259,23 @@ function CreateTrade() {
     }
   };
 
-  const deleteScreenshot = (section, index) => {
+  const deleteScreenshot = (section, index, screenshotIndex) => {
     setTrade((prev) => {
       if (section === 'topDownAnalysis') {
         const updated = [...prev.topDownAnalysis];
-        updated[index] = { ...updated[index], screenshot: '' };
+        const filteredScreenshots = updated[index].screenshots.filter(
+          (_, i) => i !== screenshotIndex
+        );
+        updated[index] = { ...updated[index], screenshots: filteredScreenshots };
         return { ...prev, topDownAnalysis: updated };
       } else {
-        return { ...prev, [section]: { ...prev[section], screenshot: '' } };
+        const filteredScreenshots = prev[section].screenshots.filter(
+          (_, i) => i !== screenshotIndex
+        );
+        return { 
+          ...prev, 
+          [section]: { ...prev[section], screenshots: filteredScreenshots } 
+        };
       }
     });
   };
@@ -1260,13 +1391,70 @@ function CreateTrade() {
       const presessionId = trade.presession_id || (linkedPresession && linkedPresession.id) || null;
       console.log("Використовуємо presession_id:", presessionId);
       
+      // Підготовка даних трейду для збереження
+      const prepareTradeData = () => {
+        const preparedTrade = {...trade};
+        
+        // Перетворюємо топдаун аналіз
+        preparedTrade.topDownAnalysis = trade.topDownAnalysis.map(analysis => {
+          return {
+            ...analysis,
+            screenshot: analysis.screenshots && analysis.screenshots.length > 0 ? analysis.screenshots[0] : '',
+            screenshots: analysis.screenshots || []
+          };
+        });
+        
+        // Перетворюємо execution
+        preparedTrade.execution = {
+          ...trade.execution,
+          screenshot: trade.execution.screenshots && trade.execution.screenshots.length > 0 ? trade.execution.screenshots[0] : '',
+          screenshots: trade.execution.screenshots || []
+        };
+        
+        // Перетворюємо management
+        preparedTrade.management = {
+          ...trade.management,
+          screenshot: trade.management.screenshots && trade.management.screenshots.length > 0 ? trade.management.screenshots[0] : '',
+          screenshots: trade.management.screenshots || []
+        };
+
+        // Конвертуємо значення для правильного збереження в SQLite
+        preparedTrade.rr = parseFloat(trade.rr) || 0;
+        preparedTrade.risk = parseFloat(trade.risk) || 0;
+        preparedTrade.profitLoss = parseFloat(trade.profitLoss) || 0;
+        
+        // Видаляємо знаки валюти перед збереженням gainedPoints
+        if (typeof trade.gainedPoints === 'string') {
+          preparedTrade.gainedPoints = trade.gainedPoints.replace(/[^0-9.-]/g, '');
+        }
+        
+        // SQLite зберігає boolean як 0 або 1
+        preparedTrade.followingPlan = trade.followingPlan ? 1 : 0;
+        preparedTrade.bestTrade = trade.bestTrade ? 1 : 0;
+        
+        // Конвертуємо score в число
+        preparedTrade.score = parseFloat(trade.score) || 0;
+        
+        return preparedTrade;
+      };
+      
       const tradeData = {
-        ...trade,
+        ...prepareTradeData(),
         no: tradeNo,
         volumeConfirmation: Array.isArray(trade.volumeConfirmation) ? trade.volumeConfirmation : [],
         presession_id: presessionId
       };
       
+      // Логуємо важливі поля для перевірки
+      console.log('Важливі поля для збереження:', {
+        rr: tradeData.rr,
+        profitLoss: tradeData.profitLoss,
+        gainedPoints: tradeData.gainedPoints,
+        followingPlan: tradeData.followingPlan,
+        bestTrade: tradeData.bestTrade,
+        score: tradeData.score
+      });
+
       console.log('Зберігаємо трейд з даними:', tradeData);
       
       // Зберігаємо трейд
@@ -1661,17 +1849,24 @@ function CreateTrade() {
               <ImageUploadArea
                 onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
               >
-                {analysis.screenshot ? (
-                  <>
-                    <img
-                      src={analysis.screenshot}
-                      alt={analysis.title}
-                      onClick={() => openFullscreen(analysis.screenshot)}
-                    />
-                    <DeleteButton onClick={() => deleteScreenshot('topDownAnalysis', index)}>
-                      ×
-                    </DeleteButton>
-                  </>
+                {analysis.screenshots && analysis.screenshots.length > 0 ? (
+                  <div className="screenshots-container">
+                    {analysis.screenshots.map((screenshot, screenshotIndex) => (
+                      <div key={screenshotIndex} className="screenshot-item">
+                        <img
+                          src={screenshot}
+                          alt={`${analysis.title} ${screenshotIndex + 1}`}
+                          onClick={() => openFullscreen(screenshot)}
+                        />
+                        <DeleteButton onClick={() => deleteScreenshot('topDownAnalysis', index, screenshotIndex)}>
+                          ×
+                        </DeleteButton>
+                      </div>
+                    ))}
+                    <div className="add-more-photos">
+                      <span>📈 Paste Screenshot (Ctrl+V)</span>
+                    </div>
+                  </div>
                 ) : (
                   <span>📈 Paste Screenshot (Ctrl+V)</span>
                 )}
@@ -1681,7 +1876,11 @@ function CreateTrade() {
                 type="file"
                 id={`tda-file-${index}`}
                 style={{ display: 'none' }}
-                onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'screenshot', e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleAddScreenshot('topDownAnalysis', index, e.target.files[0]);
+                  }
+                }}
               />
               
               <TextArea
@@ -1700,17 +1899,24 @@ function CreateTrade() {
               <ImageUploadArea
                 onPaste={(e) => handlePaste('execution', 0, e)}
               >
-                {trade.execution.screenshot ? (
-                  <>
-                    <img
-                      src={trade.execution.screenshot}
-                      alt="Execution Screenshot"
-                      onClick={() => openFullscreen(trade.execution.screenshot)}
-                    />
-                    <DeleteButton onClick={() => deleteScreenshot('execution', 0)}>
-                      ×
-                    </DeleteButton>
-                  </>
+                {trade.execution.screenshots && trade.execution.screenshots.length > 0 ? (
+                  <div className="screenshots-container">
+                    {trade.execution.screenshots.map((screenshot, screenshotIndex) => (
+                      <div key={screenshotIndex} className="screenshot-item">
+                        <img
+                          src={screenshot}
+                          alt={`Execution Screenshot ${screenshotIndex + 1}`}
+                          onClick={() => openFullscreen(screenshot)}
+                        />
+                        <DeleteButton onClick={() => deleteScreenshot('execution', 0, screenshotIndex)}>
+                          ×
+                        </DeleteButton>
+                      </div>
+                    ))}
+                    <div className="add-more-photos">
+                      <span>📈 Paste Screenshot (Ctrl+V)</span>
+                    </div>
+                  </div>
                 ) : (
                   <span>📈 Paste Screenshot (Ctrl+V)</span>
                 )}
@@ -1720,7 +1926,11 @@ function CreateTrade() {
                 type="file"
                 id="execution-file"
                 style={{ display: 'none' }}
-                onChange={(e) => handleScreenshotChange('execution', 0, 'screenshot', e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleAddScreenshot('execution', 0, e.target.files[0]);
+                  }
+                }}
               />
               
               <TextArea
@@ -1736,17 +1946,24 @@ function CreateTrade() {
               <ImageUploadArea
                 onPaste={(e) => handlePaste('management', 0, e)}
               >
-                {trade.management.screenshot ? (
-                  <>
-                    <img
-                      src={trade.management.screenshot}
-                      alt="Management Screenshot"
-                      onClick={() => openFullscreen(trade.management.screenshot)}
-                    />
-                    <DeleteButton onClick={() => deleteScreenshot('management', 0)}>
-                      ×
-                    </DeleteButton>
-                  </>
+                {trade.management.screenshots && trade.management.screenshots.length > 0 ? (
+                  <div className="screenshots-container">
+                    {trade.management.screenshots.map((screenshot, screenshotIndex) => (
+                      <div key={screenshotIndex} className="screenshot-item">
+                        <img
+                          src={screenshot}
+                          alt={`Management Screenshot ${screenshotIndex + 1}`}
+                          onClick={() => openFullscreen(screenshot)}
+                        />
+                        <DeleteButton onClick={() => deleteScreenshot('management', 0, screenshotIndex)}>
+                          ×
+                        </DeleteButton>
+                      </div>
+                    ))}
+                    <div className="add-more-photos">
+                      <span>📈 Paste Screenshot (Ctrl+V)</span>
+                    </div>
+                  </div>
                 ) : (
                   <span>📈 Paste Screenshot (Ctrl+V)</span>
                 )}
@@ -1756,7 +1973,11 @@ function CreateTrade() {
                 type="file"
                 id="management-file"
                 style={{ display: 'none' }}
-                onChange={(e) => handleScreenshotChange('management', 0, 'screenshot', e.target.files[0])}
+                onChange={(e) => {
+                  if (e.target.files && e.target.files[0]) {
+                    handleAddScreenshot('management', 0, e.target.files[0]);
+                  }
+                }}
               />
               
               <TextArea

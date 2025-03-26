@@ -406,33 +406,115 @@ const TimeframeIcon = styled.div`
 
 const ImageUploadArea = styled.div`
   width: 100%;
-  border: 2px dashed ${props => props.disabled ? '#666' : '#5e2ca5'};
+  border: 2px dashed #5e2ca5;
   text-align: center;
-  cursor: ${props => props.disabled ? 'not-allowed' : 'pointer'};
+  cursor: pointer;
   margin: 10px auto;
   border-radius: 8px;
-  background: ${props => props.disabled ? 'rgba(102, 102, 102, 0.1)' : 'rgba(94, 44, 165, 0.1)'};
+  background: rgba(94, 44, 165, 0.1);
   transition: all 0.3s ease;
   position: relative;
   min-height: 100px;
   display: flex;
   align-items: center;
   justify-content: center;
-  opacity: ${props => props.disabled ? 0.7 : 1};
 
   &:hover {
-    background: ${props => props.disabled ? 'rgba(102, 102, 102, 0.1)' : 'rgba(94, 44, 165, 0.2)'};
-    border-color: ${props => props.disabled ? '#666' : '#7425C9'};
+    background: rgba(94, 44, 165, 0.2);
+    border-color: #7425C9;
   }
 
-  img {
-    max-width: 100%;
-    max-height: 400px;
+  .screenshots-container {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    width: 100%;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .screenshot-item {
+    position: relative;
+    padding: 5px;
     border-radius: 8px;
+    overflow: hidden;
+    
+    img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      cursor: pointer;
+    }
+    
+    &:hover .delete-screenshot {
+      opacity: 1;
+    }
+  }
+
+  .add-more-photos {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(94, 44, 165, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    color: #B886EE;
+    text-align: center;
+    padding: 10px;
+    
+    &:hover {
+      background: rgba(94, 44, 165, 0.2);
+    }
   }
 
   span {
-    color: ${props => props.disabled ? '#666' : '#B886EE'};
+    color: #B886EE;
+  }
+`;
+
+const ScreenshotsContainer = styled.div`
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  width: 100%;
+  justify-content: flex-start;
+`;
+
+const ScreenshotItem = styled.div`
+  position: relative;
+  width: 120px;
+  height: 120px;
+  border-radius: 8px;
+  overflow: hidden;
+  
+  img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    cursor: pointer;
+  }
+  
+  &:hover ${DeleteButton} {
+    opacity: 1;
+  }
+`;
+
+const AddMorePhotos = styled.div`
+  width: 120px;
+  height: 120px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(94, 44, 165, 0.1);
+  border: 2px dashed #5e2ca5;
+  border-radius: 8px;
+  cursor: pointer;
+  color: #B886EE;
+  text-align: center;
+  padding: 10px;
+  
+  &:hover {
+    background: rgba(94, 44, 165, 0.2);
   }
 `;
 
@@ -552,7 +634,11 @@ const FullscreenModal = styled.div`
 const FullscreenImage = styled.img`
   max-width: 100%;
   max-height: 100%;
+  cursor: pointer;
+  object-fit: contain;
   border: 2px solid #5e2ca5;
+  border-radius: 8px;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 `;
 
 const CloseButton = styled.button`
@@ -790,75 +876,58 @@ const Modal = styled.div`
   z-index: 1000;
 `;
 
+const LoadingContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 50px;
+  min-height: 300px;
+  width: 100%;
+`;
+
+const LoadingSpinner = styled.div`
+  border: 4px solid rgba(94, 44, 165, 0.3);
+  border-radius: 50%;
+  border-top: 4px solid #7425C9;
+  width: 50px;
+  height: 50px;
+  animation: spin 1s linear infinite;
+  margin-bottom: 20px;
+
+  @keyframes spin {
+    0% { transform: rotate(0deg); }
+    100% { transform: rotate(360deg); }
+  }
+`;
+
+const LoadingText = styled.div`
+  color: #B886EE;
+  font-size: 18px;
+  margin-top: 10px;
+  text-align: center;
+`;
+
 function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [isLoading, setIsLoading] = useState(true);
+  const [trade, setTrade] = useState({});
   const [accounts, setAccounts] = useState([]);
-  const [trades, setTrades] = useState([]);
+  const [executionItems, setExecutionItems] = useState({});
+  const [notes, setNotes] = useState([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [trade, setTrade] = useState({
-    no: '',
-    date: '',
-    account: '',
-    pair: '',
-    direction: '',
-    positionType: '',
-    risk: '',
-    result: '',
-    rr: '',
-    profitLoss: '',
-    gainedPoints: '',
-    followingPlan: false,
-    bestTrade: false,
-    session: '',
-    pointA: '',
-    trigger: '',
-    volumeConfirmation: [],
-    entryModel: '',
-    entryTF: '',
-    fta: '',
-    slPosition: '',
-    score: '',
-    category: '',
-    topDownAnalysis: [
-      { title: 'Daily Timeframe', screenshot: '', text: '' },
-      { title: '4h Timeframe', screenshot: '', text: '' },
-      { title: '1h Timeframe', screenshot: '', text: '' },
-      { title: '15/5m Timeframe', screenshot: '', text: '' },
-    ],
-    execution: { screenshot: '', text: '' },
-    management: { screenshot: '', text: '' },
-    conclusion: { videoLink: '', text: '' },
-    notes: [],
-  });
-
+  const [isSaving, setIsSaving] = useState(false);
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [notification, setNotification] = useState(null);
   const [showVolumePopup, setShowVolumePopup] = useState(false);
   const [tempVolumeConfirmation, setTempVolumeConfirmation] = useState([]);
+  const [fullscreenImage, setFullscreenImage] = useState(null);
   const [showNotePopup, setShowNotePopup] = useState(false);
+  const [selectedNote, setSelectedNote] = useState(null);
   const [noteTitle, setNoteTitle] = useState('');
   const [noteText, setNoteText] = useState('');
-  const [editNoteIndex, setEditNoteIndex] = useState(null);
-  const [fullscreenImage, setFullscreenImage] = useState(null);
-  const [executionItems, setExecutionItems] = useState({
-    pointA: [],
-    trigger: [],
-    pointB: [],
-    entryModel: [],
-    entryTF: [],
-    fta: [],
-    slPosition: [],
-    volumeConfirmation: [],
-    pairs: [],
-    directions: [],
-    sessions: [],
-    positionType: []
-  });
-  const [notification, setNotification] = useState(null);
-  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
-  const [selectedNote, setSelectedNote] = useState(null);
-  const [isSaving, setIsSaving] = useState(false);
-  const [notes, setNotes] = useState([]);
+  const [linkedPresession, setLinkedPresession] = useState(null);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -883,8 +952,8 @@ function TradeDetail() {
         
         // Завантаження деталей трейду
         await fetchTradeDetails();
-      } catch (error) {
-        console.error('Error loading initial data:', error);
+      } catch (initError) {
+        console.error('Error loading initial data:', initError);
         setIsLoading(false);
       }
     };
@@ -893,68 +962,187 @@ function TradeDetail() {
   }, [id]);
 
   const fetchTradeDetails = async () => {
-      try {
-      console.log('Завантаження деталей трейду ID:', id);
-        const tradeData = await window.electronAPI.getTrade(id);
+    try {
+      setIsLoading(true); // Встановлюємо статус завантаження
       
-      if (!tradeData) {
-        console.error('Трейд не знайдено');
-        navigate('/trades');
-        return;
-      }
-      
-      console.log('Отримані дані трейду:', tradeData);
-      setTrade(tradeData);
-      
-      // Заповнюємо форму даними трейду
-      const formDataFromTrade = { ...tradeData };
-      
-      // Конвертуємо рядки JSON у об'єкти, якщо потрібно
-      if (typeof formDataFromTrade.volumeConfirmation === 'string') {
-        try {
-          formDataFromTrade.volumeConfirmation = JSON.parse(formDataFromTrade.volumeConfirmation);
-        } catch (e) {
-          console.warn('Помилка парсингу volumeConfirmation:', e);
-          formDataFromTrade.volumeConfirmation = [];
-        }
-      }
-      
-      // Завантажуємо нотатки для трейду
-      console.log('Завантаження нотаток для трейду ID:', id);
-      const tradeNotes = await window.electronAPI.getNotesBySource('trade', id);
-      console.log('Отримані нотатки для трейду:', tradeNotes);
-      
-      // Важливо: зберігаємо ID нотаток
-      const notesWithImages = await Promise.all(tradeNotes.map(async (note) => {
-        console.log(`Обробка нотатки ID=${note.id}`);
-        
-        // Перевіряємо чи є зображення в нотатці
-        if (!note.images || note.images.length === 0) {
-          console.log(`Завантаження зображень для нотатки ID=${note.id}`);
-          const images = await window.electronAPI.getNoteImages(note.id);
-          console.log(`Отримано ${images.length} зображень для нотатки ID=${note.id}`);
+      const loadedTrades = await window.electronAPI.getTrades();
+      const currentTrade = loadedTrades.find(t => t.id === id);
+
+      if (currentTrade) {
+        // Підготовка даних трейду після завантаження
+        // Забезпечуємо правильне представлення скріншотів
+        const processTradeData = (trade) => {
+          const processedTrade = {...trade};
           
-          // Повертаємо нотатку з завантаженими зображеннями, зберігаючи ID
-          return {
-            ...note,
-            images: images || []
-          };
-        }
+          // Обробляємо топдаун аналіз
+          if (processedTrade.topDownAnalysis) {
+            processedTrade.topDownAnalysis = processedTrade.topDownAnalysis.map(analysis => {
+              // Якщо немає screenshots, але є screenshot
+              if (!analysis.screenshots && analysis.screenshot) {
+                analysis.screenshots = [analysis.screenshot];
+              } else if (!analysis.screenshots) {
+                analysis.screenshots = [];
+              }
+              return analysis;
+            });
+          }
+          
+          // Обробляємо execution
+          if (processedTrade.execution) {
+            if (!processedTrade.execution.screenshots && processedTrade.execution.screenshot) {
+              processedTrade.execution.screenshots = [processedTrade.execution.screenshot];
+            } else if (!processedTrade.execution.screenshots) {
+              processedTrade.execution.screenshots = [];
+            }
+          }
+          
+          // Обробляємо management
+          if (processedTrade.management) {
+            if (!processedTrade.management.screenshots && processedTrade.management.screenshot) {
+              processedTrade.management.screenshots = [processedTrade.management.screenshot];
+            } else if (!processedTrade.management.screenshots) {
+              processedTrade.management.screenshots = [];
+            }
+          }
+          
+          return processedTrade;
+        };
+
+        // Обробляємо та встановлюємо дані трейду
+        const processedTrade = processTradeData(currentTrade);
         
-        // Повертаємо нотатку з існуючими зображеннями, зберігаючи ID
-        return note;
-      }));
-      
-      console.log('Нотатки з зображеннями:', notesWithImages);
-      setTrade(prev => ({ ...prev, notes: notesWithImages }));
-      // Також оновлюємо окремий стан notes
-      setNotes(notesWithImages);
-      
+        // Видаляємо суфікси % та RR з значень
+        const risk = processedTrade.risk ? processedTrade.risk.replace('%', '') : '';
+        const rr = processedTrade.rr ? processedTrade.rr.replace('RR', '') : '';
+
+        // Встановлюємо дані трейду з обробленими скріншотами
+        setTrade({
+          ...processedTrade,
+          risk,
+          rr
+        });
+
+        // Перевіряємо тип volumeConfirmation перед використанням split
+        if (processedTrade.volumeConfirmation) {
+          if (typeof processedTrade.volumeConfirmation === 'string') {
+            setTempVolumeConfirmation(processedTrade.volumeConfirmation.split(', ').filter(Boolean));
+          } else if (Array.isArray(processedTrade.volumeConfirmation)) {
+            setTempVolumeConfirmation([...processedTrade.volumeConfirmation]);
+          } else {
+            // Якщо volumeConfirmation не є ні рядком, ні масивом, встановлюємо порожній масив
+            console.warn('volumeConfirmation має невідомий тип:', typeof processedTrade.volumeConfirmation);
+            setTempVolumeConfirmation([]);
+          }
+        }
+
+        // Завантажуємо нотатки для трейду
+        try {
+          console.log('Завантаження нотаток для трейду ID:', id);
+          const tradeNotes = await window.electronAPI.getNotesBySource('trade', id);
+          console.log('Отримано нотаток:', tradeNotes.length);
+          
+          if (tradeNotes && tradeNotes.length > 0) {
+            // Завантажуємо також зображення для кожної нотатки
+            const notesWithImages = await Promise.all(tradeNotes.map(async note => {
+              try {
+                const images = await window.electronAPI.getNoteImages(note.id);
+                return { ...note, images };
+              } catch (noteError) {
+                console.error(`Помилка отримання зображень для нотатки ${note.id}:`, noteError);
+                return { ...note, images: [] };
+              }
+            }));
+            
+            console.log('Нотатки з зображеннями:', notesWithImages);
+            setNotes(notesWithImages);
+            
+            // Оновлюємо notes в об'єкті trade
+            setTrade(prev => ({
+              ...prev,
+              notes: notesWithImages
+            }));
+          } else {
+            setNotes([]);
+          }
+        } catch (notesError) {
+          console.error('Помилка завантаження нотаток:', notesError);
+          setNotes([]);
+        }
+
+        // Завантажуємо дані про акаунти
+        try {
+          setAccounts(await window.electronAPI.getAllAccounts());
+        } catch (accountError) {
+          console.error('Помилка завантаження акаунтів:', accountError);
+          setAccounts([]);
+        }
+
+        // Завантажуємо елементи виконання
+        try {
+          const sections = [
+            'pointA', 'trigger', 'pointB', 'entryModel', 'entryTF', 
+            'fta', 'slPosition', 'volumeConfirmation',
+            'pairs', 'directions', 'sessions', 'positionType'
+          ];
+          
+          const executionData = {};
+          
+          for (const section of sections) {
+            const items = await window.electronAPI.getAllExecutionItems(section);
+            executionData[section] = items;
+          }
+          
+          setExecutionItems(executionData);
+        } catch (executionError) {
+          console.error('Помилка завантаження елементів виконання:', executionError);
+          setExecutionItems({});
+        }
+
+        // Перевіряємо чи є зв'язок з пресесією
+        if (processedTrade.presession_id) {
+          try {
+            const presession = await window.electronAPI.getPresession(processedTrade.presession_id);
+            setLinkedPresession(presession);
+          } catch (presessionError) {
+            console.error('Помилка завантаження пресесії:', presessionError);
+            setLinkedPresession(null);
+          }
+        } else {
+          try {
+            // Перевіряємо чи є пресесія з іншого джерела
+            const linkedPresession = await window.electronAPI.getLinkedPresession(id);
+            if (linkedPresession) {
+              setLinkedPresession(linkedPresession);
+            } else {
+              setLinkedPresession(null);
+            }
+          } catch (linkedPresessionError) {
+            console.error('Помилка перевірки пресесії:', linkedPresessionError);
+            setLinkedPresession(null);
+          }
+        }
+
+        // Скидаємо режим редагування
+        setIsEditing(false);
+        setHasUnsavedChanges(false);
+        setNotification(null);
+      } else {
+        // Якщо трейд не знайдено
+        console.error('Трейд не знайдено:', id);
+        setNotification({
+          type: 'error',
+          message: 'Трейд не знайдено!'
+        });
+      }
+    } catch (tradeLoadError) {
+      console.error('Error loading trade:', tradeLoadError);
+      setNotification({
+        type: 'error',
+        message: `Помилка завантаження трейду: ${tradeLoadError.message}`
+      });
+    } finally {
+      // Завжди вимикаємо індикатор завантаження
       setIsLoading(false);
-      } catch (error) {
-      console.error('Помилка завантаження деталей трейду:', error);
-      setIsLoading(false);
-      navigate('/trades');
     }
   };
 
@@ -962,8 +1150,8 @@ function TradeDetail() {
     // Перша спроба - використати window.history.back()
     try {
       window.history.back();
-    } catch (error) {
-      console.error("Помилка при спробі використати window.history.back():", error);
+    } catch (navigationError) {
+      console.error("Помилка при спробі використати window.history.back():", navigationError);
       // Запасний варіант - використовуємо navigate(-1)
       navigate(-1);
     }
@@ -1031,6 +1219,67 @@ function TradeDetail() {
       console.log('Починаю збереження трейду');
       setIsSaving(true);
       
+      // Підготовка даних трейду для збереження
+      // Забезпечуємо зворотну сумісність
+      const prepareTradeData = () => {
+        const preparedTrade = {...trade};
+        
+        // Перетворюємо топдаун аналіз
+        preparedTrade.topDownAnalysis = trade.topDownAnalysis.map(analysis => {
+          return {
+            ...analysis,
+            screenshot: analysis.screenshots && analysis.screenshots.length > 0 ? analysis.screenshots[0] : analysis.screenshot || '',
+            screenshots: analysis.screenshots || []
+          };
+        });
+        
+        // Перетворюємо execution
+        preparedTrade.execution = {
+          ...trade.execution,
+          screenshot: trade.execution.screenshots && trade.execution.screenshots.length > 0 ? trade.execution.screenshots[0] : trade.execution.screenshot || '',
+          screenshots: trade.execution.screenshots || []
+        };
+        
+        // Перетворюємо management
+        preparedTrade.management = {
+          ...trade.management,
+          screenshot: trade.management.screenshots && trade.management.screenshots.length > 0 ? trade.management.screenshots[0] : trade.management.screenshot || '',
+          screenshots: trade.management.screenshots || []
+        };
+        
+        // Конвертуємо значення для правильного збереження в SQLite
+        preparedTrade.rr = parseFloat(trade.rr) || 0;
+        preparedTrade.risk = parseFloat(trade.risk) || 0;
+        preparedTrade.profitLoss = parseFloat(trade.profitLoss) || 0;
+        
+        // Видаляємо знаки валюти перед збереженням gainedPoints
+        if (typeof trade.gainedPoints === 'string') {
+          preparedTrade.gainedPoints = trade.gainedPoints.replace(/[^0-9.-]/g, '');
+        }
+        
+        // SQLite зберігає boolean як 0 або 1
+        preparedTrade.followingPlan = trade.followingPlan ? 1 : 0;
+        preparedTrade.bestTrade = trade.bestTrade ? 1 : 0;
+        
+        // Конвертуємо score в число
+        preparedTrade.score = parseFloat(trade.score) || 0;
+        
+        return preparedTrade;
+      };
+      
+      // Отримуємо підготовлені дані
+      const preparedTrade = prepareTradeData();
+      
+      // Логуємо важливі поля для перевірки
+      console.log('Важливі поля для оновлення:', {
+        rr: preparedTrade.rr,
+        profitLoss: preparedTrade.profitLoss,
+        gainedPoints: preparedTrade.gainedPoints,
+        followingPlan: preparedTrade.followingPlan,
+        bestTrade: preparedTrade.bestTrade,
+        score: preparedTrade.score
+      });
+      
       // Спочатку отримуємо актуальні нотатки з бази даних для порівняння
       console.log('Отримання поточних нотаток для трейду ID:', trade.id);
       const existingNotes = await window.electronAPI.getNotesBySource('trade', trade.id);
@@ -1054,8 +1303,8 @@ function TradeDetail() {
       console.log('Нотатки для оновлення після фільтрації:', notesToUpdate);
       
       // Зберігаємо трейд перед збереженням нотаток
-      console.log('Оновлення даних трейду:', trade);
-      await window.electronAPI.updateTrade(trade.id, trade);
+      console.log('Оновлення даних трейду:', preparedTrade);
+      await window.electronAPI.updateTrade(trade.id, preparedTrade);
       console.log('Трейд успішно оновлено');
       
       // Оновлюємо нотатки із збереженням їх ID
@@ -1141,9 +1390,9 @@ function TradeDetail() {
             
             return { success: true, note: newNote, oldId: oldNoteId };
           }
-        } catch (error) {
-          console.error(`Помилка при обробці нотатки ${note.id || 'нова'}:`, error);
-          return { success: false, error };
+        } catch (noteProcessError) {
+          console.error(`Помилка при обробці нотатки ${note.id || 'нова'}:`, noteProcessError);
+          return { success: false, error: noteProcessError };
         }
       });
       
@@ -1183,47 +1432,19 @@ function TradeDetail() {
       
       // НЕ оновлюємо дані на сторінці, щоб уникнути дублювання
       // await fetchTradeDetails();
-    } catch (error) {
-      console.error('Помилка при збереженні трейду:', error);
+    } catch (saveError) {
+      console.error('Помилка при збереженні трейду:', saveError);
       setIsSaving(false);
-      alert(`Помилка при збереженні трейду: ${error.message}`);
+      alert(`Помилка при збереженні трейду: ${saveError.message}`);
     }
   };
 
   const handleCancel = () => {
-    const loadTrade = async () => {
-      try {
-        const loadedTrades = await window.electronAPI.getTrades();
-        const currentTrade = loadedTrades.find(t => t.id === id);
-        if (currentTrade) {
-          // Видаляємо суфікси % та RR з значень
-          const risk = currentTrade.risk ? currentTrade.risk.replace('%', '') : '';
-          const rr = currentTrade.rr ? currentTrade.rr.replace('RR', '') : '';
-
-          setTrade({
-            ...currentTrade,
-            risk,
-            rr
-          });
-          // Перевіряємо тип volumeConfirmation перед використанням split
-          if (currentTrade.volumeConfirmation) {
-            if (typeof currentTrade.volumeConfirmation === 'string') {
-              setTempVolumeConfirmation(currentTrade.volumeConfirmation.split(', ').filter(Boolean));
-            } else if (Array.isArray(currentTrade.volumeConfirmation)) {
-              setTempVolumeConfirmation([...currentTrade.volumeConfirmation]);
-            } else {
-              // Якщо volumeConfirmation не є ні рядком, ні масивом, встановлюємо порожній масив
-              console.warn('volumeConfirmation має невідомий тип:', typeof currentTrade.volumeConfirmation);
-              setTempVolumeConfirmation([]);
-            }
-          }
-        }
-      } catch (error) {
-        console.error('Error loading trade:', error);
-      }
-    };
-    loadTrade();
+    // Скасовуємо редагування і повертаємося до останнього збереженого стану
+    fetchTradeDetails();
     setIsEditing(false);
+    setHasUnsavedChanges(false);
+    setNotification(null);
   };
 
   const handleVolumeOptionClick = (option) => {
@@ -1274,6 +1495,76 @@ function TradeDetail() {
     });
   };
 
+  const handleAddScreenshot = async (section, index, file) => {
+    if (!isEditing) return; // Блокуємо якщо не в режимі редагування
+    
+    try {
+      let buffer;
+      if (file instanceof Blob) {
+        buffer = await file.arrayBuffer();
+      } else {
+        // Якщо вже маємо шлях до файлу
+        return handleAddScreenshotPath(section, index, file);
+      }
+      
+      const filePath = await window.electronAPI.saveBlobAsFile(buffer);
+      handleAddScreenshotPath(section, index, filePath);
+    } catch (screenshotError) {
+      console.error('Error saving screenshot:', screenshotError);
+      alert('Failed to save screenshot.');
+    }
+  };
+
+  const handleAddScreenshotPath = (section, index, filePath) => {
+    if (!isEditing) return; // Блокуємо якщо не в режимі редагування
+    
+    setTrade(prev => {
+      if (section === 'topDownAnalysis') {
+        const updated = [...prev.topDownAnalysis];
+        
+        // Підтримка зворотної сумісності
+        if (!updated[index].screenshots) {
+          updated[index].screenshots = [];
+          
+          // Якщо є окреме поле screenshot, додаємо його до масиву
+          if (updated[index].screenshot) {
+            updated[index].screenshots.push(updated[index].screenshot);
+          }
+        }
+        
+        updated[index] = { 
+          ...updated[index], 
+          screenshots: [...(updated[index].screenshots || []), filePath],
+          screenshot: filePath // Підтримка зворотної сумісності
+        };
+        return { ...prev, topDownAnalysis: updated };
+      } else {
+        // Підтримка зворотної сумісності
+        let screenshots = [];
+        if (prev[section].screenshots) {
+          screenshots = [...prev[section].screenshots];
+        } else if (prev[section].screenshot) {
+          screenshots = [prev[section].screenshot];
+        }
+        
+        return { 
+          ...prev, 
+          [section]: { 
+            ...prev[section], 
+            screenshots: [...screenshots, filePath],
+            screenshot: filePath // Підтримка зворотної сумісності
+          } 
+        };
+      }
+    });
+    
+    setHasUnsavedChanges(true);
+    setNotification({
+      type: 'warning',
+      message: 'You have unsaved changes!'
+    });
+  };
+
   const handlePaste = async (section, index, e) => {
     if (!isEditing) return; // Блокуємо якщо не в режимі редагування
     
@@ -1282,12 +1573,10 @@ function TradeDetail() {
       if (item.type.startsWith('image/')) {
         const blob = item.getAsFile();
         try {
-          const buffer = await blob.arrayBuffer();
-          const filePath = await window.electronAPI.saveBlobAsFile(buffer);
-          handleScreenshotChange(section, index, 'screenshot', filePath);
-        } catch (error) {
-          console.error('Error saving blob as file:', error);
-          alert('Failed to save screenshot.');
+          await handleAddScreenshot(section, index, blob);
+        } catch (pasteError) {
+          console.error('Error pasting image:', pasteError);
+          alert('Failed to paste screenshot.');
         }
         e.preventDefault();
         return;
@@ -1295,17 +1584,62 @@ function TradeDetail() {
     }
   };
 
-  const deleteScreenshot = (section, index) => {
+  const deleteScreenshot = (section, index, screenshotIndex) => {
     if (!isEditing) return; // Блокуємо якщо не в режимі редагування
     
     setTrade((prev) => {
       if (section === 'topDownAnalysis') {
         const updated = [...prev.topDownAnalysis];
-        updated[index] = { ...updated[index], screenshot: '' };
+        
+        // Якщо є масив screenshots
+        if (updated[index].screenshots) {
+          const filteredScreenshots = updated[index].screenshots.filter(
+            (_, i) => i !== screenshotIndex
+          );
+          
+          // Оновлюємо також поле screenshot для зворотної сумісності
+          const newScreenshot = filteredScreenshots.length > 0 ? filteredScreenshots[0] : '';
+          
+          updated[index] = { 
+            ...updated[index], 
+            screenshots: filteredScreenshots,
+            screenshot: newScreenshot
+          };
+        } else {
+          // Якщо є тільки одне поле screenshot
+          updated[index] = { ...updated[index], screenshot: '' };
+        }
+        
         return { ...prev, topDownAnalysis: updated };
       } else {
-        return { ...prev, [section]: { ...prev[section], [field]: '' } };
+        // Якщо є масив screenshots
+        if (prev[section].screenshots) {
+          const filteredScreenshots = prev[section].screenshots.filter(
+            (_, i) => i !== screenshotIndex
+          );
+          
+          // Оновлюємо також поле screenshot для зворотної сумісності
+          const newScreenshot = filteredScreenshots.length > 0 ? filteredScreenshots[0] : '';
+          
+          return { 
+            ...prev, 
+            [section]: { 
+              ...prev[section], 
+              screenshots: filteredScreenshots,
+              screenshot: newScreenshot
+            } 
+          };
+        } else {
+          // Якщо є тільки одне поле screenshot
+          return { ...prev, [section]: { ...prev[section], screenshot: '' } };
+        }
       }
+    });
+    
+    setHasUnsavedChanges(true);
+    setNotification({
+      type: 'warning',
+      message: 'You have unsaved changes!'
     });
   };
 
@@ -1539,7 +1873,11 @@ function TradeDetail() {
         </Header>
         <TradeContent>
           {isLoading ? (
-            <div>Loading...</div>
+            <LoadingContainer>
+              <LoadingSpinner />
+              <LoadingText>Завантаження даних трейду...</LoadingText>
+              <LoadingText style={{ fontSize: '14px', marginTop: '5px' }}>Будь ласка, зачекайте</LoadingText>
+            </LoadingContainer>
           ) : (
             <>
               <TablesContainer>
@@ -1874,22 +2212,49 @@ function TradeDetail() {
                       onPaste={(e) => handlePaste('topDownAnalysis', index, e)}
                       disabled={!isEditing}
                     >
-                      {analysis.screenshot ? (
-                        <>
-                          <img
-                            src={analysis.screenshot}
-                            alt={analysis.title}
-                            onClick={() => openFullscreen(analysis.screenshot)}
-                          />
-                          <DeleteButton 
-                            onClick={() => deleteScreenshot('topDownAnalysis', index)}
-                            disabled={!isEditing}
-                          >
-                            ×
-                          </DeleteButton>
-                        </>
-                      ) : (
+                      {(!analysis.screenshots || analysis.screenshots.length === 0) && !analysis.screenshot ? (
                         <span>{isEditing ? '📈 Paste Screenshot (Ctrl+V)' : 'No screenshot'}</span>
+                      ) : (
+                        <div className="screenshots-container">
+                          {/* Підтримка зворотної сумісності - перевіряємо як масив, так і одиночне зображення */}
+                          {analysis.screenshots && analysis.screenshots.length > 0 ? (
+                            // Якщо є масив зображень
+                            analysis.screenshots.map((screenshot, screenshotIndex) => (
+                              <div key={screenshotIndex} className="screenshot-item">
+                                <img
+                                  src={screenshot}
+                                  alt={`${analysis.title} ${screenshotIndex + 1}`}
+                                  onClick={() => openFullscreen(screenshot)}
+                                />
+                                {isEditing && (
+                                  <DeleteButton onClick={() => deleteScreenshot('topDownAnalysis', index, screenshotIndex)}>
+                                    ×
+                                  </DeleteButton>
+                                )}
+                              </div>
+                            ))
+                          ) : analysis.screenshot ? (
+                            // Якщо є тільки одне зображення
+                            <div className="screenshot-item">
+                              <img
+                                src={analysis.screenshot}
+                                alt={analysis.title}
+                                onClick={() => openFullscreen(analysis.screenshot)}
+                              />
+                              {isEditing && (
+                                <DeleteButton onClick={() => deleteScreenshot('topDownAnalysis', index, 0)}>
+                                  ×
+                                </DeleteButton>
+                              )}
+                            </div>
+                          ) : null}
+                          
+                          {isEditing && (
+                            <div className="add-more-photos">
+                              <span>📈 Paste Screenshot (Ctrl+V)</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </ImageUploadArea>
                     
@@ -1897,13 +2262,18 @@ function TradeDetail() {
                       type="file"
                       id={`tda-file-${index}`}
                       style={{ display: 'none' }}
-                      onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'screenshot', e.target.files[0])}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0] && isEditing) {
+                          handleAddScreenshot('topDownAnalysis', index, e.target.files[0]);
+                        }
+                      }}
                     />
                     
                     <TextArea
                       value={analysis.text}
                       onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
                       placeholder={`Enter ${analysis.title} analysis...`}
+                      readOnly={!isEditing}
                     />
                   </ScreenshotField>
                 ))}
@@ -1917,22 +2287,49 @@ function TradeDetail() {
                       onPaste={(e) => handlePaste('execution', 0, e)}
                       disabled={!isEditing}
                     >
-                      {trade.execution.screenshot ? (
-                        <>
-                          <img
-                            src={trade.execution.screenshot}
-                            alt="Execution Screenshot"
-                            onClick={() => openFullscreen(trade.execution.screenshot)}
-                          />
-                          <DeleteButton 
-                            onClick={() => deleteScreenshot('execution', 0)}
-                            disabled={!isEditing}
-                          >
-                            ×
-                          </DeleteButton>
-                        </>
-                      ) : (
+                      {(!trade.execution.screenshots || trade.execution.screenshots.length === 0) && !trade.execution.screenshot ? (
                         <span>{isEditing ? '📈 Paste Screenshot (Ctrl+V)' : 'No screenshot'}</span>
+                      ) : (
+                        <div className="screenshots-container">
+                          {/* Підтримка зворотної сумісності */}
+                          {trade.execution.screenshots && trade.execution.screenshots.length > 0 ? (
+                            // Якщо є масив зображень
+                            trade.execution.screenshots.map((screenshot, screenshotIndex) => (
+                              <div key={screenshotIndex} className="screenshot-item">
+                                <img
+                                  src={screenshot}
+                                  alt={`Execution Screenshot ${screenshotIndex + 1}`}
+                                  onClick={() => openFullscreen(screenshot)}
+                                />
+                                {isEditing && (
+                                  <DeleteButton onClick={() => deleteScreenshot('execution', 0, screenshotIndex)}>
+                                    ×
+                                  </DeleteButton>
+                                )}
+                              </div>
+                            ))
+                          ) : trade.execution.screenshot ? (
+                            // Якщо є тільки одне зображення
+                            <div className="screenshot-item">
+                              <img
+                                src={trade.execution.screenshot}
+                                alt="Execution Screenshot"
+                                onClick={() => openFullscreen(trade.execution.screenshot)}
+                              />
+                              {isEditing && (
+                                <DeleteButton onClick={() => deleteScreenshot('execution', 0, 0)}>
+                                  ×
+                                </DeleteButton>
+                              )}
+                            </div>
+                          ) : null}
+                          
+                          {isEditing && (
+                            <div className="add-more-photos">
+                              <span>📈 Paste Screenshot (Ctrl+V)</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </ImageUploadArea>
                     
@@ -1940,13 +2337,18 @@ function TradeDetail() {
                       type="file"
                       id="execution-file"
                       style={{ display: 'none' }}
-                      onChange={(e) => handleScreenshotChange('execution', 0, 'screenshot', e.target.files[0])}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0] && isEditing) {
+                          handleAddScreenshot('execution', 0, e.target.files[0]);
+                        }
+                      }}
                     />
                     
                     <TextArea
                       value={trade.execution.text}
                       onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
                       placeholder="Enter execution analysis..."
+                      readOnly={!isEditing}
                     />
                   </ScreenshotField>
                 </div>
@@ -1957,22 +2359,49 @@ function TradeDetail() {
                       onPaste={(e) => handlePaste('management', 0, e)}
                       disabled={!isEditing}
                     >
-                      {trade.management.screenshot ? (
-                        <>
-                          <img
-                            src={trade.management.screenshot}
-                            alt="Management Screenshot"
-                            onClick={() => openFullscreen(trade.management.screenshot)}
-                          />
-                          <DeleteButton 
-                            onClick={() => deleteScreenshot('management', 0)}
-                            disabled={!isEditing}
-                          >
-                            ×
-                          </DeleteButton>
-                        </>
-                      ) : (
+                      {(!trade.management.screenshots || trade.management.screenshots.length === 0) && !trade.management.screenshot ? (
                         <span>{isEditing ? '📈 Paste Screenshot (Ctrl+V)' : 'No screenshot'}</span>
+                      ) : (
+                        <div className="screenshots-container">
+                          {/* Підтримка зворотної сумісності */}
+                          {trade.management.screenshots && trade.management.screenshots.length > 0 ? (
+                            // Якщо є масив зображень
+                            trade.management.screenshots.map((screenshot, screenshotIndex) => (
+                              <div key={screenshotIndex} className="screenshot-item">
+                                <img
+                                  src={screenshot}
+                                  alt={`Management Screenshot ${screenshotIndex + 1}`}
+                                  onClick={() => openFullscreen(screenshot)}
+                                />
+                                {isEditing && (
+                                  <DeleteButton onClick={() => deleteScreenshot('management', 0, screenshotIndex)}>
+                                    ×
+                                  </DeleteButton>
+                                )}
+                              </div>
+                            ))
+                          ) : trade.management.screenshot ? (
+                            // Якщо є тільки одне зображення
+                            <div className="screenshot-item">
+                              <img
+                                src={trade.management.screenshot}
+                                alt="Management Screenshot"
+                                onClick={() => openFullscreen(trade.management.screenshot)}
+                              />
+                              {isEditing && (
+                                <DeleteButton onClick={() => deleteScreenshot('management', 0, 0)}>
+                                  ×
+                                </DeleteButton>
+                              )}
+                            </div>
+                          ) : null}
+                          
+                          {isEditing && (
+                            <div className="add-more-photos">
+                              <span>📈 Paste Screenshot (Ctrl+V)</span>
+                            </div>
+                          )}
+                        </div>
                       )}
                     </ImageUploadArea>
                     
@@ -1980,13 +2409,18 @@ function TradeDetail() {
                       type="file"
                       id="management-file"
                       style={{ display: 'none' }}
-                      onChange={(e) => handleScreenshotChange('management', 0, 'screenshot', e.target.files[0])}
+                      onChange={(e) => {
+                        if (e.target.files && e.target.files[0] && isEditing) {
+                          handleAddScreenshot('management', 0, e.target.files[0]);
+                        }
+                      }}
                     />
                     
                     <TextArea
                       value={trade.management.text}
                       onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
                       placeholder="Enter management analysis..."
+                      readOnly={!isEditing}
                     />
                   </ScreenshotField>
                 </div>
@@ -2024,7 +2458,7 @@ function TradeDetail() {
                   <FullscreenImage 
                     src={fullscreenImage.src} 
                     alt="Fullscreen view" 
-                    onClick={(e) => e.stopPropagation()}
+                    onClick={closeFullscreen}  // Змінено для закриття при натисканні на зображення
                   />
                   <CloseButton onClick={closeFullscreen}>×</CloseButton>
                 </FullscreenModal>

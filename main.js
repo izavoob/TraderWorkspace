@@ -364,8 +364,9 @@ ipcMain.handle('save-trade', async (event, trade) => {
       `INSERT INTO trades (
         id, no, date, pair, direction, session, positionType, risk, result,
         pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition,
-        topDownAnalysis, execution, management, conclusion, presession_id
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        topDownAnalysis, execution, management, conclusion, presession_id,
+        rr, profitLoss, gainedPoints, followingPlan, bestTrade, score
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         trade.id,
         trade.no,
@@ -387,7 +388,13 @@ ipcMain.handle('save-trade', async (event, trade) => {
         JSON.stringify(trade.execution || {}),
         JSON.stringify(trade.management || {}),
         JSON.stringify(trade.conclusion || {}),
-        trade.presession_id
+        trade.presession_id,
+        trade.rr,
+        trade.profitLoss,
+        trade.gainedPoints,
+        trade.followingPlan,
+        trade.bestTrade,
+        trade.score
       ],
       async function(err) {
         if (err) {
@@ -520,7 +527,8 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         risk = ?, result = ?, pointA = ?, trigger = ?, volumeConfirmation = ?, 
         entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, 
         topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, 
-        presession_id = ?, updated_at = CURRENT_TIMESTAMP
+        presession_id = ?, rr = ?, profitLoss = ?, gainedPoints = ?, 
+        followingPlan = ?, bestTrade = ?, score = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
       [
         updatedTrade.no,
@@ -543,6 +551,12 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         JSON.stringify(updatedTrade.management || {}),
         JSON.stringify(updatedTrade.conclusion || {}),
         updatedTrade.presession_id,
+        updatedTrade.rr,
+        updatedTrade.profitLoss,
+        updatedTrade.gainedPoints,
+        updatedTrade.followingPlan,
+        updatedTrade.bestTrade,
+        updatedTrade.score,
         tradeId
       ],
       async function(err) {
@@ -1956,21 +1970,18 @@ async function updateExecutionTradesData(trade, isDelete = false) {
 
 // Функція для аналізу трейдів та генерації рекомендацій
 async function analyzeTradesAndGenerateRecommendations() {
-  // Отримуємо шлях до бази даних execution
-  const userDataPath = app.getPath('userData');
-  const executionDBPath = path.join(userDataPath, 'execution.db');
-  
-  // Перевіряємо, чи існує база даних
-  if (!fsSync.existsSync(executionDBPath)) {
-    console.log('Execution database does not exist yet, skipping recommendations');
-    return [];
+  // Спробуємо використати глобальну змінну executionDB
+  if (!executionDB) {
+    console.error('ERROR: executionDB is not initialized!');
+    await ensureDatabaseInitialized();
+    if (!executionDB) {
+      console.error('Critical error: executionDB still not initialized after ensureDatabaseInitialized()');
+      return [];
+    }
   }
 
-  // Переконуємося, що база даних ініціалізована
-  await ensureDatabaseInitialized();
+  console.log('Starting to generate trade recommendations...');
   
-  console.log('Using executionDB instance from global variable for recommendations');
-
   // Секції та їх читабельні назви для рекомендацій
   const sections = {
     pointA: 'Point A',
@@ -1987,13 +1998,16 @@ async function analyzeTradesAndGenerateRecommendations() {
   const MIN_TRADES_COUNT = 5;
   // Поріг вінрейту, нижче якого генеруються рекомендації
   const WINRATE_THRESHOLD = 30; // 30%
+  const HIGH_WINRATE_THRESHOLD = 70; // 70%
 
   const recommendations = [];
 
   // Аналіз окремих параметрів
   for (const [sectionKey, sectionName] of Object.entries(sections)) {
     try {
+      console.log(`Analyzing section: ${sectionKey}`);
       const items = await executionDB.getAllItems(sectionKey);
+      console.log(`Found ${items.length} items in ${sectionKey}`);
       
       for (const item of items) {
         if (item.trades && item.trades.length >= MIN_TRADES_COUNT) {
@@ -2004,11 +2018,27 @@ async function analyzeTradesAndGenerateRecommendations() {
           const missedTrades = item.trades.filter(t => t.result === 'Missed').length;
           const winrate = Math.round((winTrades / totalTrades) * 100);
           
+          console.log(`${sectionName} "${item.name}": ${winTrades}/${totalTrades} trades, ${winrate}% winrate`);
+          
           // Якщо вінрейт нижче порогу, створюємо рекомендацію
           if (winrate < WINRATE_THRESHOLD) {
+            console.log(`Adding recommendation for ${sectionName} "${item.name}" due to low winrate (${winrate}%)`);
             recommendations.push({
-              title: `Низький вінрейт для ${sectionName}: ${item.name}`,
-              description: `Ваш вінрейт для ${sectionName} "${item.name}" складає лише ${winrate}%. Рекомендуємо переглянути використання цього елементу у ваших трейдах або приділити більше уваги аналізу ситуацій, коли ви його використовуєте.`,
+              title: `Low Winrate for ${sectionName}: ${item.name}`,
+              description: `Your winrate for ${sectionName} "${item.name}" is only ${winrate}%. We recommend reviewing how you use this element in your trades or pay more attention to analyzing situations when you use it.`,
+              totalTrades,
+              winTrades,
+              lossTrades,
+              breakevenTrades,
+              missedTrades,
+              winrate,
+              relatedTrades: item.trades.map(t => t.id)
+            });
+          } else if (winrate >= HIGH_WINRATE_THRESHOLD) {
+            console.log(`Adding recommendation for ${sectionName} "${item.name}" due to high winrate (${winrate}%)`);
+            recommendations.push({
+              title: `High Winrate for ${sectionName}: ${item.name}`,
+              description: `Your winrate for ${sectionName} "${item.name}" is ${winrate}%. This shows excellent results for your trades. We recommend focusing on trading in these conditions.`,
               totalTrades,
               winTrades,
               lossTrades,
@@ -2018,6 +2048,8 @@ async function analyzeTradesAndGenerateRecommendations() {
               relatedTrades: item.trades.map(t => t.id)
             });
           }
+        } else {
+          console.log(`Skipping ${sectionName} "${item.name}" - not enough trades (${item.trades ? item.trades.length : 0}/${MIN_TRADES_COUNT})`);
         }
       }
     } catch (error) {
@@ -2028,6 +2060,7 @@ async function analyzeTradesAndGenerateRecommendations() {
   // Аналіз комбінацій параметрів
   // Отримуємо всі трейди
   await ensureDatabaseInitialized();
+  console.log('Getting all trades for combination analysis');
   const trades = await new Promise((resolve, reject) => {
     db.all('SELECT * FROM trades', (err, rows) => {
       if (err) {
@@ -2047,6 +2080,7 @@ async function analyzeTradesAndGenerateRecommendations() {
       }
     });
   });
+  console.log(`Found ${trades.length} trades for analysis`);
 
   // Аналізуємо різні комбінації параметрів
   // Комбінації, які ми будемо аналізувати:
@@ -2059,6 +2093,7 @@ async function analyzeTradesAndGenerateRecommendations() {
   ];
 
   for (const combo of combinations) {
+    console.log(`Analyzing combination: ${combo.name1} + ${combo.name2}`);
     // Створюємо мапу для зберігання комбінацій
     const combosMap = new Map();
     
@@ -2104,30 +2139,37 @@ async function analyzeTradesAndGenerateRecommendations() {
       }
     }
     
+    console.log(`Found ${combosMap.size} unique combinations for ${combo.name1} + ${combo.name2}`);
+    
     // Аналізуємо кожну комбінацію
-    for (const [_, combo] of combosMap.entries()) {
-      if (combo.trades.length >= MIN_TRADES_COUNT) {
-        const totalTrades = combo.trades.length;
-        const winTrades = combo.trades.filter(t => t.result === 'Win').length;
-        const lossTrades = combo.trades.filter(t => t.result === 'Loss').length;
-        const breakevenTrades = combo.trades.filter(t => t.result === 'Breakeven').length;
-        const missedTrades = combo.trades.filter(t => t.result === 'Missed').length;
+    for (const [comboKey, comboData] of combosMap.entries()) {
+      if (comboData.trades.length >= MIN_TRADES_COUNT) {
+        const totalTrades = comboData.trades.length;
+        const winTrades = comboData.trades.filter(t => t.result === 'Win').length;
+        const lossTrades = comboData.trades.filter(t => t.result === 'Loss').length;
+        const breakevenTrades = comboData.trades.filter(t => t.result === 'Breakeven').length;
+        const missedTrades = comboData.trades.filter(t => t.result === 'Missed').length;
         const winrate = Math.round((winTrades / totalTrades) * 100);
+        
+        console.log(`Combination "${comboData.value1} + ${comboData.value2}": ${winTrades}/${totalTrades} trades, ${winrate}% winrate`);
         
         // Якщо вінрейт нижче порогу, створюємо рекомендацію
         if (winrate < WINRATE_THRESHOLD) {
+          console.log(`Adding recommendation for combination "${comboData.value1} + ${comboData.value2}" due to low winrate (${winrate}%)`);
           recommendations.push({
-            title: `Проблемна комбінація: ${combo.value1} (${combo.name1}) + ${combo.value2} (${combo.name2})`,
-            description: `Комбінація ${combo.name1} "${combo.value1}" та ${combo.name2} "${combo.value2}" показує низький вінрейт в ${winrate}%. Рекомендуємо уникати цієї комбінації у майбутніх трейдах або переглянути стратегію її використання.`,
+            title: `Problematic Combination: ${comboData.value1} (${combo.name1}) + ${comboData.value2} (${combo.name2})`,
+            description: `The combination of ${combo.name1} "${comboData.value1}" and ${combo.name2} "${comboData.value2}" shows a low winrate of ${winrate}%. We recommend avoiding this combination in future trades or reviewing your strategy for using it.`,
             totalTrades,
             winTrades,
             lossTrades,
             breakevenTrades,
             missedTrades,
             winrate,
-            relatedTrades: combo.trades.map(t => t.id)
+            relatedTrades: comboData.trades.map(t => t.id)
           });
         }
+      } else {
+        console.log(`Skipping combination "${comboData.value1} + ${comboData.value2}" - not enough trades (${comboData.trades.length}/${MIN_TRADES_COUNT})`);
       }
     }
   }
@@ -2135,6 +2177,7 @@ async function analyzeTradesAndGenerateRecommendations() {
   // Сортуємо рекомендації за вінрейтом (від найнижчого до найвищого)
   recommendations.sort((a, b) => a.winrate - b.winrate);
   
+  console.log(`Generated ${recommendations.length} recommendations`);
   return recommendations;
 }
 

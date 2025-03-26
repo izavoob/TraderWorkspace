@@ -23,7 +23,7 @@ const GlobalStyle = createGlobalStyle`
     overflow-y: hidden;
   }
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 1px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
