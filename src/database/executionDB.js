@@ -176,24 +176,53 @@ class ExecutionDB {
         
         if (!item) {
           console.error(`Item with name "${name}" not found in section "${section}"`);
-          reject(new Error(`Item with name "${name}" not found in section "${section}"`));
-          return;
+          // Спробуємо створити елемент
+          try {
+            console.log(`Creating new item ${section}/${name}`);
+            const newId = await this.addItem(section, name);
+            
+            if (newId) {
+              console.log(`Successfully created ${section}/${name} with ID ${newId}`);
+              // Отримуємо створений елемент
+              const newItem = await this.getItemByName(section, name);
+              
+              if (newItem) {
+                console.log(`Successfully retrieved new item ${section}/${name}`);
+                // Встановлюємо новостворений елемент як поточний
+                item = newItem;
+              } else {
+                console.error(`Failed to retrieve newly created item ${section}/${name}`);
+                reject(new Error(`Failed to retrieve newly created item ${section}/${name}`));
+                return;
+              }
+            } else {
+              console.error(`Failed to create new item ${section}/${name}`);
+              reject(new Error(`Failed to create new item ${section}/${name}`));
+              return;
+            }
+          } catch (createError) {
+            console.error(`Error creating item ${section}/${name}:`, createError);
+            reject(createError);
+            return;
+          }
         }
         
         console.log(`Found item in database, current trades:`, JSON.stringify(item.trades, null, 2));
         
         // Додаємо новий трейд або оновлюємо існуючий
-        let trades = item.trades;
+        let trades = item.trades || [];
         const existingTradeIndex = trades.findIndex(t => t.id === tradeData.id);
         
         if (existingTradeIndex !== -1) {
           // Оновлюємо існуючий трейд
           console.log(`Updating existing trade at index ${existingTradeIndex}`);
           trades[existingTradeIndex] = tradeData;
+          console.log(`Trade ${tradeData.id} updated in trades array`);
         } else {
           // Додаємо новий трейд
           console.log(`Adding new trade with id ${tradeData.id}`);
           trades.push(tradeData);
+          console.log(`Trade ${tradeData.id} added to trades array`);
         }
         
         console.log(`Updated trades array:`, JSON.stringify(trades, null, 2));
@@ -208,7 +237,23 @@ class ExecutionDB {
               reject(err);
             } else {
               console.log(`Successfully updated trades for ${section}/${name}`);
-              resolve(true);
+              
+              // Перевіряємо, що трейд дійсно був доданий/оновлений
+              this.getItemByName(section, name).then(updatedItem => {
+                if (updatedItem && updatedItem.trades) {
+                  const tradeExists = updatedItem.trades.some(t => t.id === tradeData.id);
+                  if (tradeExists) {
+                    console.log(`Verified that trade ${tradeData.id} exists in ${section}/${name} trades`);
+                  } else {
+                    console.error(`Trade ${tradeData.id} was not properly added to ${section}/${name} trades!`);
+                    console.log(`Current trades in ${section}/${name}:`, JSON.stringify(updatedItem.trades, null, 2));
+                  }
+                }
+                resolve(true);
+              }).catch(verifyErr => {
+                console.error(`Error verifying trade update:`, verifyErr);
+                resolve(true); // Все ж повертаємо успіх, оскільки оновлення могло пройти успішно
+              });
             }
           }
         );
@@ -222,30 +267,88 @@ class ExecutionDB {
   async removeTradeFromItem(section, name, tradeId) {
     return new Promise(async (resolve, reject) => {
       try {
+        console.log(`Removing trade ${tradeId} from ${section}/${name}`);
+        
         // Отримуємо поточні дані для елемента
         const item = await this.getItemByName(section, name);
         
         if (!item) {
-          reject(new Error(`Item with name "${name}" not found in section "${section}"`));
+          console.log(`Item with name "${name}" not found in section "${section}". Nothing to remove.`);
+          resolve(true);
+          return;
+        }
+        
+        console.log(`Found item in database, current trades:`, JSON.stringify(item.trades, null, 2));
+        
+        // Перевіряємо, чи є масив trades
+        if (!item.trades || !Array.isArray(item.trades)) {
+          console.log(`No trades array found for ${section}/${name}. Nothing to remove.`);
+          resolve(true);
+          return;
+        }
+        
+        // Перевіряємо, чи є трейд у масиві
+        const existingIndex = item.trades.findIndex(t => t.id === tradeId);
+        if (existingIndex === -1) {
+          console.log(`Trade ${tradeId} not found in ${section}/${name} trades. Nothing to remove.`);
+          resolve(true);
           return;
         }
         
         // Видаляємо трейд з масиву
         const trades = item.trades.filter(t => t.id !== tradeId);
+        console.log(`Trade ${tradeId} removed from trades array. New array length: ${trades.length} (was ${item.trades.length})`);
         
         // Оновлюємо запис у базі даних
         this.db.run(
           `UPDATE ${section} SET trades = ? WHERE name = ?`, 
           [JSON.stringify(trades), name], 
-          (err) => {
+          async (err) => {
             if (err) {
+              console.error(`Error removing trade from ${section}/${name}:`, err);
               reject(err);
             } else {
-              resolve(true);
+              console.log(`Successfully removed trade ${tradeId} from ${section}/${name}`);
+              
+              // Перевіряємо, що трейд дійсно був видалений
+              try {
+                const updatedItem = await this.getItemByName(section, name);
+                if (updatedItem && updatedItem.trades) {
+                  const tradeStillExists = updatedItem.trades.some(t => t.id === tradeId);
+                  if (tradeStillExists) {
+                    console.error(`Trade ${tradeId} still exists in ${section}/${name} trades after removal!`);
+                    console.log(`Current trades in ${section}/${name}:`, JSON.stringify(updatedItem.trades, null, 2));
+                    
+                    // Спробуємо ще раз видалити, але вже більш прямим методом
+                    this.db.run(
+                      `UPDATE ${section} SET trades = ? WHERE name = ?`,
+                      [JSON.stringify(updatedItem.trades.filter(t => t.id !== tradeId)), name],
+                      function(retryErr) {
+                        if (retryErr) {
+                          console.error(`Second attempt to remove trade failed:`, retryErr);
+                        } else {
+                          console.log(`Second attempt to remove trade completed. Changes: ${this.changes}`);
+                        }
+                        resolve(true);
+                      }
+                    );
+                  } else {
+                    console.log(`Verified that trade ${tradeId} was removed from ${section}/${name} trades`);
+                    resolve(true);
+                  }
+                } else {
+                  console.log(`Item ${section}/${name} not found after update or has no trades array.`);
+                  resolve(true);
+                }
+              } catch (verifyErr) {
+                console.error(`Error verifying trade removal:`, verifyErr);
+                resolve(true); // Все ж повертаємо успіх, оскільки видалення могло пройти успішно
+              }
             }
           }
         );
       } catch (error) {
+        console.error(`Error in removeTradeFromItem:`, error);
         reject(error);
       }
     });

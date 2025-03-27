@@ -1435,26 +1435,41 @@ function TradeJournal() {
       const subtradeIdsToDelete = [];
       const parentIdsToUpdate = new Set();
       
-      // Для кожного вибраного трейду
-      selectedTrades.forEach(id => {
+      // Список всіх трейдів для видалення (включаючи субтрейди)
+      const idsToDelete = [...selectedTrades];
+      
+      // Спочатку отримуємо повні дані для всіх вибраних трейдів
+      for (const tradeId of selectedTrades) {
+        const trade = await window.electronAPI.getTrade(tradeId);
+        
+        if (!trade) {
+          console.error(`Трейд з ID ${tradeId} не знайдено`);
+          continue;
+        }
+        
         // Якщо це батьківський трейд і він має субтрейди
-        if (tradeRelations[id]?.length > 0) {
+        if (tradeRelations[tradeId]?.length > 0) {
           // Додаємо всі його субтрейди до списку на видалення
-          subtradeIdsToDelete.push(...tradeRelations[id]);
+          subtradeIdsToDelete.push(...tradeRelations[tradeId]);
+          idsToDelete.push(...tradeRelations[tradeId]);
         } 
         // Якщо це субтрейд
-        else {
-          // Знаходимо його батька
-          const parentId = trades.find(t => t.id === id)?.parentTradeId;
-          if (parentId) {
-            parentIdsToUpdate.add(parentId);
-          }
+        else if (trade.parentTradeId) {
+          // Додаємо його батька до списку на оновлення
+          parentIdsToUpdate.add(trade.parentTradeId);
         }
-      });
+      }
       
       // Видаляємо всі вибрані трейди та їх субтрейди
-      const idsToDelete = [...selectedTrades, ...subtradeIdsToDelete];
-      await Promise.all(idsToDelete.map(id => window.electronAPI.deleteTrade(id)));
+      for (const id of idsToDelete) {
+        // Отримуємо повні дані про трейд перед видаленням
+        const tradeToDelete = await window.electronAPI.getTrade(id);
+        
+        if (tradeToDelete) {
+          await window.electronAPI.deleteTrade(id);
+          console.log(`Трейд ${id} успішно видалено`);
+        }
+      }
       
       // Оновлюємо стан зв'язків для батьківських трейдів
       const newRelations = { ...tradeRelations };
@@ -1502,10 +1517,18 @@ function TradeJournal() {
     }
 
     try {
+      // Знаходимо найбільший номер серед трейдів для генерації наступного номера
+      const maxTradeNo = Math.max(...trades.map(trade => parseInt(trade.no) || 0), 0);
+      const nextTradeNo = maxTradeNo + 1;
+      
+      // Створюємо унікальний ID без десяткової крапки
+      const uniqueId = String(Date.now());
+      
       // Створюємо копію трейду без певних полів
       const subtrade = {
         ...selectedTrade,
-        id: Date.now(), // Генеруємо новий ID
+        id: uniqueId, // Використовуємо лише ціле число
+        no: nextTradeNo, // Встановлюємо наступний доступний номер
         risk: '', // Очищаємо ризик
         profitLoss: '', // Очищаємо профіт
         gainedPoints: '$0.00', // Очищаємо прибуток в доларах
@@ -1530,6 +1553,8 @@ function TradeJournal() {
         })
       };
 
+      console.log("Створюю субтрейд:", subtrade);
+      
       // Зберігаємо новий трейд
       await window.electronAPI.saveTrade(subtrade);
       
@@ -1578,7 +1603,10 @@ function TradeJournal() {
                 <img src={EditIcon} alt="Edit" style={{ width: '18px', height: '18px' }} />
               </ActionButton>
               <ActionButton 
-                onClick={() => handleDelete(row.original.id)} 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setDeletePopup(row.original.id);
+                }} 
                 style={{ padding: '6px', minWidth: 'auto', background: '#ff4757' }}
               >
                 <img src={DeleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} />
@@ -1716,12 +1744,27 @@ function TradeJournal() {
 
   const handleDelete = async (tradeId) => {
     try {
+      // Спочатку отримуємо повні дані про трейд перед видаленням
+      const tradeToDelete = await window.electronAPI.getTrade(tradeId);
+      
+      if (!tradeToDelete) {
+        console.error(`Трейд з ID ${tradeId} не знайдено`);
+        return;
+      }
+      
+      console.log(`Видаляю трейд: ${tradeId}`, tradeToDelete);
+      
       // Перевіряємо чи це основний трейд з субтрейдами
       if (tradeRelations[tradeId]?.length > 0) {
         // Якщо це основний трейд з субтрейдами, видаляємо всі його субтрейди
-        await Promise.all(tradeRelations[tradeId].map(subtrade => 
-          window.electronAPI.deleteTrade(subtrade)
-        ));
+        for (const subtrade of tradeRelations[tradeId]) {
+          // Отримуємо дані про субтрейд
+          const subtradeFull = await window.electronAPI.getTrade(subtrade);
+          if (subtradeFull) {
+            await window.electronAPI.deleteTrade(subtrade);
+            console.log(`Субтрейд ${subtrade} успішно видалено`);
+          }
+        }
         
         // Видаляємо зв'язки з цим трейдом
         const newRelations = { ...tradeRelations };
@@ -1730,7 +1773,7 @@ function TradeJournal() {
       } 
       // Якщо це субтрейд, то оновлюємо список субтрейдів у батьківського трейду
       else {
-        const parentId = trades.find(t => t.id === tradeId)?.parentTradeId;
+        const parentId = tradeToDelete.parentTradeId;
         if (parentId && tradeRelations[parentId]) {
           const newRelations = { ...tradeRelations };
           newRelations[parentId] = newRelations[parentId].filter(id => id !== tradeId);
@@ -1740,6 +1783,7 @@ function TradeJournal() {
       
       // Видаляємо сам трейд
       await window.electronAPI.deleteTrade(tradeId);
+      console.log(`Трейд ${tradeId} успішно видалено`);
       
       // Оновлюємо список трейдів
       setTrades(prevTrades => prevTrades.filter(trade => 

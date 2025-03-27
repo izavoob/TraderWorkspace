@@ -365,8 +365,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
         id, no, date, pair, direction, session, positionType, risk, result,
         pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition,
         topDownAnalysis, execution, management, conclusion, presession_id,
-        rr, profitLoss, gainedPoints, followingPlan, bestTrade, score
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        rr, profitLoss, gainedPoints, followingPlan, bestTrade, score, parentTradeId
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         trade.id,
         trade.no,
@@ -394,7 +394,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
         trade.gainedPoints,
         trade.followingPlan,
         trade.bestTrade,
-        trade.score
+        trade.score,
+        trade.parentTradeId
       ],
       async function(err) {
         if (err) {
@@ -421,7 +422,7 @@ ipcMain.handle('save-trade', async (event, trade) => {
             await ensureDatabaseInitialized();
             
             if (!executionDB) {
-              console.error('ERROR: executionDB is not initialized even after ensureDatabaseInitialized()');
+              console.error('ERROR: executionDB is not initialized!');
               throw new Error('ExecutionDB is not initialized');
             }
             
@@ -751,81 +752,64 @@ ipcMain.handle('delete-trade', async (event, tradeId) => {
       result: tradeToDelete.result
     }, null, 2));
     
-    // Ручне видалення запису трейду з pointA таблиці
-    if (tradeToDelete.pointA) {
-      console.log(`Запускаємо ручне видалення для pointA = "${tradeToDelete.pointA}"`);
-      const userDataPath = app.getPath('userData');
-      const executionDBPath = path.join(userDataPath, 'execution.db');
+    // Використовуємо глобальну змінну executionDB для видалення трейду з усіх таблиць
+    if (executionDB) {
+      console.log(`Використовуємо глобальну змінну executionDB для видалення трейду`);
       
-      if (fsSync.existsSync(executionDBPath)) {
-        const manualDb = new sqlite3.Database(executionDBPath);
-        
-        try {
-          // Отримуємо поточний запис
-          const row = await new Promise((resolveQuery, rejectQuery) => {
-            manualDb.get(`SELECT * FROM pointA WHERE name = ?`, [tradeToDelete.pointA], (err, row) => {
-              if (err) {
-                console.error(`Помилка при запиті до pointA для "${tradeToDelete.pointA}":`, err);
-                rejectQuery(err);
-              } else {
-                resolveQuery(row);
-              }
-            });
-          });
-          
-          if (row) {
-            console.log(`Знайдено запис у pointA для "${tradeToDelete.pointA}":`, row);
-            
-            // Розбираємо масив trades
-            let tradesArray = [];
-            try {
-              tradesArray = JSON.parse(row.trades || '[]');
-            } catch (e) {
-              console.error('Помилка при розборі масиву trades:', e);
-              tradesArray = [];
-            }
-            
-            console.log(`Поточний масив trades:`, tradesArray);
-            
-            // Видаляємо трейд з масиву
-            const updatedTradesArray = tradesArray.filter(t => t.id !== tradeId);
-            
-            if (updatedTradesArray.length !== tradesArray.length) {
-              console.log(`Трейд з id ${tradeId} видалено з масиву`);
-              
-              // Оновлюємо запис в базі даних
-              await new Promise((resolveUpdate, rejectUpdate) => {
-                manualDb.run(
-                  `UPDATE pointA SET trades = ? WHERE name = ?`,
-                  [JSON.stringify(updatedTradesArray), tradeToDelete.pointA],
-                  function(err) {
-                    if (err) {
-                      console.error(`Помилка при оновленні pointA для "${tradeToDelete.pointA}":`, err);
-                      rejectUpdate(err);
-                    } else {
-                      console.log(`Успішно оновлено pointA для "${tradeToDelete.pointA}", змінено ${this.changes} рядків`);
-                      resolveUpdate();
-                    }
-                  }
-                );
-              });
-            } else {
-              console.log(`Трейд з id ${tradeId} не знайдено в масиві trades таблиці pointA`);
-            }
-          } else {
-            console.error(`Запис pointA для "${tradeToDelete.pointA}" не знайдено!`);
+      // Визначаємо секції
+      const sections = [
+        { name: 'pointA', value: tradeToDelete.pointA },
+        { name: 'trigger', value: tradeToDelete.trigger },
+        { name: 'pointB', value: tradeToDelete.pointB },
+        { name: 'entryModel', value: tradeToDelete.entryModel },
+        { name: 'entryTF', value: tradeToDelete.entryTF },
+        { name: 'fta', value: tradeToDelete.fta },
+        { name: 'slPosition', value: tradeToDelete.slPosition },
+        { name: 'pairs', value: tradeToDelete.pair },
+        { name: 'directions', value: tradeToDelete.direction },
+        { name: 'sessions', value: tradeToDelete.session },
+        { name: 'positionType', value: tradeToDelete.positionType }
+      ];
+      
+      // Видаляємо трейд з усіх таблиць
+      for (const section of sections) {
+        if (section.value) {
+          try {
+            await executionDB.removeTradeFromItem(section.name, section.value, tradeId);
+            console.log(`Трейд ${tradeId} видалено з елемента ${section.name}/${section.value}`);
+          } catch (error) {
+            console.error(`Помилка при видаленні трейду з ${section.name}/${section.value}:`, error);
           }
-        } catch (manualError) {
-          console.error('Помилка при ручному видаленні з pointA:', manualError);
-        } finally {
-          manualDb.close();
         }
       }
+      
+      // Обробка volumeConfirmation, який може бути масивом
+      if (tradeToDelete.volumeConfirmation) {
+        if (Array.isArray(tradeToDelete.volumeConfirmation)) {
+          for (const item of tradeToDelete.volumeConfirmation) {
+            if (item) {
+              try {
+                await executionDB.removeTradeFromItem('volumeConfirmation', item, tradeId);
+                console.log(`Трейд ${tradeId} видалено з елемента volumeConfirmation/${item}`);
+              } catch (error) {
+                console.error(`Помилка при видаленні трейду з volumeConfirmation/${item}:`, error);
+              }
+            }
+          }
+        } else if (typeof tradeToDelete.volumeConfirmation === 'string') {
+          try {
+            await executionDB.removeTradeFromItem('volumeConfirmation', tradeToDelete.volumeConfirmation, tradeId);
+            console.log(`Трейд ${tradeId} видалено з елемента volumeConfirmation/${tradeToDelete.volumeConfirmation}`);
+          } catch (error) {
+            console.error(`Помилка при видаленні трейду з volumeConfirmation/${tradeToDelete.volumeConfirmation}:`, error);
+          }
+        }
+      }
+    } else {
+      // Якщо глобальна змінна не доступна, все одно спробуємо видалити за допомогою функції
+      await updateExecutionTradesData({...tradeToDelete, id: tradeId}, true);
+      console.log('Використано функцію updateExecutionTradesData для видалення трейду з execution DB');
     }
-    
-    // Видаляємо трейд з усіх таблиць execution DB
-    await updateExecutionTradesData({...tradeToDelete, id: tradeId}, true);
-    console.log('Successfully removed trade from execution DB tables');
     
     // Видаляємо трейд з основної бази даних
     await new Promise((resolve, reject) => {
@@ -2049,70 +2033,7 @@ async function analyzeTradesAndGenerateRecommendations() {
 
   const recommendations = [];
 
-  // Аналіз окремих параметрів
-  for (const [sectionKey, sectionName] of Object.entries(sections)) {
-    try {
-      console.log(`Analyzing section: ${sectionKey}`);
-      const items = await executionDB.getAllItems(sectionKey);
-      console.log(`Found ${items.length} items in ${sectionKey}`);
-      
-      for (const item of items) {
-        if (item.trades && item.trades.length >= MIN_TRADES_COUNT) {
-          const totalTrades = item.trades.length;
-          const winTrades = item.trades.filter(t => t.result === 'Win').length;
-          const lossTrades = item.trades.filter(t => t.result === 'Loss').length;
-          const breakevenTrades = item.trades.filter(t => t.result === 'Breakeven').length;
-          const missedTrades = item.trades.filter(t => t.result === 'Missed').length;
-          
-          // Розраховуємо вінрейт тільки по Win і Loss трейдах
-          const winLossTrades = winTrades + lossTrades;
-          const winrate = winLossTrades > 0 
-            ? Math.round((winTrades / winLossTrades) * 100)
-            : 0;
-          
-          console.log(`${sectionName} "${item.name}": ${winTrades}/${winLossTrades} trades (${winTrades}W, ${lossTrades}L, ${breakevenTrades}BE, ${missedTrades}M), ${winrate}% winrate`);
-          
-          // Якщо вінрейт нижче порогу, створюємо рекомендацію
-          if (winrate < WINRATE_THRESHOLD && winLossTrades >= MIN_TRADES_COUNT) {
-            console.log(`Adding recommendation for ${sectionName} "${item.name}" due to low winrate (${winrate}%)`);
-            recommendations.push({
-              title: `Low Winrate for ${sectionName}: ${item.name}`,
-              description: `Your winrate for ${sectionName} "${item.name}" is only ${winrate}%. We recommend reviewing how you use this element in your trades or pay more attention to analyzing situations when you use it.`,
-              totalTrades,
-              winTrades,
-              lossTrades,
-              breakevenTrades,
-              missedTrades,
-              winrate,
-              relatedTrades: item.trades.map(t => t.id)
-            });
-          } else if (winrate >= HIGH_WINRATE_THRESHOLD && winLossTrades >= MIN_TRADES_COUNT) {
-            console.log(`Adding recommendation for ${sectionName} "${item.name}" due to high winrate (${winrate}%)`);
-            recommendations.push({
-              title: `High Winrate for ${sectionName}: ${item.name}`,
-              description: `Your winrate for ${sectionName} "${item.name}" is ${winrate}%. This shows excellent results for your trades. We recommend focusing on trading in these conditions.`,
-              totalTrades,
-              winTrades,
-              lossTrades,
-              breakevenTrades,
-              missedTrades,
-              winrate,
-              relatedTrades: item.trades.map(t => t.id)
-            });
-          }
-        } else {
-          console.log(`Skipping ${sectionName} "${item.name}" - not enough trades (${item.trades ? item.trades.length : 0}/${MIN_TRADES_COUNT})`);
-        }
-      }
-    } catch (error) {
-      console.error(`Error analyzing ${sectionKey}:`, error);
-    }
-  }
-
-  // Аналіз комбінацій параметрів
-  // Отримуємо всі трейди
-  await ensureDatabaseInitialized();
-  console.log('Getting all trades for combination analysis');
+  // Отримуємо всі трейди для перевірки
   const trades = await new Promise((resolve, reject) => {
     db.all('SELECT * FROM trades', (err, rows) => {
       if (err) {
@@ -2132,6 +2053,137 @@ async function analyzeTradesAndGenerateRecommendations() {
       }
     });
   });
+  
+  console.log(`Loaded ${trades.length} trades for analysis`);
+
+  // Аналіз окремих параметрів
+  for (const [sectionKey, sectionName] of Object.entries(sections)) {
+    try {
+      console.log(`Analyzing section: ${sectionKey}`);
+      let items = await executionDB.getAllItems(sectionKey);
+      
+      // Перевіряємо, чи є в базі даних елементи, що є у трейдах, але відсутні в результаті getAllItems
+      const valueSet = new Set();
+      items.forEach(item => valueSet.add(item.name));
+      
+      // Збираємо унікальні значення з трейдів
+      const uniqueValues = new Set();
+      trades.forEach(trade => {
+        if (sectionKey === 'volumeConfirmation' && Array.isArray(trade.volumeConfirmation)) {
+          trade.volumeConfirmation.forEach(val => {
+            if (val) uniqueValues.add(val);
+          });
+        } else if (trade[sectionKey]) {
+          uniqueValues.add(trade[sectionKey]);
+        }
+      });
+      
+      // Додаємо відсутні елементи до масиву items
+      for (const value of uniqueValues) {
+        if (!valueSet.has(value)) {
+          console.log(`Found value "${value}" in trades but not in ${sectionKey} table. Adding manually.`);
+          
+          // Лічимо трейди з цим значенням
+          const relevantTrades = trades.filter(trade => {
+            if (sectionKey === 'volumeConfirmation') {
+              return Array.isArray(trade.volumeConfirmation) && trade.volumeConfirmation.includes(value);
+            } else {
+              return trade[sectionKey] === value;
+            }
+          });
+          
+          // Додаємо відсутній елемент до масиву items
+          items.push({
+            id: 0, // Ідентифікатор не важливий, оскільки шукаємо за name
+            name: value,
+            trades: relevantTrades.map(trade => ({
+              id: trade.id,
+              result: trade.result
+            }))
+          });
+        }
+      }
+      
+      console.log(`Found ${items.length} items in ${sectionKey}`);
+      
+      for (const item of items) {
+        console.log(`Analyzing item ${sectionKey}: ${item.name}, with ${item.trades ? item.trades.length : 0} trades`);
+        
+        if (!item.trades) {
+          console.log(`Item ${item.name} has no trades array, skipping`);
+          continue;
+        }
+        
+        // Додаткова перевірка, якщо кількість трейдів у елементі не співпадає з очікуваною
+        if (sectionKey !== 'volumeConfirmation') {
+          const countInTrades = trades.filter(trade => trade[sectionKey] === item.name).length;
+          
+          if (countInTrades !== item.trades.length) {
+            console.log(`Discrepancy in trade count for ${sectionKey}: ${item.name}. Expected ${countInTrades}, found ${item.trades.length}`);
+            
+            // Оновлюємо список трейдів для аналізу
+            const relevantTrades = trades.filter(trade => trade[sectionKey] === item.name);
+            item.trades = relevantTrades.map(trade => ({
+              id: trade.id,
+              result: trade.result
+            }));
+            
+            console.log(`Updated trades array with ${item.trades.length} trades`);
+          }
+        }
+        
+        if (item.trades && item.trades.length >= MIN_TRADES_COUNT) {
+          const totalTrades = item.trades.length;
+          const winTrades = item.trades.filter(t => t.result === 'Win').length;
+          const lossTrades = item.trades.filter(t => t.result === 'Loss').length;
+          const breakevenTrades = item.trades.filter(t => t.result === 'Breakeven').length;
+          
+          // Розраховуємо вінрейт тільки по Win і Loss трейдах
+          const winLossTrades = winTrades + lossTrades;
+          const winrate = winLossTrades > 0 
+            ? Math.round((winTrades / winLossTrades) * 100)
+            : 0;
+          
+          console.log(`${sectionName} "${item.name}": ${winTrades}/${winLossTrades} trades (${winTrades}W, ${lossTrades}L, ${breakevenTrades}BE), ${winrate}% winrate`);
+          
+          // Якщо вінрейт нижче порогу, створюємо рекомендацію
+          if (winrate < WINRATE_THRESHOLD && winLossTrades >= MIN_TRADES_COUNT) {
+            console.log(`Adding recommendation for ${sectionName} "${item.name}" due to low winrate (${winrate}%)`);
+            recommendations.push({
+              title: `Low Winrate for ${sectionName}: ${item.name}`,
+              description: `Your winrate for ${sectionName} "${item.name}" is only ${winrate}%. We recommend reviewing how you use this element in your trades or pay more attention to analyzing situations when you use it.`,
+              totalTrades,
+              winTrades,
+              lossTrades,
+              breakevenTrades,
+              winrate,
+              relatedTrades: item.trades.map(t => t.id)
+            });
+          } else if (winrate >= HIGH_WINRATE_THRESHOLD && winLossTrades >= MIN_TRADES_COUNT) {
+            console.log(`Adding recommendation for ${sectionName} "${item.name}" due to high winrate (${winrate}%)`);
+            recommendations.push({
+              title: `High Winrate for ${sectionName}: ${item.name}`,
+              description: `Your winrate for ${sectionName} "${item.name}" is ${winrate}%. This shows excellent results for your trades. We recommend focusing on trading in these conditions.`,
+              totalTrades,
+              winTrades,
+              lossTrades,
+              breakevenTrades,
+              winrate,
+              relatedTrades: item.trades.map(t => t.id)
+            });
+          }
+        } else {
+          console.log(`Skipping ${sectionName} "${item.name}" - not enough trades (${item.trades ? item.trades.length : 0}/${MIN_TRADES_COUNT})`);
+        }
+      }
+    } catch (error) {
+      console.error(`Error analyzing ${sectionKey}:`, error);
+    }
+  }
+
+  // Аналіз комбінацій параметрів
+  // Отримуємо всі трейди
+  console.log('Getting all trades for combination analysis');
   console.log(`Found ${trades.length} trades for analysis`);
 
   // Аналізуємо різні комбінації параметрів
@@ -2200,7 +2252,6 @@ async function analyzeTradesAndGenerateRecommendations() {
         const winTrades = comboData.trades.filter(t => t.result === 'Win').length;
         const lossTrades = comboData.trades.filter(t => t.result === 'Loss').length;
         const breakevenTrades = comboData.trades.filter(t => t.result === 'Breakeven').length;
-        const missedTrades = comboData.trades.filter(t => t.result === 'Missed').length;
         
         // Розраховуємо вінрейт тільки по Win і Loss трейдах
         const winLossTrades = winTrades + lossTrades;
@@ -2208,7 +2259,7 @@ async function analyzeTradesAndGenerateRecommendations() {
           ? Math.round((winTrades / winLossTrades) * 100)
           : 0;
         
-        console.log(`Combination "${comboData.value1} + ${comboData.value2}": ${winTrades}/${winLossTrades} trades (${winTrades}W, ${lossTrades}L, ${breakevenTrades}BE, ${missedTrades}M), ${winrate}% winrate`);
+        console.log(`Combination "${comboData.value1} + ${comboData.value2}": ${winTrades}/${winLossTrades} trades (${winTrades}W, ${lossTrades}L, ${breakevenTrades}BE), ${winrate}% winrate`);
         
         // Якщо вінрейт нижче порогу, створюємо рекомендацію
         if (winrate < WINRATE_THRESHOLD && winLossTrades >= MIN_TRADES_COUNT) {
@@ -2220,13 +2271,56 @@ async function analyzeTradesAndGenerateRecommendations() {
             winTrades,
             lossTrades,
             breakevenTrades,
-            missedTrades,
             winrate,
             relatedTrades: comboData.trades.map(t => t.id)
           });
         }
       } else {
         console.log(`Skipping combination "${comboData.value1} + ${comboData.value2}" - not enough trades (${comboData.trades.length}/${MIN_TRADES_COUNT})`);
+      }
+    }
+  }
+
+  // Перевіряємо конкретно slPosition = 'LTF Manipulation'
+  const ltfManipulationTrades = trades.filter(t => t.slPosition === 'LTF Manipulation');
+  if (ltfManipulationTrades.length >= MIN_TRADES_COUNT) {
+    const totalTrades = ltfManipulationTrades.length;
+    const winTrades = ltfManipulationTrades.filter(t => t.result === 'Win').length;
+    const lossTrades = ltfManipulationTrades.filter(t => t.result === 'Loss').length;
+    const breakevenTrades = ltfManipulationTrades.filter(t => t.result === 'Breakeven').length;
+    
+    // Розраховуємо вінрейт тільки по Win і Loss трейдах
+    const winLossTrades = winTrades + lossTrades;
+    const winrate = winLossTrades > 0 
+      ? Math.round((winTrades / winLossTrades) * 100)
+      : 0;
+    
+    console.log(`Special check for SL Position "LTF Manipulation": ${winTrades}/${winLossTrades} trades (${winTrades}W, ${lossTrades}L, ${breakevenTrades}BE), ${winrate}% winrate`);
+    
+    // Якщо вінрейт нижче порогу, створюємо рекомендацію
+    if (winrate < WINRATE_THRESHOLD && winLossTrades >= MIN_TRADES_COUNT) {
+      const recommendation = {
+        title: `Low Winrate for Stop-Loss Position: LTF Manipulation`,
+        description: `Your winrate for Stop-Loss Position "LTF Manipulation" is only ${winrate}%. We recommend reviewing how you use this element in your trades or pay more attention to analyzing situations when you use it.`,
+        totalTrades,
+        winTrades,
+        lossTrades,
+        breakevenTrades,
+        winrate,
+        relatedTrades: ltfManipulationTrades.map(t => t.id)
+      };
+      
+      // Перевіряємо чи вже є така рекомендація
+      const exists = recommendations.some(r => 
+        r.title === recommendation.title && 
+        r.winrate === recommendation.winrate
+      );
+      
+      if (!exists) {
+        console.log(`Adding special recommendation for Stop-Loss Position "LTF Manipulation" with winrate ${winrate}%`);
+        recommendations.push(recommendation);
+      } else {
+        console.log(`Recommendation for Stop-Loss Position "LTF Manipulation" already exists`);
       }
     }
   }
@@ -2633,17 +2727,52 @@ async function getArchivedRecommendations() {
           console.error('Error getting archived recommendations:', err);
           reject(err);
         } else {
-          // Парсимо JSON рядок relatedTrades у масив
-          rows.forEach(row => {
+          // Перетворюємо дані для сумісності з активними рекомендаціями
+          const formattedRows = rows.map(row => {
+            // Перетворюємо поле related_trades в масив ID
+            let relatedTradesArray = [];
             try {
-              row.relatedTrades = JSON.parse(row.relatedTrades);
-              row.details = JSON.parse(row.details);
+              relatedTradesArray = JSON.parse(row.related_trades || '[]');
             } catch (e) {
-              row.relatedTrades = [];
-              row.details = {};
+              console.error(`Error parsing related_trades for recommendation ${row.recommendation_key}:`, e);
+              relatedTradesArray = [];
             }
+            
+            // Перетворюємо деталі в об'єкт
+            let detailsObject = {};
+            try {
+              detailsObject = JSON.parse(row.details || '{}');
+            } catch (e) {
+              console.error(`Error parsing details for recommendation ${row.recommendation_key}:`, e);
+            }
+            
+            // Формуємо об'єкт з правильними назвами полів для сумісності
+            return {
+              ...detailsObject,
+              id: row.id,
+              recommendation_key: row.recommendation_key,
+              recommendationKey: row.recommendation_key,
+              title: row.title,
+              description: row.description,
+              winrate: row.winrate,
+              totalTrades: row.total_trades,
+              total_trades: row.total_trades,
+              winTrades: row.win_trades,
+              win_trades: row.win_trades,
+              lossTrades: row.loss_trades,
+              loss_trades: row.loss_trades,
+              breakevenTrades: row.breakeven_trades,
+              breakeven_trades: row.breakeven_trades,
+              missedTrades: row.missed_trades,
+              missed_trades: row.missed_trades,
+              relatedTrades: relatedTradesArray,
+              related_trades: relatedTradesArray,
+              archivedAt: row.archived_at,
+              isArchived: true
+            };
           });
-          resolve(rows);
+          
+          resolve(formattedRows);
         }
       });
     });
@@ -2672,8 +2801,47 @@ async function archiveRecommendation(recommendation) {
       relatedTrades = []
     } = recommendation;
     
+    console.log(`Архівування рекомендації: ${title} з ключем ${recommendationKey}`);
+    console.log(`Пов'язані трейди: ${relatedTrades.length}`, relatedTrades);
+    
+    // Завантажуємо повні дані про всі пов'язані трейди для збереження
+    const relatedTradesDetails = {};
+    for (const tradeId of relatedTrades) {
+      try {
+        const tradeData = await new Promise((resolve, reject) => {
+          db.get('SELECT * FROM trades WHERE id = ?', [tradeId], (err, row) => {
+            if (err) {
+              console.error(`Помилка при отриманні даних для трейду ${tradeId}:`, err);
+              reject(err);
+            } else {
+              if (row && row.volumeConfirmation) {
+                try {
+                  row.volumeConfirmation = JSON.parse(row.volumeConfirmation);
+                } catch (e) {
+                  row.volumeConfirmation = [];
+                }
+              }
+              resolve(row || null);
+            }
+          });
+        });
+        
+        if (tradeData) {
+          relatedTradesDetails[tradeId] = tradeData;
+          console.log(`Завантажено дані для трейду ${tradeId}`);
+        } else {
+          console.warn(`Трейд ${tradeId} не знайдено в базі даних!`);
+        }
+      } catch (error) {
+        console.error(`Помилка при завантаженні даних трейду ${tradeId}:`, error);
+      }
+    }
+    
     // Створюємо об'єкт для додаткових деталей
-    const details = { ...recommendation };
+    const details = { 
+      ...recommendation,
+      relatedTradesDetails // Додаємо повні дані про трейди
+    };
     delete details.recommendationKey;
     delete details.title;
     delete details.description;

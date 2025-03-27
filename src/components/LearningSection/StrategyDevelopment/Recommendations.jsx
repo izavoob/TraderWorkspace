@@ -464,11 +464,66 @@ const RemoveButton = styled.button`
   }
 `;
 
+const AlertModal = styled.div`
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.7);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+`;
+
+const AlertContent = styled.div`
+  background-color: #2e2e2e;
+  border: 2px solid #f44336;
+  border-radius: 15px;
+  padding: 25px;
+  max-width: 450px;
+  width: 90%;
+  text-align: center;
+`;
+
+const AlertTitle = styled.h3`
+  color: #f44336;
+  font-size: 1.5em;
+  margin: 0 0 15px 0;
+`;
+
+const AlertMessage = styled.p`
+  color: #fff;
+  font-size: 1.1em;
+  margin: 0 0 20px 0;
+  line-height: 1.4;
+`;
+
+const AlertButton = styled.button`
+  background: linear-gradient(135deg, #7425C9, #B886EE);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 25px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
 const ButtonContainer = styled.div`
   display: flex;
-  justify-content: ${props => props.centered ? 'center' : 'space-between'};
+  justify-content: ${props => props.centered ? 'center' : 'center'};
   gap: 15px;
-  margin-top: 15px;
 `;
 
 function Recommendations() {
@@ -479,6 +534,8 @@ function Recommendations() {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [currentArchiveSlide, setCurrentArchiveSlide] = useState(0);
   const [relatedTrades, setRelatedTrades] = useState({});
+  const [showAlert, setShowAlert] = useState(false);
+  const [alertMessage, setAlertMessage] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
   const prevLocation = useRef(null);
@@ -521,25 +578,47 @@ function Recommendations() {
     const fetchRecommendations = async () => {
       try {
         setLoading(true);
-        const data = await window.electronAPI.getTradeRecommendations();
-        
-        // Окремо отримуємо архівовані рекомендації
+        // Спочатку отримуємо архівовані рекомендації
         setArchiveLoading(true);
         const archivedData = await window.electronAPI.getArchivedRecommendations();
         
-        // Fetch details for all related trades
+        // Збираємо ключі архівованих рекомендацій
+        const archivedKeys = archivedData.map(item => item.recommendationKey);
+        console.log("Архівовані ключі:", archivedKeys);
+        
+        // Тепер отримуємо активні рекомендації
+        const data = await window.electronAPI.getTradeRecommendations();
+        
+        // Збираємо об'єкт для відображення деталей трейдів
         const tradeDetailsMap = {};
         
-        // Collect all unique trade IDs
+        // Збираємо всі ідентифікатори трейдів з активних рекомендацій
         const allTradeIds = new Set();
-        [...data, ...archivedData].forEach(rec => {
+        data.forEach(rec => {
           if (rec.relatedTrades && rec.relatedTrades.length > 0) {
             rec.relatedTrades.forEach(id => allTradeIds.add(id));
           }
         });
         
-        // Fetch details for each trade
+        // Додаємо ідентифікатори з архівованих рекомендацій
+        archivedData.forEach(rec => {
+          if (rec.relatedTrades && rec.relatedTrades.length > 0) {
+            rec.relatedTrades.forEach(id => allTradeIds.add(id));
+          }
+          
+          // Також додаємо збережені деталі трейдів з архівованих рекомендацій
+          if (rec.relatedTradesDetails) {
+            Object.entries(rec.relatedTradesDetails).forEach(([id, details]) => {
+              tradeDetailsMap[id] = details;
+            });
+          }
+        });
+        
+        // Завантажуємо дані для всіх трейдів, яких немає в архіві
         for (const tradeId of allTradeIds) {
+          // Якщо ми вже маємо дані про цей трейд з архіву, пропускаємо
+          if (tradeDetailsMap[tradeId]) continue;
+          
           try {
             const tradeDetails = await window.electronAPI.getTrade(tradeId);
             if (tradeDetails) {
@@ -550,20 +629,31 @@ function Recommendations() {
           }
         }
         
+        console.log(`Loaded details for ${Object.keys(tradeDetailsMap).length} trades`);
         setRelatedTrades(tradeDetailsMap);
 
         // Фільтруємо активні рекомендації (ті, що не в архіві)
-        const activeRecommendations = data.filter(rec => !rec.isArchived);
+        // Використовуємо поле recommendationKey для порівняння
+        const activeRecommendations = data.filter(rec => {
+          const key = rec.recommendationKey;
+          return key && !archivedKeys.includes(key);
+        });
+        
+        console.log("Активні рекомендації після фільтрації:", activeRecommendations.length);
         
         // Модифікуємо дані перед встановленням у state
         const processRecommendations = (recommendations) => {
           return recommendations.map(rec => {
+            // Підготовка пов'язаних трейдів для архівованих рекомендацій
+            let relatedTradeIds = rec.relatedTrades || [];
+            
             // Фільтруємо тільки Win і Loss трейди
-            const winLossTrades = rec.relatedTrades?.map(id => tradeDetailsMap[id])
-              .filter(trade => trade && (trade.result === 'Win' || trade.result === 'Loss'));
+            const winLossTrades = relatedTradeIds
+              .map(id => tradeDetailsMap[id])
+              .filter(trade => trade && (trade.result === 'Win' || trade.result === 'Loss')) || [];
 
-            const winTrades = winLossTrades?.filter(trade => trade.result === 'Win')?.length || 0;
-            const lossTrades = winLossTrades?.filter(trade => trade.result === 'Loss')?.length || 0;
+            const winTrades = winLossTrades.filter(trade => trade.result === 'Win').length || 0;
+            const lossTrades = winLossTrades.filter(trade => trade.result === 'Loss').length || 0;
             const totalWinLossTrades = winTrades + lossTrades;
 
             // Розрахунок вінрейту тільки по Win і Loss трейдам
@@ -573,12 +663,8 @@ function Recommendations() {
 
             return {
               ...rec,
-              winTrades,
-              lossTrades,
-              totalTrades: rec.relatedTrades?.length || 0,
-              missedTrades: rec.relatedTrades?.filter(id => tradeDetailsMap[id]?.result === 'Missed')?.length || 0,
-              breakevenTrades: rec.relatedTrades?.filter(id => tradeDetailsMap[id]?.result === 'Breakeven')?.length || 0,
-              winrate
+              winrate: rec.winrate || winrate,
+              relatedTrades: relatedTradeIds
             };
           });
         };
@@ -592,18 +678,21 @@ function Recommendations() {
         setArchiveLoading(false);
       }
     };
-
+    
     fetchRecommendations();
   }, []);
 
+  // Функція для переходу до наступного слайду
   const handleNextSlide = () => {
     setCurrentSlide(prev => (prev + 1) % recommendations.length);
   };
 
+  // Функція для переходу до попереднього слайду
   const handlePrevSlide = () => {
     setCurrentSlide(prev => (prev - 1 + recommendations.length) % recommendations.length);
   };
 
+  // Функції для роботи з архівом
   const handleNextArchiveSlide = () => {
     setCurrentArchiveSlide(prev => (prev + 1) % archivedRecommendations.length);
   };
@@ -622,14 +711,24 @@ function Recommendations() {
 
   const handleAccept = async (recommendation) => {
     try {
+      // Додавання ключа рекомендації, якщо його немає
+      const recommendationToArchive = {
+        ...recommendation,
+        recommendationKey: recommendation.recommendationKey || 
+          `${recommendation.title}_${recommendation.winrate}_${recommendation.totalTrades}`.replace(/[^a-zA-Z0-9_]/g, '_')
+      };
+      
       // Додаємо рекомендацію до архіву
-      await window.electronAPI.archiveRecommendation(recommendation);
+      await window.electronAPI.archiveRecommendation(recommendationToArchive);
       
       // Оновлюємо список рекомендацій
-      setRecommendations(prev => prev.filter(rec => rec.recommendationKey !== recommendation.recommendationKey));
+      setRecommendations(prev => prev.filter(rec => rec.recommendationKey !== recommendationToArchive.recommendationKey));
       
       // Додаємо рекомендацію до архіву в UI
-      setArchivedRecommendations(prev => [...prev, {...recommendation, isArchived: true, isNew: false}]);
+      setArchivedRecommendations(prev => [
+        ...prev, 
+        {...recommendationToArchive, isArchived: true, isNew: false}
+      ]);
       
       // Якщо це була остання рекомендація, переключаємося на попередню
       if (currentSlide >= recommendations.length - 1) {
@@ -669,8 +768,32 @@ function Recommendations() {
     }
   };
 
+  // Function to check and open a trade
+  const handleTradeClick = (event, tradeId) => {
+    event.preventDefault();
+    
+    // Check if the trade exists
+    if (!relatedTrades[tradeId]) {
+      setAlertMessage(`Trade #${tradeId} not found in the database.`);
+      setShowAlert(true);
+      return;
+    }
+    
+    // If the trade exists, navigate to its page
+    navigate(`/trade/${tradeId}`);
+  };
+
   const renderRelatedTradesTable = (relatedTradeIds) => {
-    // Filter trades by result
+    if (!relatedTradeIds || relatedTradeIds.length === 0) {
+      return (
+        <TradesTableContainer>
+          <TableTitle>Related Trades</TableTitle>
+          <EmptyMessage>No related trades found</EmptyMessage>
+        </TradesTableContainer>
+      );
+    }
+    
+    // Фільтруємо трейди за результатом
     const winTrades = relatedTradeIds
       .map(id => relatedTrades[id])
       .filter(trade => trade && trade.result === 'Win');
@@ -678,6 +801,15 @@ function Recommendations() {
     const lossTrades = relatedTradeIds
       .map(id => relatedTrades[id])
       .filter(trade => trade && trade.result === 'Loss');
+
+    if (winTrades.length === 0 && lossTrades.length === 0) {
+      return (
+        <TradesTableContainer>
+          <TableTitle>Related Trades</TableTitle>
+          <EmptyMessage>No win/loss trades found among related trades</EmptyMessage>
+        </TradesTableContainer>
+      );
+    }
 
     return (
       <TradesTableContainer>
@@ -694,7 +826,11 @@ function Recommendations() {
             <TableBody>
               {winTrades.length > 0 ? (
                 winTrades.map(trade => (
-                  <TableRow key={trade.id} to={`/trade/${trade.id}`}>
+                  <TableRow 
+                    key={trade.id} 
+                    to={`/trade/${trade.id}`}
+                    onClick={(e) => handleTradeClick(e, trade.id)}
+                  >
                     <TableCell className="no">#{trade.no}</TableCell>
                     <TableCell className="date">{formatDate(trade.date)}</TableCell>
                     <TableCell className="win">{trade.result}</TableCell>
@@ -717,7 +853,11 @@ function Recommendations() {
             <TableBody>
               {lossTrades.length > 0 ? (
                 lossTrades.map(trade => (
-                  <TableRow key={trade.id} to={`/trade/${trade.id}`}>
+                  <TableRow 
+                    key={trade.id} 
+                    to={`/trade/${trade.id}`}
+                    onClick={(e) => handleTradeClick(e, trade.id)}
+                  >
                     <TableCell className="no">#{trade.no}</TableCell>
                     <TableCell className="date">{formatDate(trade.date)}</TableCell>
                     <TableCell className="loss">{trade.result}</TableCell>
@@ -773,12 +913,6 @@ function Recommendations() {
                       <StatRow>
                         <span>Breakeven Trades:</span>
                         <span style={{ color: '#ffc107' }}>{rec.breakevenTrades}</span>
-                      </StatRow>
-                    )}
-                    {rec.missedTrades > 0 && (
-                      <StatRow>
-                        <span>Missed Trades:</span>
-                        <span style={{ color: '#9c27b0' }}>{rec.missedTrades}</span>
                       </StatRow>
                     )}
                     <StatRow>
@@ -886,6 +1020,16 @@ function Recommendations() {
           )}
         </SectionContainer>
       </Content>
+
+      {showAlert && (
+        <AlertModal>
+          <AlertContent>
+            <AlertTitle>Error</AlertTitle>
+            <AlertMessage>{alertMessage}</AlertMessage>
+            <AlertButton onClick={() => setShowAlert(false)}>OK</AlertButton>
+          </AlertContent>
+        </AlertModal>
+      )}
     </RecommendationsContainer>
   );
 }

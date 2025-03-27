@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import deleteIcon from '../../assets/icons/delete-icon.svg';
 
@@ -506,6 +506,7 @@ function Execution() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showTradesModal, setShowTradesModal] = useState(false);
   const [relatedTrades, setRelatedTrades] = useState([]);
+  const navigate = useNavigate();
 
   const sectionTitles = {
     pointA: 'Point A',
@@ -573,7 +574,10 @@ function Execution() {
     const lossTrades = relevantTrades.filter(trade => trade.result === 'Loss').length;
     const breakevenTrades = relevantTrades.filter(trade => trade.result === 'Breakeven').length;
     const missedTrades = relevantTrades.filter(trade => trade.result === 'Missed').length;
-    const winrate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
+    
+    // Розраховуємо вінрейт лише на основі Win та Loss трейдів
+    const totalWinLossTrades = winTrades + lossTrades;
+    const winrate = totalWinLossTrades > 0 ? (winTrades / totalWinLossTrades) * 100 : 0;
 
     return {
       totalTrades,
@@ -684,7 +688,7 @@ function Execution() {
                   />
                   <ItemStats>
                     <StatsRow>
-                      <span>{stats.totalTrades} Trades</span>
+                      <span>{stats.totalTrades}Trades</span>
                       <StatDivider />
                       <StatNumber type="win">{stats.winTrades}</StatNumber>
                       <StatDivider />
@@ -695,7 +699,7 @@ function Execution() {
                       <StatNumber type="missed">{stats.missedTrades}</StatNumber>
                     </StatsRow>
                     <WinrateBar winrate={stats.winrate} />
-                    <WinrateText>{stats.winrate}% Win Rate</WinrateText>
+                    <WinrateText>{stats.winrate}% Winrate</WinrateText>
                   </ItemStats>
                 </ItemCard>
               );
@@ -754,7 +758,7 @@ function Execution() {
                     <StatNumber type="missed">{selectedItem.stats.missedTrades}</StatNumber>
                   </StatsRow>
                   <WinrateBar winrate={selectedItem.stats.winrate} />
-                  <WinrateText>{selectedItem.stats.winrate}% Win Rate</WinrateText>
+                  <WinrateText>{selectedItem.stats.winrate}% Winrate</WinrateText>
                 </ItemStats>
               </ModalItemCard>
 
@@ -762,7 +766,10 @@ function Execution() {
               <TradesList>
                 {relatedTrades.length > 0 ? (
                   relatedTrades.map(trade => (
-                    <TradeItem key={trade.id} to={`/trade/${trade.id}`}>
+                    <TradeItem 
+                      key={trade.id} 
+                      to={`/trade/${trade.id}`}
+                    >
                       <TradeInfo>
                         <TradeNumber>#{trade.no}</TradeNumber>
                         <TradeDate>{new Date(trade.date).toLocaleDateString()}</TradeDate>

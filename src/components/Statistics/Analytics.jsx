@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import deleteIcon from '../../assets/icons/delete-icon.svg';
 
@@ -397,6 +397,7 @@ function Analytics() {
     sessions: [],
     positionType: []
   });
+  const navigate = useNavigate();
 
   useEffect(() => {
     const loadData = async () => {
@@ -448,7 +449,10 @@ function Analytics() {
     const lossTrades = relevantTrades.filter(trade => trade.result === 'Loss').length;
     const breakevenTrades = relevantTrades.filter(trade => trade.result === 'Breakeven').length;
     const missedTrades = relevantTrades.filter(trade => trade.result === 'Missed').length;
-    const winrate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
+    
+    // Розраховуємо вінрейт лише на основі Win та Loss трейдів
+    const totalWinLossTrades = winTrades + lossTrades;
+    const winrate = totalWinLossTrades > 0 ? (winTrades / totalWinLossTrades) * 100 : 0;
 
     return {
       totalTrades,
@@ -535,7 +539,7 @@ function Analytics() {
 
   const handleDeleteItem = async (section, item, event) => {
     event.stopPropagation();
-    if (window.confirm('Ви впевнені, що хочете видалити цей елемент?')) {
+    if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await window.electronAPI.deleteExecutionItem(section, item);
         // Оновлюємо локальний стан після видалення
@@ -587,7 +591,7 @@ function Analytics() {
                       <StatNumber type="missed">{stats.missedTrades}</StatNumber>
                     </StatsRow>
                     <WinrateBar winrate={stats.winrate} />
-                    <WinrateText>{stats.winrate}% Win Rate</WinrateText>
+                    <WinrateText>{stats.winrate}% Winrate</WinrateText>
                   </ItemStats>
                 </ItemCard>
               );
@@ -638,7 +642,7 @@ function Analytics() {
                     <StatNumber type="missed">{selectedItem.stats.missedTrades}</StatNumber>
                   </StatsRow>
                   <WinrateBar winrate={selectedItem.stats.winrate} />
-                  <WinrateText>{selectedItem.stats.winrate}% Win Rate</WinrateText>
+                  <WinrateText>{selectedItem.stats.winrate}% Winrate</WinrateText>
                 </ItemStats>
               </div>
 
