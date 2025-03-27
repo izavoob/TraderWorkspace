@@ -560,10 +560,14 @@ const TextArea = styled.textarea`
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   min-height: 100px;
-  text-align: center;
+  text-align: justify;
+  font-size: 16px;
+  padding: 5px;
   font-family: 'Roboto', sans-serif;
   letter-spacing: 0.3px;
   line-height: 1.5;
+  resize: none;
+  overflow: hidden;
   
   &:focus {
     outline: none;
@@ -911,7 +915,19 @@ const LoadingText = styled.div`
 function TradeDetail() {
   const navigate = useNavigate();
   const { id } = useParams();
-  const [trade, setTrade] = useState({});
+  // Оновлюємо початковий стан з правильною структурою
+  const [trade, setTrade] = useState({
+    topDownAnalysis: [
+      { title: 'Daily Timeframe', screenshots: [], text: '' },
+      { title: '4h Timeframe', screenshots: [], text: '' },
+      { title: '1h Timeframe', screenshots: [], text: '' },
+      { title: '15/5m Timeframe', screenshots: [], text: '' }
+    ],
+    execution: { screenshots: [], text: '' },
+    management: { screenshots: [], text: '' },
+    conclusion: { text: '' },
+    notes: []
+  });
   const [accounts, setAccounts] = useState([]);
   const [executionItems, setExecutionItems] = useState({});
   const [notes, setNotes] = useState([]);
@@ -928,6 +944,21 @@ function TradeDetail() {
   const [noteTitle, setNoteTitle] = useState('');
   const [noteText, setNoteText] = useState('');
   const [linkedPresession, setLinkedPresession] = useState(null);
+
+  // Добавляем refs для всех TextArea
+  const textAreaRefs = {
+    topDownAnalysis: useRef([]),
+    execution: useRef(null),
+    management: useRef(null),
+    conclusion: useRef(null)
+  };
+
+  // Функция для автоматической высоты
+  const autoResizeTextarea = (element) => {
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  };
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -1484,16 +1515,46 @@ function TradeDetail() {
   }, [showVolumePopup]);
 
   const handleScreenshotChange = (section, index, field, value) => {
+    if (!trade) return;
+    
     setTrade((prev) => {
+      if (!prev) return prev;
+
       if (section === 'topDownAnalysis') {
-        const updated = [...prev.topDownAnalysis];
-        updated[index] = { ...updated[index], [field]: value };
+        const updated = [...(prev.topDownAnalysis || [])];
+        if (updated[index]) {
+          updated[index] = { ...updated[index], [field]: value };
+        }
+        
+        setTimeout(() => {
+          if (textAreaRefs.topDownAnalysis.current?.[index]) {
+            autoResizeTextarea(textAreaRefs.topDownAnalysis.current[index]);
+          }
+        }, 0);
+        
         return { ...prev, topDownAnalysis: updated };
       } else {
-        return { ...prev, [section]: { ...prev[section], [field]: value } };
+        setTimeout(() => {
+          if (textAreaRefs[section]?.current) {
+            autoResizeTextarea(textAreaRefs[section].current);
+          }
+        }, 0);
+        
+        return { 
+          ...prev, 
+          [section]: { 
+            ...(prev[section] || {}), 
+            [field]: value 
+          } 
+        };
       }
     });
   };
+
+  // Инициализируем refs для topDownAnalysis
+  useEffect(() => {
+    textAreaRefs.topDownAnalysis.current = textAreaRefs.topDownAnalysis.current.slice(0, trade.topDownAnalysis.length);
+  }, [trade.topDownAnalysis.length]);
 
   const handleAddScreenshot = async (section, index, file) => {
     if (!isEditing) return; // Блокуємо якщо не в режимі редагування
@@ -2273,6 +2334,7 @@ function TradeDetail() {
                       value={analysis.text}
                       onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
                       placeholder={`Enter ${analysis.title} analysis...`}
+                      ref={el => textAreaRefs.topDownAnalysis.current[index] = el}
                       readOnly={!isEditing}
                     />
                   </ScreenshotField>
@@ -2348,6 +2410,7 @@ function TradeDetail() {
                       value={trade.execution.text}
                       onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
                       placeholder="Enter execution analysis..."
+                      ref={el => textAreaRefs.execution.current = el}
                       readOnly={!isEditing}
                     />
                   </ScreenshotField>
@@ -2420,6 +2483,7 @@ function TradeDetail() {
                       value={trade.management.text}
                       onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
                       placeholder="Enter management analysis..."
+                      ref={el => textAreaRefs.management.current = el}
                       readOnly={!isEditing}
                     />
                   </ScreenshotField>
@@ -2434,6 +2498,7 @@ function TradeDetail() {
                       value={trade.conclusion.text}
                       onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
                       placeholder="Enter your conclusion..."
+                      ref={el => textAreaRefs.conclusion.current = el}
                     />
                   </ScreenshotField>
                 </div>

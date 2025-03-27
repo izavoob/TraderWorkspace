@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
+import React, { useState, useEffect, useRef } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import styled, { keyframes, css } from 'styled-components';
 import { format } from 'date-fns';
 
 const gradientAnimation = keyframes`
@@ -381,25 +381,158 @@ const EmptyTableMessage = styled.div`
   font-style: italic;
 `;
 
+const NewBadge = styled.div`
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #ff8c00, #ff4500);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: bold;
+  z-index: 5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+`;
+
+const ArchivedBadge = styled.div`
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background: linear-gradient(135deg, #808080, #444);
+  color: white;
+  padding: 5px 10px;
+  border-radius: 12px;
+  font-size: 0.8em;
+  font-weight: bold;
+  z-index: 5;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+`;
+
+const AcceptButton = styled.button`
+  background: linear-gradient(135deg, #4CAF50, #45a049);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+  
+  &:disabled {
+    background: #cccccc;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+  }
+`;
+
+const RemoveButton = styled.button`
+  background: linear-gradient(135deg, #f44336, #d32f2f);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 1em;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  margin-top: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+  
+  &:active {
+    transform: translateY(0);
+  }
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  justify-content: ${props => props.centered ? 'center' : 'space-between'};
+  gap: 15px;
+  margin-top: 15px;
+`;
+
 function Recommendations() {
   const [recommendations, setRecommendations] = useState([]);
+  const [archivedRecommendations, setArchivedRecommendations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [archiveLoading, setArchiveLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [currentArchiveSlide, setCurrentArchiveSlide] = useState(0);
   const [relatedTrades, setRelatedTrades] = useState({});
+  const navigate = useNavigate();
+  const location = useLocation();
+  const prevLocation = useRef(null);
+
+  // Збереження та відновлення стану слайдера
+  useEffect(() => {
+    const savedState = sessionStorage.getItem('recommendationsState');
+    if (savedState) {
+      const { slide, archived } = JSON.parse(savedState);
+      if (slide !== undefined) setCurrentSlide(slide);
+      if (archived !== undefined) setCurrentArchiveSlide(archived);
+    }
+  }, []);
+
+  // Збереження стану при переході на інші сторінки
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      // Зберігаємо стан слайдера при виході зі сторінки
+      const state = {
+        slide: currentSlide,
+        archived: currentArchiveSlide
+      };
+      sessionStorage.setItem('recommendationsState', JSON.stringify(state));
+    };
+
+    // Додаємо обробник для збереження стану
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    // При переході на іншу сторінку
+    prevLocation.current = location.pathname;
+    
+    return () => {
+      // Зберігаємо стан при розмонтуванні компонента
+      handleBeforeUnload();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [currentSlide, currentArchiveSlide, location]);
 
   useEffect(() => {
     const fetchRecommendations = async () => {
       try {
         setLoading(true);
         const data = await window.electronAPI.getTradeRecommendations();
-        setRecommendations(data);
+        
+        // Окремо отримуємо архівовані рекомендації
+        setArchiveLoading(true);
+        const archivedData = await window.electronAPI.getArchivedRecommendations();
         
         // Fetch details for all related trades
         const tradeDetailsMap = {};
         
         // Collect all unique trade IDs
         const allTradeIds = new Set();
-        data.forEach(rec => {
+        [...data, ...archivedData].forEach(rec => {
           if (rec.relatedTrades && rec.relatedTrades.length > 0) {
             rec.relatedTrades.forEach(id => allTradeIds.add(id));
           }
@@ -418,10 +551,45 @@ function Recommendations() {
         }
         
         setRelatedTrades(tradeDetailsMap);
+
+        // Фільтруємо активні рекомендації (ті, що не в архіві)
+        const activeRecommendations = data.filter(rec => !rec.isArchived);
+        
+        // Модифікуємо дані перед встановленням у state
+        const processRecommendations = (recommendations) => {
+          return recommendations.map(rec => {
+            // Фільтруємо тільки Win і Loss трейди
+            const winLossTrades = rec.relatedTrades?.map(id => tradeDetailsMap[id])
+              .filter(trade => trade && (trade.result === 'Win' || trade.result === 'Loss'));
+
+            const winTrades = winLossTrades?.filter(trade => trade.result === 'Win')?.length || 0;
+            const lossTrades = winLossTrades?.filter(trade => trade.result === 'Loss')?.length || 0;
+            const totalWinLossTrades = winTrades + lossTrades;
+
+            // Розрахунок вінрейту тільки по Win і Loss трейдам
+            const winrate = totalWinLossTrades > 0 
+              ? Math.round((winTrades / totalWinLossTrades) * 100) 
+              : 0;
+
+            return {
+              ...rec,
+              winTrades,
+              lossTrades,
+              totalTrades: rec.relatedTrades?.length || 0,
+              missedTrades: rec.relatedTrades?.filter(id => tradeDetailsMap[id]?.result === 'Missed')?.length || 0,
+              breakevenTrades: rec.relatedTrades?.filter(id => tradeDetailsMap[id]?.result === 'Breakeven')?.length || 0,
+              winrate
+            };
+          });
+        };
+
+        setRecommendations(processRecommendations(activeRecommendations));
+        setArchivedRecommendations(processRecommendations(archivedData));
       } catch (error) {
         console.error('Error fetching recommendations:', error);
       } finally {
         setLoading(false);
+        setArchiveLoading(false);
       }
     };
 
@@ -436,8 +604,59 @@ function Recommendations() {
     setCurrentSlide(prev => (prev - 1 + recommendations.length) % recommendations.length);
   };
 
+  const handleNextArchiveSlide = () => {
+    setCurrentArchiveSlide(prev => (prev + 1) % archivedRecommendations.length);
+  };
+
+  const handlePrevArchiveSlide = () => {
+    setCurrentArchiveSlide(prev => (prev - 1 + archivedRecommendations.length) % archivedRecommendations.length);
+  };
+
   const goToSlide = (index) => {
     setCurrentSlide(index);
+  };
+
+  const goToArchiveSlide = (index) => {
+    setCurrentArchiveSlide(index);
+  };
+
+  const handleAccept = async (recommendation) => {
+    try {
+      // Додаємо рекомендацію до архіву
+      await window.electronAPI.archiveRecommendation(recommendation);
+      
+      // Оновлюємо список рекомендацій
+      setRecommendations(prev => prev.filter(rec => rec.recommendationKey !== recommendation.recommendationKey));
+      
+      // Додаємо рекомендацію до архіву в UI
+      setArchivedRecommendations(prev => [...prev, {...recommendation, isArchived: true, isNew: false}]);
+      
+      // Якщо це була остання рекомендація, переключаємося на попередню
+      if (currentSlide >= recommendations.length - 1) {
+        setCurrentSlide(Math.max(0, recommendations.length - 2));
+      }
+    } catch (error) {
+      console.error('Error accepting recommendation:', error);
+    }
+  };
+
+  const handleRemoveFromArchive = async (recommendation) => {
+    try {
+      // Видаляємо рекомендацію з архіву
+      await window.electronAPI.deleteArchivedRecommendation(recommendation.recommendationKey);
+      
+      // Оновлюємо список архівованих рекомендацій
+      setArchivedRecommendations(prev => 
+        prev.filter(rec => rec.recommendationKey !== recommendation.recommendationKey)
+      );
+      
+      // Якщо це була остання рекомендація в архіві, переключаємося на попередню
+      if (currentArchiveSlide >= archivedRecommendations.length - 1) {
+        setCurrentArchiveSlide(Math.max(0, archivedRecommendations.length - 2));
+      }
+    } catch (error) {
+      console.error('Error removing recommendation from archive:', error);
+    }
   };
 
   const formatDate = (dateString) => {
@@ -514,6 +733,113 @@ function Recommendations() {
     );
   };
 
+  const renderRecommendationSlider = (sliderData, currentSliderIndex, handleNext, handlePrev, goToSlideFunc, isArchived = false) => {
+    if (sliderData.length === 0) {
+      return (
+        <EmptyMessage>
+          {isArchived
+            ? "Your archive is empty. Accept recommendations to see them here."
+            : "Not enough data to generate recommendations. Add more trades to your journal for analysis."}
+        </EmptyMessage>
+      );
+    }
+
+    return (
+      <>
+        <SliderContainer>
+          <SlidesWrapper currentSlide={currentSliderIndex}>
+            {sliderData.map((rec, index) => (
+              <Slide key={index}>
+                <RecommendationCard>
+                  {rec.isNew && !isArchived && <NewBadge>New</NewBadge>}
+                  {isArchived && <ArchivedBadge>Archived</ArchivedBadge>}
+                  <RecommendationTitle>{rec.title}</RecommendationTitle>
+                  <RecommendationDescription>{rec.description}</RecommendationDescription>
+                  
+                  <StatsContainer>
+                    <StatRow>
+                      <span>Total Trades:</span>
+                      <span>{rec.totalTrades}</span>
+                    </StatRow>
+                    <StatRow>
+                      <span>Win Trades:</span>
+                      <span style={{ color: '#4CAF50' }}>{rec.winTrades}</span>
+                    </StatRow>
+                    <StatRow>
+                      <span>Loss Trades:</span>
+                      <span style={{ color: '#f44336' }}>{rec.lossTrades}</span>
+                    </StatRow>
+                    {rec.breakevenTrades > 0 && (
+                      <StatRow>
+                        <span>Breakeven Trades:</span>
+                        <span style={{ color: '#ffc107' }}>{rec.breakevenTrades}</span>
+                      </StatRow>
+                    )}
+                    {rec.missedTrades > 0 && (
+                      <StatRow>
+                        <span>Missed Trades:</span>
+                        <span style={{ color: '#9c27b0' }}>{rec.missedTrades}</span>
+                      </StatRow>
+                    )}
+                    <StatRow>
+                      <span>Winrate:</span>
+                      <span style={{ fontWeight: 'bold' }}>{rec.winrate}%</span>
+                    </StatRow>
+                    
+                    <WinrateBar winrate={rec.winrate} />
+                  </StatsContainer>
+
+                  {rec.relatedTrades && rec.relatedTrades.length > 0 && 
+                    renderRelatedTradesTable(rec.relatedTrades)}
+                    
+                  <ButtonContainer centered={isArchived}>
+                    {!isArchived ? (
+                      <AcceptButton onClick={() => handleAccept(rec)}>
+                        Accept Recommendation
+                      </AcceptButton>
+                    ) : (
+                      <RemoveButton onClick={() => handleRemoveFromArchive(rec)}>
+                        Remove from Archive
+                      </RemoveButton>
+                    )}
+                  </ButtonContainer>
+                </RecommendationCard>
+              </Slide>
+            ))}
+          </SlidesWrapper>
+
+          {sliderData.length > 1 && (
+            <SlideNavigation>
+              <SlideButton 
+                className="prev" 
+                onClick={handlePrev}
+                disabled={sliderData.length <= 1}
+              >
+                &#10094;
+              </SlideButton>
+              
+              {sliderData.map((_, index) => (
+                <SlideIndicator
+                  key={index}
+                  active={currentSliderIndex === index}
+                  onClick={() => goToSlideFunc(index)}
+                />
+              ))}
+              
+              <SlideButton 
+                className="next" 
+                onClick={handleNext}
+                disabled={sliderData.length <= 1}
+              >
+                &#10095;
+              </SlideButton>
+            </SlideNavigation>
+          )}
+        </SliderContainer>
+      </>
+    );
+  };
+
   return (
     <RecommendationsContainer>
       <Header>
@@ -524,95 +850,39 @@ function Recommendations() {
 
       <Content>
         <SectionContainer>
-          <SectionTitle>Trade Analysis</SectionTitle>
+          <SectionTitle>Active Recommendations</SectionTitle>
           
           {loading ? (
             <LoadingContainer>
               <p>Loading recommendations...</p>
             </LoadingContainer>
-          ) : recommendations.length > 0 ? (
-            <>
-              <SliderContainer>
-                <SlidesWrapper currentSlide={currentSlide}>
-                  {recommendations.map((rec, index) => (
-                    <Slide key={index}>
-                      <RecommendationCard>
-                        <RecommendationTitle>{rec.title}</RecommendationTitle>
-                        <RecommendationDescription>{rec.description}</RecommendationDescription>
-                        
-                        <StatsContainer>
-                          <StatRow>
-                            <span>Total Trades:</span>
-                            <span>{rec.totalTrades}</span>
-                          </StatRow>
-                          <StatRow>
-                            <span>Win Trades:</span>
-                            <span style={{ color: '#4CAF50' }}>{rec.winTrades}</span>
-                          </StatRow>
-                          <StatRow>
-                            <span>Loss Trades:</span>
-                            <span style={{ color: '#f44336' }}>{rec.lossTrades}</span>
-                          </StatRow>
-                          {rec.breakevenTrades > 0 && (
-                            <StatRow>
-                              <span>Breakeven Trades:</span>
-                              <span style={{ color: '#ffc107' }}>{rec.breakevenTrades}</span>
-                            </StatRow>
-                          )}
-                          {rec.missedTrades > 0 && (
-                            <StatRow>
-                              <span>Missed Trades:</span>
-                              <span style={{ color: '#9c27b0' }}>{rec.missedTrades}</span>
-                            </StatRow>
-                          )}
-                          <StatRow>
-                            <span>Winrate:</span>
-                            <span style={{ fontWeight: 'bold' }}>{rec.winrate}%</span>
-                          </StatRow>
-                          
-                          <WinrateBar winrate={rec.winrate} />
-                        </StatsContainer>
-
-                        {rec.relatedTrades && rec.relatedTrades.length > 0 && 
-                          renderRelatedTradesTable(rec.relatedTrades)}
-                      </RecommendationCard>
-                    </Slide>
-                  ))}
-                </SlidesWrapper>
-
-                {recommendations.length > 1 && (
-                  <SlideNavigation>
-                    <SlideButton 
-                      className="prev" 
-                      onClick={handlePrevSlide}
-                      disabled={recommendations.length <= 1}
-                    >
-                      &#10094;
-                    </SlideButton>
-                    
-                    {recommendations.map((_, index) => (
-                      <SlideIndicator
-                        key={index}
-                        active={currentSlide === index}
-                        onClick={() => goToSlide(index)}
-                      />
-                    ))}
-                    
-                    <SlideButton 
-                      className="next" 
-                      onClick={handleNextSlide}
-                      disabled={recommendations.length <= 1}
-                    >
-                      &#10095;
-                    </SlideButton>
-                  </SlideNavigation>
-                )}
-              </SliderContainer>
-            </>
           ) : (
-            <EmptyMessage>
-              Not enough data to generate recommendations. Add more trades to your journal for analysis.
-            </EmptyMessage>
+            renderRecommendationSlider(
+              recommendations,
+              currentSlide,
+              handleNextSlide,
+              handlePrevSlide,
+              goToSlide
+            )
+          )}
+        </SectionContainer>
+
+        <SectionContainer>
+          <SectionTitle>Archive</SectionTitle>
+          
+          {archiveLoading ? (
+            <LoadingContainer>
+              <p>Loading archived recommendations...</p>
+            </LoadingContainer>
+          ) : (
+            renderRecommendationSlider(
+              archivedRecommendations,
+              currentArchiveSlide,
+              handleNextArchiveSlide,
+              handlePrevArchiveSlide,
+              goToArchiveSlide,
+              true
+            )
           )}
         </SectionContainer>
       </Content>
@@ -620,4 +890,4 @@ function Recommendations() {
   );
 }
 
-export default Recommendations; 
+export default Recommendations;

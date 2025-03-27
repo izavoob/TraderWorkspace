@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useLocation } from 'react-router-dom';
 import styled, { createGlobalStyle, keyframes } from 'styled-components';
 import DatePicker from 'react-datepicker';
@@ -531,16 +531,19 @@ const ScreenshotPreview = styled.img`
 
 const TextArea = styled.textarea`
   width: 100%;
-  padding: 8px;
   background-color: #3e3e3e;
   color: #fff;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   min-height: 100px;
-  text-align: center;
+  text-align: justify;
+  font-size: 16px;
+  padding: 5px;
   font-family: 'Roboto', sans-serif;
   letter-spacing: 0.3px;
   line-height: 1.5;
+  resize: none;
+  overflow: hidden;
   
   &:focus {
     outline: none;
@@ -1047,6 +1050,21 @@ function CreateTrade() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
+  // Додаємо refs для всіх TextArea
+  const textAreaRefs = {
+    topDownAnalysis: useRef([]),
+    execution: useRef(null),
+    management: useRef(null),
+    conclusion: useRef(null)
+  };
+
+  // Функція для автоматичної зміни висоти
+  const autoResizeTextarea = (element) => {
+    if (!element) return;
+    element.style.height = 'auto';
+    element.style.height = `${element.scrollHeight}px`;
+  };
+
   useEffect(() => {
     const loadInitialData = async () => {
       console.log('Loading initial data...');
@@ -1196,12 +1214,32 @@ function CreateTrade() {
       if (section === 'topDownAnalysis') {
         const updated = [...prev.topDownAnalysis];
         updated[index] = { ...updated[index], [field]: value };
+        
+        // Автоматично змінюємо висоту після оновлення значення
+        setTimeout(() => {
+          if (textAreaRefs.topDownAnalysis.current[index]) {
+            autoResizeTextarea(textAreaRefs.topDownAnalysis.current[index]);
+          }
+        }, 0);
+        
         return { ...prev, topDownAnalysis: updated };
       } else {
+        // Автоматично змінюємо висоту після оновлення значення
+        setTimeout(() => {
+          if (textAreaRefs[section].current) {
+            autoResizeTextarea(textAreaRefs[section].current);
+          }
+        }, 0);
+        
         return { ...prev, [section]: { ...prev[section], [field]: value } };
       }
     });
   };
+
+  // Ініціалізуємо refs для topDownAnalysis при першому рендері
+  useEffect(() => {
+    textAreaRefs.topDownAnalysis.current = textAreaRefs.topDownAnalysis.current.slice(0, trade.topDownAnalysis.length);
+  }, [trade.topDownAnalysis.length]);
 
   const handleAddScreenshot = async (section, index, file) => {
     try {
@@ -1887,6 +1925,7 @@ function CreateTrade() {
                 value={analysis.text}
                 onChange={(e) => handleScreenshotChange('topDownAnalysis', index, 'text', e.target.value)}
                 placeholder={`Enter ${analysis.title} analysis...`}
+                ref={el => textAreaRefs.topDownAnalysis.current[index] = el}
               />
             </ScreenshotField>
           ))}
@@ -1937,6 +1976,7 @@ function CreateTrade() {
                 value={trade.execution.text}
                 onChange={(e) => handleScreenshotChange('execution', 0, 'text', e.target.value)}
                 placeholder="Enter execution analysis..."
+                ref={textAreaRefs.execution}
               />
             </ScreenshotField>
           </div>
@@ -1984,6 +2024,7 @@ function CreateTrade() {
                 value={trade.management.text}
                 onChange={(e) => handleScreenshotChange('management', 0, 'text', e.target.value)}
                 placeholder="Enter management analysis..."
+                ref={textAreaRefs.management}
               />
             </ScreenshotField>
           </div>
@@ -1997,6 +2038,7 @@ function CreateTrade() {
                 value={trade.conclusion.text}
                 onChange={(e) => handleScreenshotChange('conclusion', 0, 'text', e.target.value)}
                 placeholder="Enter your conclusion..."
+                ref={textAreaRefs.conclusion}
               />
             </ScreenshotField>
           </div>
