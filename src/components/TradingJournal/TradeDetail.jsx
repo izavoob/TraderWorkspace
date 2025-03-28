@@ -1157,6 +1157,32 @@ function TradeDetail() {
         setIsEditing(false);
         setHasUnsavedChanges(false);
         setNotification(null);
+        
+        // Додаємо затримку, щоб дати час для рендерингу компонентів
+        setTimeout(() => {
+          // Автоматично змінюємо висоту всіх текстових полів після завантаження даних
+          // Для топдаун аналізу
+          if (textAreaRefs.topDownAnalysis.current) {
+            textAreaRefs.topDownAnalysis.current.forEach(ref => {
+              if (ref) autoResizeTextarea(ref);
+            });
+          }
+          
+          // Для execution
+          if (textAreaRefs.execution.current) {
+            autoResizeTextarea(textAreaRefs.execution.current);
+          }
+          
+          // Для management
+          if (textAreaRefs.management.current) {
+            autoResizeTextarea(textAreaRefs.management.current);
+          }
+          
+          // Для conclusion
+          if (textAreaRefs.conclusion.current) {
+            autoResizeTextarea(textAreaRefs.conclusion.current);
+          }
+        }, 100); // Невелика затримка для завершення рендерингу
       } else {
         // Якщо трейд не знайдено
         console.error('Трейд не знайдено:', id);

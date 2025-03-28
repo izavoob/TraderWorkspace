@@ -2981,3 +2981,116 @@ ipcMain.handle('deleteArchivedRecommendation', async (event, recommendationKey) 
     return false;
   }
 });
+
+// Обробник для отримання патернів з високим вінрейтом
+ipcMain.handle('getHighWinratePatterns', async (event) => {
+  try {
+    // Отримуємо всі трейди
+    const trades = await getAllTrades();
+    
+    if (!trades || trades.length < 5) {
+      console.log('Not enough trades for analysis');
+      return [];
+    }
+    
+    // Аналізуємо трейди для знаходження патернів з високим вінрейтом
+    return analyzeHighWinratePatterns(trades);
+  } catch (error) {
+    console.error('Error getting high winrate patterns:', error);
+    return [];
+  }
+});
+
+// Аналізує трейди для знаходження патернів з високим вінрейтом
+function analyzeHighWinratePatterns(trades) {
+  // Фільтруємо трейди тільки з результатом Win або Loss
+  const winLossTrades = trades.filter(trade => trade.result === 'Win' || trade.result === 'Loss');
+  
+  if (winLossTrades.length < 5) {
+    console.log('Not enough trades with win/loss result');
+    return [];
+  }
+  
+  const patterns = [];
+  
+  // Аналізуємо різні комбінації параметрів
+  
+  // 1. Комбінація пара + сесія
+  analyzeTwoParamCombination(winLossTrades, 'pair', 'session', patterns);
+  
+  // 2. Комбінація модель входу + таймфрейм
+  analyzeTwoParamCombination(winLossTrades, 'entryModel', 'entryTF', patterns);
+  
+  // 3. Комбінація точка входу + тригер
+  analyzeTwoParamCombination(winLossTrades, 'pointA', 'trigger', patterns);
+  
+  // 4. Комбінація об'єм + тригер
+  analyzeTwoParamCombination(winLossTrades, 'volumeConfirmation', 'trigger', patterns);
+  
+  // 5. Комбінація сесія + стоп-лосс
+  analyzeTwoParamCombination(winLossTrades, 'session', 'slPosition', patterns);
+  
+  // Сортуємо патерни за вінрейтом (від найвищого до найнижчого)
+  patterns.sort((a, b) => b.winrate - a.winrate);
+  
+  // Обмежуємо кількість патернів для повернення
+  return patterns.slice(0, 20);
+}
+
+// Аналізує комбінацію двох параметрів
+function analyzeTwoParamCombination(trades, param1, param2, patterns) {
+  // Отримуємо унікальні значення для кожного параметра
+  const uniqueValues1 = [...new Set(trades.filter(t => t[param1]).map(t => t[param1]))];
+  const uniqueValues2 = [...new Set(trades.filter(t => t[param2]).map(t => t[param2]))];
+  
+  for (const value1 of uniqueValues1) {
+    for (const value2 of uniqueValues2) {
+      // Фільтруємо трейди для поточної комбінації
+      const comboTrades = trades.filter(t => 
+        t[param1] === value1 && t[param2] === value2
+      );
+      
+      // Пропускаємо, якщо недостатньо трейдів
+      if (comboTrades.length < 3) continue;
+      
+      // Рахуємо вінрейт
+      const winTrades = comboTrades.filter(t => t.result === 'Win').length;
+      const lossTrades = comboTrades.filter(t => t.result === 'Loss').length;
+      const totalWinLoss = winTrades + lossTrades;
+      
+      if (totalWinLoss === 0) continue;
+      
+      const winrate = Math.round((winTrades / totalWinLoss) * 100);
+      
+      // Додаємо тільки якщо вінрейт високий
+      if (winrate >= 65) {
+        patterns.push({
+          title: `Успішна комбінація: ${param1}: "${value1}", ${param2}: "${value2}" (${winrate}% вінрейт)`,
+          description: generateHighWinrateDescription(winrate, comboTrades.length, winTrades),
+          winrate,
+          totalTrades: comboTrades.length,
+          winTrades,
+          lossTrades,
+          breakevenTrades: comboTrades.filter(t => t.result === 'Breakeven').length,
+          relatedTrades: comboTrades.map(t => t.id),
+          recommendationKey: `high_${param1}_${value1}_${param2}_${value2}`,
+          parameters: [
+            { name: param1, value: value1 },
+            { name: param2, value: value2 }
+          ]
+        });
+      }
+    }
+  }
+}
+
+// Генерує опис для патерну з високим вінрейтом
+function generateHighWinrateDescription(winrate, totalTrades, winTrades) {
+  if (winrate >= 90) {
+    return `Ця комбінація параметрів показує відмінні результати з вінрейтом ${winrate}%. З ${totalTrades} трейдів, ${winTrades} були прибутковими. Рекомендуємо зосередитись на цій стратегії та збільшити розмір позиції при таких умовах ринку.`;
+  } else if (winrate >= 75) {
+    return `Ця комбінація параметрів показує дуже хороші результати з вінрейтом ${winrate}%. З ${totalTrades} трейдів, ${winTrades} були прибутковими. Рекомендуємо активно використовувати цю стратегію для підвищення загальної прибутковості.`;
+  } else {
+    return `Ця комбінація параметрів має надійний вінрейт ${winrate}%. З ${totalTrades} трейдів, ${winTrades} були прибутковими. Рекомендуємо продовжувати використовувати цю стратегію та шукати можливості для її оптимізації.`;
+  }
+}

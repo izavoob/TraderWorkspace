@@ -20,7 +20,7 @@ const NotesContainer = styled.div`
   margin: 0 auto;
   height: 100vh;
   background-color: #1a1a1a;
-  padding: 0;
+  padding: 20px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -34,7 +34,6 @@ const MainContent = styled.div`
   display: flex;
   flex-direction: column;
   align-items: center;
-  margin-top: 20px;
   width: 100%;
 `;
 
@@ -43,22 +42,23 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin-bottom: 20px;
 `;
 
 const BackButton = styled(Link)`
@@ -67,7 +67,7 @@ const BackButton = styled(Link)`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -121,7 +121,6 @@ const HeaderActionsContainer = styled.div`
   right: 0;
   z-index: 999;
   display: flex;
-  margin-top: 50px;
   justify-content: flex-end;
   padding: 0 30px;
   background: transparent;
@@ -139,33 +138,31 @@ const Content = styled.div`
   width: 100%;
   gap: 20px;
   justify-content: space-between;
-  margin-bottom: 20px;
+  margin-top: 20px;
 `;
 
 const NotesBlock = styled.div`
   flex: 1;
   background: #2e2e2e;
   border-radius: 15px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 180px);
   overflow: hidden;
-  max-height: 600px;
-  border: 2px solid #7425C9;
+  max-height: 500px;
 `;
 
 const MistakesBlock = styled.div`
   flex: 1;
   background: #2e2e2e;
   border-radius: 15px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.25);
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   display: flex;
   flex-direction: column;
   height: calc(100vh - 180px);
   overflow: hidden;
-  max-height: 600px;
-  border: 2px solid #d32f2f;
+  max-height: 500px;
 `;
 
 const BlockTitle = styled.h2`

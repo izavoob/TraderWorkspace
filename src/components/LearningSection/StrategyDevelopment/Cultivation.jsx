@@ -10,7 +10,7 @@ const gradientAnimation = keyframes`
   100% { background-position: 0% 50%; }
 `;
 
-const RecommendationsContainer = styled.div`
+const CultivationContainer = styled.div`
   max-width: 1820px;
   margin: 0 auto;
   min-height: 100vh;
@@ -190,7 +190,7 @@ const SlideButton = styled.button`
   }
 `;
 
-const RecommendationCard = styled.div`
+const PatternCard = styled.div`
   background-color: #1a1a1a;
   padding: 25px;
   border-radius: 15px;
@@ -203,13 +203,13 @@ const RecommendationCard = styled.div`
   box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
 `;
 
-const RecommendationTitle = styled.h3`
-  color: #ff8c00;
+const PatternTitle = styled.h3`
+  color: #4CAF50; /* Зелений колір для успішних патернів */
   margin: 0;
   font-size: 1.3em;
 `;
 
-const RecommendationDescription = styled.p`
+const PatternDescription = styled.p`
   color: #fff;
   margin: 0;
   font-size: 1.1em;
@@ -248,7 +248,8 @@ const WinrateBar = styled.div`
     top: 0;
     height: 100%;
     width: ${props => props.winrate}%;
-    background: linear-gradient(to right, ${props => props.winrate < 30 ? '#f44336' : props.winrate < 50 ? '#ff9800' : '#4CAF50'}, ${props => props.winrate < 30 ? '#ff5722' : props.winrate < 50 ? '#ffc107' : '#8BC34A'});
+    background: linear-gradient(to right, ${props => props.winrate < 30 ? '#f44336' : props.winrate < 50 ? '#ff9800' : props.winrate < 75 ? '#4CAF50' : '#00C853'}, 
+                                          ${props => props.winrate < 30 ? '#ff5722' : props.winrate < 50 ? '#ffc107' : props.winrate < 75 ? '#8BC34A' : '#00E676'});
     border-radius: 4px;
   }
 `;
@@ -386,7 +387,7 @@ const NewBadge = styled.div`
   position: absolute;
   top: 15px;
   right: 15px;
-  background: linear-gradient(135deg, #ff8c00, #ff4500);
+  background: linear-gradient(135deg, #4CAF50, #00C853);
   color: white;
   padding: 5px 10px;
   border-radius: 12px;
@@ -527,9 +528,9 @@ const ButtonContainer = styled.div`
   gap: 15px;
 `;
 
-function Recommendations() {
-  const [recommendations, setRecommendations] = useState([]);
-  const [archivedRecommendations, setArchivedRecommendations] = useState([]);
+function Cultivation() {
+  const [patterns, setPatterns] = useState([]);
+  const [archivedPatterns, setArchivedPatterns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [archiveLoading, setArchiveLoading] = useState(true);
   const [currentSlide, setCurrentSlide] = useState(0);
@@ -543,7 +544,7 @@ function Recommendations() {
 
   // Збереження та відновлення стану слайдера
   useEffect(() => {
-    const savedState = sessionStorage.getItem('recommendationsState');
+    const savedState = sessionStorage.getItem('cultivationState');
     if (savedState) {
       const { slide, archived } = JSON.parse(savedState);
       if (slide !== undefined) setCurrentSlide(slide);
@@ -559,7 +560,7 @@ function Recommendations() {
         slide: currentSlide,
         archived: currentArchiveSlide
       };
-      sessionStorage.setItem('recommendationsState', JSON.stringify(state));
+      sessionStorage.setItem('cultivationState', JSON.stringify(state));
     };
 
     // Додаємо обробник для збереження стану
@@ -576,58 +577,59 @@ function Recommendations() {
   }, [currentSlide, currentArchiveSlide, location]);
 
   useEffect(() => {
-    const fetchRecommendations = async () => {
+    const fetchPatterns = async () => {
       try {
         setLoading(true);
-        // Спочатку отримуємо архівовані рекомендації
+        // Спочатку отримуємо архівовані патерни
         setArchiveLoading(true);
         const archivedData = await window.electronAPI.getArchivedRecommendations();
         
-        // Фільтруємо тільки low-winrate рекомендації (з ключами, що починаються з "low_")
-        const lowWinrateArchived = archivedData.filter(item => 
-          item.recommendationKey && item.recommendationKey.startsWith('low_')
+        // Фільтруємо тільки high-winrate рекомендації (з ключами, що починаються з "high_")
+        const highWinrateArchived = archivedData.filter(item => 
+          item.recommendationKey && item.recommendationKey.startsWith('high_')
         );
         
-        // Збираємо ключі архівованих рекомендацій
-        const archivedKeys = lowWinrateArchived.map(item => item.recommendationKey);
-        console.log("Архівовані ключі низького вінрейту:", archivedKeys);
+        // Збираємо ключі архівованих патернів
+        const archivedKeys = highWinrateArchived.map(item => item.recommendationKey);
+        console.log("Архівовані ключі високого вінрейту:", archivedKeys);
         
-        // Отримуємо всі трейди для аналізу
+        // Тепер отримуємо активні трейди для аналізу
         const allTrades = await window.electronAPI.getTrades();
         
-        // Генеруємо рекомендації з низьким вінрейтом
-        let generatedRecommendations = [];
+        // Генеруємо рекомендації з високим вінрейтом за допомогою утилітного методу
+        let generatedPatterns = [];
         if (allTrades && allTrades.length > 0) {
-          generatedRecommendations = generateRecommendations(allTrades, false); // false для низького вінрейту
+          generatedPatterns = generateRecommendations(allTrades, true); // другий параметр true вказує на високий вінрейт
         }
         
         // Фільтруємо тільки нові рекомендації (не в архіві)
-        const newRecommendations = generatedRecommendations.filter(rec => 
-          !archivedKeys.includes(rec.recommendationKey)
+        const newPatterns = generatedPatterns.filter(pattern => 
+          !archivedKeys.includes(pattern.recommendationKey)
         );
         
-        console.log("Нові рекомендації низького вінрейту:", newRecommendations.length);
+        console.log("Нові патерни високого вінрейту:", newPatterns.length);
         
-        // Збираємо об'єкт для відображення деталей трейдів
-        const tradeDetailsMap = {};
-        
-        // Збираємо всі ідентифікатори трейдів з активних рекомендацій
+        // Збираємо всі ідентифікатори трейдів з активних та архівованих патернів
         const allTradeIds = new Set();
-        newRecommendations.forEach(rec => {
-          if (rec.relatedTrades && rec.relatedTrades.length > 0) {
-            rec.relatedTrades.forEach(id => allTradeIds.add(id));
+        newPatterns.forEach(pattern => {
+          if (pattern.relatedTrades && pattern.relatedTrades.length > 0) {
+            pattern.relatedTrades.forEach(id => allTradeIds.add(id));
           }
         });
         
-        // Додаємо ідентифікатори з архівованих рекомендацій
-        lowWinrateArchived.forEach(rec => {
-          if (rec.relatedTrades && rec.relatedTrades.length > 0) {
-            rec.relatedTrades.forEach(id => allTradeIds.add(id));
+        highWinrateArchived.forEach(pattern => {
+          if (pattern.relatedTrades && pattern.relatedTrades.length > 0) {
+            pattern.relatedTrades.forEach(id => allTradeIds.add(id));
           }
-          
-          // Також додаємо збережені деталі трейдів з архівованих рекомендацій
-          if (rec.relatedTradesDetails) {
-            Object.entries(rec.relatedTradesDetails).forEach(([id, details]) => {
+        });
+        
+        // Об'єкт для відображення деталей трейдів
+        const tradeDetailsMap = {};
+        
+        // Додаємо збережені деталі трейдів з архівованих патернів
+        highWinrateArchived.forEach(pattern => {
+          if (pattern.relatedTradesDetails) {
+            Object.entries(pattern.relatedTradesDetails).forEach(([id, details]) => {
               tradeDetailsMap[id] = details;
             });
           }
@@ -650,37 +652,38 @@ function Recommendations() {
         
         console.log(`Loaded details for ${Object.keys(tradeDetailsMap).length} trades`);
         setRelatedTrades(tradeDetailsMap);
-
-        setRecommendations(newRecommendations);
-        setArchivedRecommendations(lowWinrateArchived);
+        
+        // Встановлюємо патерни та архів
+        setPatterns(newPatterns);
+        setArchivedPatterns(highWinrateArchived);
       } catch (error) {
-        console.error('Error fetching recommendations:', error);
+        console.error('Error fetching patterns:', error);
       } finally {
         setLoading(false);
         setArchiveLoading(false);
       }
     };
     
-    fetchRecommendations();
+    fetchPatterns();
   }, []);
 
   // Функція для переходу до наступного слайду
   const handleNextSlide = () => {
-    setCurrentSlide(prev => (prev + 1) % recommendations.length);
+    setCurrentSlide(prev => (prev + 1) % patterns.length);
   };
 
   // Функція для переходу до попереднього слайду
   const handlePrevSlide = () => {
-    setCurrentSlide(prev => (prev - 1 + recommendations.length) % recommendations.length);
+    setCurrentSlide(prev => (prev - 1 + patterns.length) % patterns.length);
   };
 
   // Функції для роботи з архівом
   const handleNextArchiveSlide = () => {
-    setCurrentArchiveSlide(prev => (prev + 1) % archivedRecommendations.length);
+    setCurrentArchiveSlide(prev => (prev + 1) % archivedPatterns.length);
   };
 
   const handlePrevArchiveSlide = () => {
-    setCurrentArchiveSlide(prev => (prev - 1 + archivedRecommendations.length) % archivedRecommendations.length);
+    setCurrentArchiveSlide(prev => (prev - 1 + archivedPatterns.length) % archivedPatterns.length);
   };
 
   const goToSlide = (index) => {
@@ -691,52 +694,52 @@ function Recommendations() {
     setCurrentArchiveSlide(index);
   };
 
-  const handleAccept = async (recommendation) => {
+  const handleAccept = async (pattern) => {
     try {
-      // Додавання ключа рекомендації, якщо його немає
-      const recommendationToArchive = {
-        ...recommendation,
-        recommendationKey: recommendation.recommendationKey || 
-          `${recommendation.title}_${recommendation.winrate}_${recommendation.totalTrades}`.replace(/[^a-zA-Z0-9_]/g, '_')
+      // Додавання ключа патерну, якщо його немає
+      const patternToArchive = {
+        ...pattern,
+        recommendationKey: pattern.recommendationKey || 
+          `high_${pattern.parameters.map(p => `${p.name}_${p.value}`).join('_')}`
       };
       
-      // Додаємо рекомендацію до архіву
-      await window.electronAPI.archiveRecommendation(recommendationToArchive);
+      // Додаємо патерн до архіву
+      await window.electronAPI.archiveRecommendation(patternToArchive);
       
-      // Оновлюємо список рекомендацій
-      setRecommendations(prev => prev.filter(rec => rec.recommendationKey !== recommendationToArchive.recommendationKey));
+      // Оновлюємо список патернів
+      setPatterns(prev => prev.filter(pat => pat.recommendationKey !== patternToArchive.recommendationKey));
       
-      // Додаємо рекомендацію до архіву в UI
-      setArchivedRecommendations(prev => [
+      // Додаємо патерн до архіву в UI
+      setArchivedPatterns(prev => [
         ...prev, 
-        {...recommendationToArchive, isArchived: true, isNew: false}
+        {...patternToArchive, isArchived: true, isNew: false}
       ]);
       
-      // Якщо це була остання рекомендація, переключаємося на попередню
-      if (currentSlide >= recommendations.length - 1) {
-        setCurrentSlide(Math.max(0, recommendations.length - 2));
+      // Якщо це був останній патерн, переключаємося на попередній
+      if (currentSlide >= patterns.length - 1) {
+        setCurrentSlide(Math.max(0, patterns.length - 2));
       }
     } catch (error) {
-      console.error('Error accepting recommendation:', error);
+      console.error('Error accepting pattern:', error);
     }
   };
 
-  const handleRemoveFromArchive = async (recommendation) => {
+  const handleRemoveFromArchive = async (pattern) => {
     try {
-      // Видаляємо рекомендацію з архіву
-      await window.electronAPI.deleteArchivedRecommendation(recommendation.recommendationKey);
+      // Видаляємо патерн з архіву
+      await window.electronAPI.deleteArchivedRecommendation(pattern.recommendationKey);
       
-      // Оновлюємо список архівованих рекомендацій
-      setArchivedRecommendations(prev => 
-        prev.filter(rec => rec.recommendationKey !== recommendation.recommendationKey)
+      // Оновлюємо список архівованих патернів
+      setArchivedPatterns(prev => 
+        prev.filter(pat => pat.recommendationKey !== pattern.recommendationKey)
       );
       
-      // Якщо це була остання рекомендація в архіві, переключаємося на попередню
-      if (currentArchiveSlide >= archivedRecommendations.length - 1) {
-        setCurrentArchiveSlide(Math.max(0, archivedRecommendations.length - 2));
+      // Якщо це був останній патерн в архіві, переключаємося на попередній
+      if (currentArchiveSlide >= archivedPatterns.length - 1) {
+        setCurrentArchiveSlide(Math.max(0, archivedPatterns.length - 2));
       }
     } catch (error) {
-      console.error('Error removing recommendation from archive:', error);
+      console.error('Error removing pattern from archive:', error);
     }
   };
 
@@ -927,13 +930,13 @@ function Recommendations() {
     );
   };
 
-  const renderRecommendationSlider = (sliderData, currentSliderIndex, handleNext, handlePrev, goToSlideFunc, isArchived = false) => {
+  const renderPatternSlider = (sliderData, currentSliderIndex, handleNext, handlePrev, goToSlideFunc, isArchived = false) => {
     if (sliderData.length === 0) {
       return (
         <EmptyMessage>
           {isArchived
-            ? "Your archive is empty. Accept recommendations to see them here."
-            : "Not enough data to generate recommendations. Add more trades to your journal for analysis."}
+            ? "Your pattern archive is empty. Accept successful patterns to see them here."
+            : "Not enough data to identify successful patterns. Add more trades to your journal for analysis."}
         </EmptyMessage>
       );
     }
@@ -942,62 +945,62 @@ function Recommendations() {
       <>
         <SliderContainer>
           <SlidesWrapper currentSlide={currentSliderIndex}>
-            {sliderData.map((rec, index) => (
+            {sliderData.map((pattern, index) => (
               <Slide key={index}>
-                <RecommendationCard>
-                  {rec.isNew && !isArchived && <NewBadge>New</NewBadge>}
+                <PatternCard>
+                  {pattern.isNew && !isArchived && <NewBadge>New</NewBadge>}
                   {isArchived && <ArchivedBadge>Archived</ArchivedBadge>}
-                  <RecommendationTitle>{rec.title}</RecommendationTitle>
-                  <RecommendationDescription>{rec.description}</RecommendationDescription>
+                  <PatternTitle>{pattern.title}</PatternTitle>
+                  <PatternDescription>{pattern.description}</PatternDescription>
                   
                   <StatsContainer>
                     <StatRow>
                       <span>Total Trades:</span>
-                      <span>{rec.totalTrades}</span>
+                      <span>{pattern.totalTrades}</span>
                     </StatRow>
                     <StatRow>
                       <span>Win Trades:</span>
-                      <span style={{ color: '#4CAF50' }}>{rec.winTrades}</span>
+                      <span style={{ color: '#4CAF50' }}>{pattern.winTrades}</span>
                     </StatRow>
                     <StatRow>
                       <span>Loss Trades:</span>
-                      <span style={{ color: '#f44336' }}>{rec.lossTrades}</span>
+                      <span style={{ color: '#f44336' }}>{pattern.lossTrades}</span>
                     </StatRow>
-                    {rec.breakevenTrades > 0 && (
+                    {pattern.breakevenTrades > 0 && (
                       <StatRow>
                         <span>Breakeven Trades:</span>
-                        <span style={{ color: '#ffc107' }}>{rec.breakevenTrades}</span>
+                        <span style={{ color: '#ffc107' }}>{pattern.breakevenTrades}</span>
                       </StatRow>
                     )}
-                    {rec.missedTrades > 0 && (
+                    {pattern.missedTrades > 0 && (
                       <StatRow>
                         <span>Missed Trades:</span>
-                        <span style={{ color: '#9370db' }}>{rec.missedTrades}</span>
+                        <span style={{ color: '#9370db' }}>{pattern.missedTrades}</span>
                       </StatRow>
                     )}
                     <StatRow>
                       <span>Winrate:</span>
-                      <span style={{ fontWeight: 'bold' }}>{rec.winrate}%</span>
+                      <span style={{ fontWeight: 'bold' }}>{pattern.winrate}%</span>
                     </StatRow>
                     
-                    <WinrateBar winrate={rec.winrate} />
+                    <WinrateBar winrate={pattern.winrate} />
                   </StatsContainer>
 
-                  {rec.relatedTrades && rec.relatedTrades.length > 0 && 
-                    renderRelatedTradesTable(rec.relatedTrades)}
+                  {pattern.relatedTrades && pattern.relatedTrades.length > 0 && 
+                    renderRelatedTradesTable(pattern.relatedTrades)}
                     
                   <ButtonContainer centered={isArchived}>
                     {!isArchived ? (
-                      <AcceptButton onClick={() => handleAccept(rec)}>
-                        Accept Recommendation
+                      <AcceptButton onClick={() => handleAccept(pattern)}>
+                        Add to Pattern Archive
                       </AcceptButton>
                     ) : (
-                      <RemoveButton onClick={() => handleRemoveFromArchive(rec)}>
+                      <RemoveButton onClick={() => handleRemoveFromArchive(pattern)}>
                         Remove from Archive
                       </RemoveButton>
                     )}
                   </ButtonContainer>
-                </RecommendationCard>
+                </PatternCard>
               </Slide>
             ))}
           </SlidesWrapper>
@@ -1035,24 +1038,24 @@ function Recommendations() {
   };
 
   return (
-    <RecommendationsContainer>
+    <CultivationContainer>
       <Header>
         <BackButton to="/learning-section/strategy" />
-        <Title>Trading System Recommendations</Title>
-        <Subtitle>Analysis and recommendations based on your trades</Subtitle>
+        <Title>Trading Cultivation</Title>
+        <Subtitle>Identify and utilize your most successful trading patterns</Subtitle>
       </Header>
 
       <Content>
         <SectionContainer>
-          <SectionTitle>Active Recommendations</SectionTitle>
+          <SectionTitle>Successful Patterns</SectionTitle>
           
           {loading ? (
             <LoadingContainer>
-              <p>Loading recommendations...</p>
+              <p>Analyzing trading patterns...</p>
             </LoadingContainer>
           ) : (
-            renderRecommendationSlider(
-              recommendations,
+            renderPatternSlider(
+              patterns,
               currentSlide,
               handleNextSlide,
               handlePrevSlide,
@@ -1062,15 +1065,15 @@ function Recommendations() {
         </SectionContainer>
 
         <SectionContainer>
-          <SectionTitle>Archive</SectionTitle>
+          <SectionTitle>Pattern Archive</SectionTitle>
           
           {archiveLoading ? (
             <LoadingContainer>
-              <p>Loading archived recommendations...</p>
+              <p>Loading archived patterns...</p>
             </LoadingContainer>
           ) : (
-            renderRecommendationSlider(
-              archivedRecommendations,
+            renderPatternSlider(
+              archivedPatterns,
               currentArchiveSlide,
               handleNextArchiveSlide,
               handlePrevArchiveSlide,
@@ -1090,8 +1093,8 @@ function Recommendations() {
           </AlertContent>
         </AlertModal>
       )}
-    </RecommendationsContainer>
+    </CultivationContainer>
   );
 }
 
-export default Recommendations;
+export default Cultivation; 

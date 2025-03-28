@@ -18,8 +18,8 @@ const ModalOverlay = styled.div`
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
-  display: flex;
+  background-color: rgba(0, 0, 0, 0.5);
+  backdrop-filter: blur(3px);  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 2000;
@@ -1420,15 +1420,7 @@ const NoteModal = ({
                     </div>
                   ) : (
                     <>
-                      <span>Натисніть Ctrl+V для вставки зображення з буфера обміну</span>
-                      <span style={{ 
-                        fontSize: '0.8em', 
-                        marginTop: '5px', 
-                        opacity: 0.7,
-                        textAlign: 'center'
-                      }}>
-                        Ви можете вставити декілька зображень одне за одним
-                      </span>
+                      <span>Ctrl+V to insert photo</span>
                     </>
                   )}
                 </AddImageButton>

@@ -9,9 +9,19 @@ const gradientAnimation = keyframes`
   100% { background-position: 0% 50%; }
 `;
 
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const AnalyticsContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -24,22 +34,23 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin-bottom: 20px;
 `;
 
 const BackButton = styled(Link)`
@@ -48,7 +59,7 @@ const BackButton = styled(Link)`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -94,11 +105,9 @@ const Subtitle = styled.h2`
   font-weight: normal;
 `;
 const Content = styled.div`
-  margin-top: 50px;
-  padding: 20px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 40px;
+  gap: 15px;
   max-width: 1820px;
   margin-left: auto;
   margin-right: auto;
@@ -106,8 +115,8 @@ const Content = styled.div`
 
 const SectionContainer = styled.div`
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
   border-radius: 15px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   padding: 30px;
   box-sizing: border-box;
   height: fit-content;
@@ -115,10 +124,10 @@ const SectionContainer = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
+  color: #fff;
   margin: 0 0 20px;
   font-size: 1.8em;
-  text-align: left;
+  text-align: center;
   padding-bottom: 10px;
   border-bottom: 2px solid rgba(94, 44, 165, 0.4);
 `;
@@ -134,6 +143,8 @@ const ItemsGrid = styled.div`
 const ItemCard = styled.div`
   background-color: #1a1a1a;
   padding: 20px;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+
   border-radius: 15px;
   border: 2px solid #5e2ca5;
   transition: all 0.3s ease;
@@ -242,16 +253,18 @@ const WinrateText = styled.div`
 `;
 
 const Modal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+ position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
+  backdrop-filter: blur(3px);  display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
+  box-sizing: border-box;
+  transform: translateY(${props => props.scrollY}px);
+  overflow: hidden;
 `;
 
 const ModalContent = styled.div`
@@ -259,8 +272,36 @@ const ModalContent = styled.div`
   padding: 30px;
   border-radius: 15px;
   border: 2px solid #5e2ca5;
-  width: 400px;
-  max-width: 90%;
+  max-width: 100%;
+  width: 800px;
+  animation: ${fadeIn} 0.3s ease;
+  position: relative;
+  overflow-y: auto;
+    overflow-x: hidden;
+  max-height: 90vh;
+`;
+
+const TradeResult = styled.span`
+  padding: 5px 10px;
+  border-radius: 5px;
+  background-color: ${props => {
+    switch(props.result) {
+      case 'Win': return 'rgba(76, 175, 80, 0.2)';
+      case 'Loss': return 'rgba(244, 67, 54, 0.2)';
+      case 'Breakeven': return 'rgba(255, 215, 0, 0.2)';
+      case 'Missed': return 'rgba(156, 39, 176, 0.2)';
+      default: return 'rgba(128, 128, 128, 0.2)';
+    }
+  }};
+  color: ${props => {
+    switch(props.result) {
+      case 'Win': return '#4caf50';
+      case 'Loss': return '#f44336';
+      case 'Breakeven': return '#ffd700';
+      case 'Missed': return '#9c27b0';
+      default: return '#808080';
+    }
+  }};
 `;
 
 const AddItemCard = styled(ItemCard)`
@@ -391,6 +432,7 @@ function Analytics() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [currentSection, setCurrentSection] = useState('');
   const [newItemName, setNewItemName] = useState('');
+  const [scrollY, setScrollY] = useState(0);
   const [sections, setSections] = useState({
     pairs: [],
     directions: [],
@@ -428,6 +470,20 @@ function Analytics() {
     loadData();
   }, []);
 
+  useEffect(() => {
+    if (isModalOpen || showTradesModal) {
+      const currentScroll = window.scrollY;
+      setScrollY(currentScroll);
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen, showTradesModal]);
+
   const calculateStats = (itemName, section) => {
     const relevantTrades = trades.filter(trade => {
       switch(section) {
@@ -450,7 +506,6 @@ function Analytics() {
     const breakevenTrades = relevantTrades.filter(trade => trade.result === 'Breakeven').length;
     const missedTrades = relevantTrades.filter(trade => trade.result === 'Missed').length;
     
-    // Розраховуємо вінрейт лише на основі Win та Loss трейдів
     const totalWinLossTrades = winTrades + lossTrades;
     const winrate = totalWinLossTrades > 0 ? (winTrades / totalWinLossTrades) * 100 : 0;
 
@@ -486,7 +541,6 @@ function Analytics() {
       setRelatedTrades(filteredTrades);
       setShowTradesModal(true);
 
-      // Додаємо автоматичний скрол до центру
       setTimeout(() => {
         const modalElement = document.querySelector('.modal-content');
         if (modalElement) {
@@ -506,7 +560,6 @@ function Analytics() {
     setNewItemName('');
     setIsModalOpen(true);
 
-    // Додаємо автоматичний скрол до центру
     setTimeout(() => {
       const modalElement = document.querySelector('.modal-content');
       if (modalElement) {
@@ -522,10 +575,8 @@ function Analytics() {
     if (!newItemName.trim()) return;
 
     try {
-      // Зберігаємо новий елемент в базі даних
       await window.electronAPI.addExecutionItem(currentSection, newItemName.trim());
 
-      // Оновлюємо локальний стан
       const updatedSections = { ...sections };
       updatedSections[currentSection] = [...sections[currentSection], newItemName.trim()];
       setSections(updatedSections);
@@ -542,7 +593,6 @@ function Analytics() {
     if (window.confirm('Are you sure you want to delete this item?')) {
       try {
         await window.electronAPI.deleteExecutionItem(section, item);
-        // Оновлюємо локальний стан після видалення
         setSections(prev => ({
           ...prev,
           [section]: prev[section].filter(i => i !== item)
@@ -613,17 +663,17 @@ function Analytics() {
     return (
       <>
         <Content>
-          <div style={{ gridColumn: '1 / 2', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          <div style={{ gridColumn: '1 / 2', display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {leftSections}
           </div>
-          <div style={{ gridColumn: '2 / 3', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          <div style={{ gridColumn: '2 / 3', display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {rightSections}
           </div>
         </Content>
 
         {showTradesModal && selectedItem && (
-          <Modal onClick={() => setShowTradesModal(false)}>
-            <ModalContent className="modal-content" onClick={e => e.stopPropagation()}>
+          <Modal onClick={() => setShowTradesModal(false)} scrollY={scrollY}>
+            <ModalContent onClick={e => e.stopPropagation()}>
               <h2 style={{ color: '#fff', margin: '0 0 20px', fontSize: '1.5em', textAlign: 'center' }}>
                 {selectedItem.name}
               </h2>
@@ -674,8 +724,24 @@ function Analytics() {
                       <span style={{
                         padding: '5px 10px',
                         borderRadius: '5px',
-                        backgroundColor: trade.result === 'Win' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)',
-                        color: trade.result === 'Win' ? '#4caf50' : '#f44336'
+                        backgroundColor: (() => {
+                          switch(trade.result) {
+                            case 'Win': return 'rgba(76, 175, 80, 0.2)';
+                            case 'Loss': return 'rgba(244, 67, 54, 0.2)';
+                            case 'Breakeven': return 'rgba(255, 215, 0, 0.2)';
+                            case 'Missed': return 'rgba(156, 39, 176, 0.2)';
+                            default: return 'rgba(128, 128, 128, 0.2)';
+                          }
+                        })(),
+                        color: (() => {
+                          switch(trade.result) {
+                            case 'Win': return '#4caf50';
+                            case 'Loss': return '#f44336';
+                            case 'Breakeven': return '#ffd700';
+                            case 'Missed': return '#9c27b0';
+                            default: return '#808080';
+                          }
+                        })()
                       }}>
                         {trade.result}
                       </span>
@@ -693,7 +759,7 @@ function Analytics() {
 
         {isModalOpen && (
           <Modal onClick={() => setIsModalOpen(false)}>
-            <ModalContent className="modal-content" onClick={e => e.stopPropagation()}>
+            <ModalContent onClick={e => e.stopPropagation()}>
               <Title>Add new {currentSection}</Title>
               <Input
                 type="text"

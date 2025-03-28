@@ -49,6 +49,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   archiveRecommendation: (recommendation) => ipcRenderer.invoke('archiveRecommendation', recommendation),
   deleteArchivedRecommendation: (recommendationKey) => ipcRenderer.invoke('deleteArchivedRecommendation', recommendationKey),
   
+  // API для роботи з патернами високого вінрейту
+  getHighWinratePatterns: () => ipcRenderer.invoke('getHighWinratePatterns'),
+  
   // Performance analysis methods
   savePerformanceAnalysis: (analysis) => ipcRenderer.invoke('savePerformanceAnalysis', analysis),
   getPerformanceAnalyses: (type) => ipcRenderer.invoke('getPerformanceAnalyses', type),
