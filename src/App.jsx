@@ -29,6 +29,8 @@ import Settings from './components/Settings.jsx';
 import LoadingScreen from './components/LoadingScreen.jsx';
 import MindsetTracker from './components/LearningSection/TradingPsychology/MindsetTracker.jsx';
 import Demons from './components/LearningSection/TradingPsychology/Demons/Demons.jsx';
+import Recommendations from './components/LearningSection/StrategyDevelopment/Recommendations.jsx';
+import Cultivation from './components/LearningSection/StrategyDevelopment/Cultivation.jsx';
 
 const GlobalStyle = createGlobalStyle`
   body, html {
@@ -39,7 +41,7 @@ const GlobalStyle = createGlobalStyle`
     width: 100%;
     background-color: #1a1a1a;
     overflow: ${props => {
-      const noScrollPaths = ['/', '/trade-journal', '/daily-routine/pre-session', '/daily-routine/post-session'];
+      const noScrollPaths = ['/', '/trade-journal', '/daily-routine/pre-session', '/daily-routine/post-session', '/learning-section/notes', '/learning-section/strategy', '/learning-section'];
       return noScrollPaths.includes(props.pathname) ? 'hidden' : 'visible';
     }};
   }
@@ -146,6 +148,10 @@ function App() {
         return 'POST-SESSION JOURNAL';
       case '/learning-section/strategy':
         return 'STRATEGY DEVELOPMENT';
+      case '/learning-section/strategy/recommendations':
+        return 'TRADING RECOMMENDATIONS';
+      case '/learning-section/strategy/cultivation':
+        return 'TRADING PATTERNS CULTIVATION';
       case '/learning-section/trading-psychology':
         return 'TRADING PSYCHOLOGY';
       case '/notes':
@@ -201,6 +207,7 @@ function App() {
             <Route path="/daily-routine/post-session/:id" element={<PostSessionFull />} />
             <Route path="/learning-section" element={<LearningSection />} />
             <Route path="/learning-section/strategy" element={<Strategy />} />
+            <Route path="/learning-section/strategy/recommendations" element={<Recommendations />} />
             <Route path="/learning-section/trading-psychology" element={<TradingPsychology />} />
             <Route path="/learning-section/trading-psychology/mindset-tracker" element={<MindsetTracker />} />
             <Route path="/learning-section/trading-psychology/demons" element={<Demons />} />
@@ -218,6 +225,7 @@ function App() {
             <Route path="/risk-management" element={<RiskManagement />} />
             <Route path="/reporting-system" element={<ReportingSystem />} />
             <Route path="/settings" element={<Settings />} />
+            <Route path="/learning-section/strategy/cultivation" element={<Cultivation />} />
           </Routes>
         </AppContainer>
       )}

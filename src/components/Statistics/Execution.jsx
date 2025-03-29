@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import styled, { keyframes } from 'styled-components';
 import deleteIcon from '../../assets/icons/delete-icon.svg';
 
+const fadeIn = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const ExecutionContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -24,22 +34,23 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin-bottom: 20px;
 `;
 
 const BackButton = styled(Link)`
@@ -48,7 +59,7 @@ const BackButton = styled(Link)`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -56,7 +67,6 @@ const BackButton = styled(Link)`
   opacity: 0;
   transition: all 0.3s ease;
   text-decoration: none;
-  color: transparent;
   &:hover {
     opacity: 1;
     transform: scale(1.1);
@@ -77,9 +87,6 @@ const BackButton = styled(Link)`
   &:hover:before {
     color: #fff;
   }
-  span {
-    color: transparent;
-  }
 `;
 
 const PageTitle = styled.h1`
@@ -98,11 +105,9 @@ const Subtitle = styled.h2`
   font-weight: normal;
 `;
 const Content = styled.div`
-  margin-top: 50px;
-  padding: 20px;
   display: grid;
   grid-template-columns: repeat(2, 1fr);
-  gap: 40px;
+  gap: 15px;
   max-width: 1820px;
   margin-left: auto;
   margin-right: auto;
@@ -110,8 +115,8 @@ const Content = styled.div`
 
 const SectionContainer = styled.div`
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
   border-radius: 15px;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   padding: 30px;
   box-sizing: border-box;
   height: fit-content;
@@ -119,10 +124,10 @@ const SectionContainer = styled.div`
 `;
 
 const SectionTitle = styled.h2`
-  color: rgb(92, 157, 245);
+  color: #fff;
   margin: 0 0 20px;
   font-size: 1.8em;
-  text-align: left;
+  text-align: center;
   padding-bottom: 10px;
   border-bottom: 2px solid rgba(94, 44, 165, 0.4);
 `;
@@ -137,6 +142,7 @@ const ItemsGrid = styled.div`
 
 const ItemCard = styled.div`
   background-color: #1a1a1a;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   padding: 20px;
   border-radius: 15px;
   border: 2px solid #5e2ca5;
@@ -234,16 +240,18 @@ const AddIcon = styled.div`
 `;
 
 const Modal = styled.div`
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
+ position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
   background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
+  backdrop-filter: blur(3px);  display: flex;
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
+  box-sizing: border-box;
+  transform: translateY(${props => props.scrollY}px);
+  overflow: hidden;
 `;
 
 const ModalContent = styled.div`
@@ -251,8 +259,13 @@ const ModalContent = styled.div`
   padding: 30px;
   border-radius: 15px;
   border: 2px solid #5e2ca5;
-  width: 400px;
-  max-width: 90%;
+  max-width: 100%;
+  width: 800px;
+  animation: ${fadeIn} 0.3s ease;
+  position: relative;
+  overflow-y: auto;
+    overflow-x: hidden;
+  max-height: 90vh;
 `;
 
 const Input = styled.input`
@@ -396,12 +409,6 @@ const WinrateText = styled.div`
   margin-top: 4px;
 `;
 
-const TradesModal = styled(Modal)``;
-
-const TradesModalContent = styled(ModalContent)`
-  width: 400px;
-  max-width: 90%;
-`;
 
 const ModalItemCard = styled.div`
   background-color: #1a1a1a;
@@ -409,11 +416,6 @@ const ModalItemCard = styled.div`
   border-radius: 8px;
   border: 2px solid #5e2ca5;
   margin-bottom: 20px;
-`;
-
-const ModalItemStats = styled(ItemStats)`
-  margin-top: 15px;
-  padding-top: 15px;
 `;
 
 const TradesList = styled.div`
@@ -469,8 +471,24 @@ const TradeDate = styled.span`
 const TradeResult = styled.span`
   padding: 5px 10px;
   border-radius: 5px;
-  background-color: ${props => props.result === 'Win' ? 'rgba(76, 175, 80, 0.2)' : 'rgba(244, 67, 54, 0.2)'};
-  color: ${props => props.result === 'Win' ? '#4caf50' : '#f44336'};
+  background-color: ${props => {
+    switch(props.result) {
+      case 'Win': return 'rgba(76, 175, 80, 0.2)';
+      case 'Loss': return 'rgba(244, 67, 54, 0.2)';
+      case 'Breakeven': return 'rgba(255, 215, 0, 0.2)';
+      case 'Missed': return 'rgba(156, 39, 176, 0.2)';
+      default: return 'rgba(128, 128, 128, 0.2)';
+    }
+  }};
+  color: ${props => {
+    switch(props.result) {
+      case 'Win': return '#4caf50';
+      case 'Loss': return '#f44336';
+      case 'Breakeven': return '#ffd700';
+      case 'Missed': return '#9c27b0';
+      default: return '#808080';
+    }
+  }};
 `;
 
 const ModalTitle = styled.h2`
@@ -506,6 +524,8 @@ function Execution() {
   const [selectedItem, setSelectedItem] = useState(null);
   const [showTradesModal, setShowTradesModal] = useState(false);
   const [relatedTrades, setRelatedTrades] = useState([]);
+  const [scrollY, setScrollY] = useState(0);
+  const navigate = useNavigate();
 
   const sectionTitles = {
     pointA: 'Point A',
@@ -542,6 +562,25 @@ function Execution() {
     loadData();
   }, []);
 
+  // Добавляем эффект для управления overflow при открытии/закрытии модалей
+  useEffect(() => {
+    if (isModalOpen || showTradesModal) {
+      // Запоминаем текущую позицию прокрутки
+      const currentScroll = window.scrollY;
+      setScrollY(currentScroll);
+      // Блокируем прокрутку
+      document.body.style.overflow = 'hidden';
+    } else {
+      // Разблокируем прокрутку при закрытии
+      document.body.style.overflow = '';
+    }
+
+    return () => {
+      // Разблокируем прокрутку при размонтировании компонента
+      document.body.style.overflow = '';
+    };
+  }, [isModalOpen, showTradesModal]);
+
   const calculateStats = (itemName, section) => {
     const relevantTrades = trades.filter(trade => {
       switch(section) {
@@ -573,7 +612,10 @@ function Execution() {
     const lossTrades = relevantTrades.filter(trade => trade.result === 'Loss').length;
     const breakevenTrades = relevantTrades.filter(trade => trade.result === 'Breakeven').length;
     const missedTrades = relevantTrades.filter(trade => trade.result === 'Missed').length;
-    const winrate = totalTrades > 0 ? (winTrades / totalTrades) * 100 : 0;
+    
+    // Розраховуємо вінрейт лише на основі Win та Loss трейдів
+    const totalWinLossTrades = winTrades + lossTrades;
+    const winrate = totalWinLossTrades > 0 ? (winTrades / totalWinLossTrades) * 100 : 0;
 
     return {
       totalTrades,
@@ -644,6 +686,7 @@ function Execution() {
       setRelatedTrades(filteredTrades);
       setShowTradesModal(true);
 
+      
       // Новий підхід до скролу
       setTimeout(() => {
         const modalElement = document.querySelector('.modal-content');
@@ -684,7 +727,7 @@ function Execution() {
                   />
                   <ItemStats>
                     <StatsRow>
-                      <span>{stats.totalTrades} Trades</span>
+                      <span>{stats.totalTrades}Trades</span>
                       <StatDivider />
                       <StatNumber type="win">{stats.winTrades}</StatNumber>
                       <StatDivider />
@@ -695,7 +738,7 @@ function Execution() {
                       <StatNumber type="missed">{stats.missedTrades}</StatNumber>
                     </StatsRow>
                     <WinrateBar winrate={stats.winrate} />
-                    <WinrateText>{stats.winrate}% Win Rate</WinrateText>
+                    <WinrateText>{stats.winrate}% Winrate</WinrateText>
                   </ItemStats>
                 </ItemCard>
               );
@@ -724,17 +767,17 @@ function Execution() {
     return (
       <>
         <Content>
-          <div style={{ gridColumn: '1 / 2', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          <div style={{ gridColumn: '1 / 2', display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {leftSections}
           </div>
-          <div style={{ gridColumn: '2 / 3', display: 'flex', flexDirection: 'column', gap: '40px' }}>
+          <div style={{ gridColumn: '2 / 3', display: 'flex', flexDirection: 'column', gap: '15px' }}>
             {rightSections}
           </div>
         </Content>
 
         {showTradesModal && selectedItem && (
-          <Modal onClick={() => setShowTradesModal(false)}>
-            <ModalContent className="modal-content" onClick={e => e.stopPropagation()}>
+           <Modal onClick={() => setShowTradesModal(false)} scrollY={scrollY}>
+             <ModalContent onClick={e => e.stopPropagation()}>
               <h2 style={{ color: '#fff', margin: '0 0 20px', fontSize: '1.5em', textAlign: 'center' }}>
                 {sectionTitles[selectedItem.section]}
               </h2>
@@ -754,7 +797,7 @@ function Execution() {
                     <StatNumber type="missed">{selectedItem.stats.missedTrades}</StatNumber>
                   </StatsRow>
                   <WinrateBar winrate={selectedItem.stats.winrate} />
-                  <WinrateText>{selectedItem.stats.winrate}% Win Rate</WinrateText>
+                  <WinrateText>{selectedItem.stats.winrate}% Winrate</WinrateText>
                 </ItemStats>
               </ModalItemCard>
 
@@ -762,7 +805,10 @@ function Execution() {
               <TradesList>
                 {relatedTrades.length > 0 ? (
                   relatedTrades.map(trade => (
-                    <TradeItem key={trade.id} to={`/trade/${trade.id}`}>
+                    <TradeItem 
+                      key={trade.id} 
+                      to={`/trade/${trade.id}`}
+                    >
                       <TradeInfo>
                         <TradeNumber>#{trade.no}</TradeNumber>
                         <TradeDate>{new Date(trade.date).toLocaleDateString()}</TradeDate>
@@ -785,7 +831,6 @@ function Execution() {
     <ExecutionContainer>
       <Header>
         <BackButton to="/statistics">
-          <span>Back</span>
         </BackButton>
         <PageTitle>Execution Database</PageTitle>
         <Subtitle>Your execution metrics!</Subtitle>
@@ -815,4 +860,4 @@ function Execution() {
   );
 }
 
-export default Execution; 
+export default Execution;

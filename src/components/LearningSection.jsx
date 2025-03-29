@@ -15,7 +15,6 @@ const shineEffect = keyframes`
 
 const LearningSectionContainer = styled.div`
   max-width: 1820px;
-  margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -28,22 +27,23 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin-bottom: 20px;
 `;
 
 const BackButton = styled(Link)`
@@ -117,7 +117,6 @@ const TabsContainer = styled.div`
   align-items: center;
   width: 100%;
   max-width: 1200px;
-  padding: 0 20px;
 `;
 
 const TabButton = styled(Link)`

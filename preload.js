@@ -42,6 +42,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addExecutionItem: (section, name) => ipcRenderer.invoke('addExecutionItem', section, name),
   updateExecutionItem: (section, id, name) => ipcRenderer.invoke('updateExecutionItem', section, id, name),
   deleteExecutionItem: (section, id) => ipcRenderer.invoke('deleteExecutionItem', section, id),
+  getTradeRecommendations: () => ipcRenderer.invoke('getTradeRecommendations'),
+  
+  // API для роботи з архівом рекомендацій
+  getArchivedRecommendations: () => ipcRenderer.invoke('getArchivedRecommendations'),
+  archiveRecommendation: (recommendation) => ipcRenderer.invoke('archiveRecommendation', recommendation),
+  deleteArchivedRecommendation: (recommendationKey) => ipcRenderer.invoke('deleteArchivedRecommendation', recommendationKey),
+  
+  // API для роботи з патернами високого вінрейту
+  getHighWinratePatterns: () => ipcRenderer.invoke('getHighWinratePatterns'),
   
   // Performance analysis methods
   savePerformanceAnalysis: (analysis) => ipcRenderer.invoke('savePerformanceAnalysis', analysis),

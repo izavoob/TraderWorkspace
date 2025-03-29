@@ -11,9 +11,9 @@ const gradientAnimation = keyframes`
 const StrategyContainer = styled.div`
   max-width: 1820px;
   margin: 0 auto;
+  padding: 20px;
   height: 100vh;
   background-color: #1a1a1a;
-  padding: 0;
   overflow: hidden;
   display: flex;
   flex-direction: column;
@@ -29,22 +29,23 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 10px 10px 0 0;
+  border-radius: 8px;
   color: #fff;
-  position: fixed;
+  position: relative;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: auto;
+  height: 80px;
   min-height: 6.67vh;
-  max-height: 100px;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin-bottom: 20px;
 `;
 
 const BackButton = styled(Link)`
@@ -53,7 +54,7 @@ const BackButton = styled(Link)`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -99,12 +100,48 @@ const Subtitle = styled.h2`
   font-weight: normal;
 `;
 const Content = styled.div`
-  margin-top: 128px;
-  padding: 20px;
   color: white;
-  max-width: 800px;
   margin-left: auto;
   margin-right: auto;
+`;
+
+const NavButton = styled(Link)`
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: linear-gradient(45deg, #7425C9, #B886EE);
+  background-size: 200% 200%;
+  animation: ${gradientAnimation} 5s ease infinite;
+  color: white;
+  border: none;
+  border-radius: 15px;
+  padding: 20px 30px;
+  margin: 15px auto;
+  font-size: 1.2em;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+  width: 80%;
+  max-width: 400px;
+  
+  &:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 16px rgba(116, 37, 201, 0.4);
+  }
+  
+  &:active {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(116, 37, 201, 0.4);
+  }
+`;
+
+const ButtonContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  margin-top: 50px;
 `;
 
 function Strategy() {
@@ -116,7 +153,14 @@ function Strategy() {
         <Subtitle>Let's develop your strategy!</Subtitle>
       </Header>
       <Content>
-        {/* Тут буде контент для розділу стратегій */}
+        <ButtonContainer>
+          <NavButton to="/learning-section/strategy/recommendations">
+            Recommendations based on trade statistics
+          </NavButton>
+          <NavButton to="/learning-section/strategy/cultivation">
+            Cultivation of successful patterns
+          </NavButton>
+        </ButtonContainer>
       </Content>
     </StrategyContainer>
   );
