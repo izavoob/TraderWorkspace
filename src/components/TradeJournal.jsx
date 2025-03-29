@@ -738,7 +738,7 @@ const ConfirmationPopup = styled(Popup)`
 const TradeCalendarContainer = styled.div`
   display: flex;
   gap: 5px;
-  margin-top: 20px;
+  margin-top: 15px;
   margin-bottom: 15px;
   width: 100%;
 `;

@@ -71,21 +71,25 @@ const Input = styled.input`
 `;
 
 const TextArea = styled.textarea`
-  
-  height: auto;
-  min-height: 150px;
-  padding: 15px;
-  background: #3e3e3e;
+  width: 100%;
+  background-color: #3e3e3e;
+  color: #fff;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
-  color: #fff;
-  font-size: 1em;
-  resize: vertical;
+  min-height: 100px;
+  text-align: justify;
+  font-size: 16px;
+  padding: 5px;
+  font-family: 'Roboto', sans-serif;
+  letter-spacing: 0.3px;
+  line-height: 1.5;
+  resize: none;
   overflow: hidden;
-
+  
   &:focus {
     outline: none;
-    border-color: #b886ee;
+    border-color: #B886EE;
+    box-shadow: 0 0 0 2px rgba(184, 134, 238, 0.2);
   }
 `;
 

@@ -625,7 +625,8 @@ const FullscreenModal = styled.div`
   inset: 0;
   width: 100vw;
   height: 100vh;
-  background: rgba(0, 0, 0, 0.95);
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+  backdrop-filter: blur(5px);
   display: flex;
   align-items: center;
   justify-content: center;

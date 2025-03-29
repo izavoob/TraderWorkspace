@@ -80,7 +80,7 @@ const Sidebar = styled.div`
   padding: 20px;
   padding-top: 70px;
   box-shadow: 2px 0 5px rgba(0, 0, 0, 0.3);
-  z-index: 1000;
+  z-index: 1001;
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -96,7 +96,7 @@ const ToggleButton = styled.button`
   border: none;
   cursor: pointer;
   width: 36px;
-  height: ${props => (props.isCollapsed ? '116px' : '36px')};
+  height: ${props => (props.isCollapsed ? '110px' : '36px')};
   border-radius: 6px;
   display: flex;
   align-items: center;
@@ -137,7 +137,7 @@ const ToggleButton = styled.button`
 
 const MainContent = styled.div`
   padding: 20px;
-  background-color:rgb(46, 46, 46);
+  background-color:rgb(26, 26, 26);
   color: #fff;
   height: calc(100vh - 40px);
   gap: 10px;
@@ -151,19 +151,29 @@ const Header = styled.header`
   background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
-  padding: 20px;
-  border-radius: 10px;
+  padding: 20px 0;
+  border-radius: 8px;
   color: #fff;
-  
+  position: relative;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 1000;
+  height: 80px;
+  min-height: 6.67vh;
+  max-height: 128px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-  box-shadow: 0 4px 15px rgba(116, 37, 201, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
 `;
 
 const TopRightButtons = styled.div`
   position: fixed;
   flex-direction: column-reverse;
-  top: 40px;
+  top: 36px;
   right: 25px;
   display: flex;
   gap: 15px;
@@ -172,14 +182,14 @@ const TopRightButtons = styled.div`
 
 const Greeting = styled.h1`
   margin: 0;
-  font-size: 2em;
+  font-size: 2.5em;
   color: #fff;
 `;
 
 const WorkPhrase = styled.p`
   color: #ff8c00;
   margin-top: 10px;
-  font-size: 1em;
+  font-size: 1.2em;
 `;
 
 const MenuButton = styled(Link)`
@@ -374,7 +384,7 @@ const IconButton = styled.button`
   background: rgb(26, 26, 46);
   border: none;
   cursor: pointer;
-  width: 116px;
+  width: 110px;
   height: 36px;
   border-radius: 6px;
   display: flex;
@@ -473,52 +483,158 @@ const ContentWrapper = styled.div`
   overflow: hidden;
 `;
 
-const NavigationArrow = styled.div`
-  width: 40px;
-  height: 40px;
+// Добавляем стили для TradeCalendar из TradeJournal.jsx
+const TradeCalendarContainer = styled.div`
   display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  background: linear-gradient(45deg, #7425C9, #B886EE);
-  background-size: 200% 200%;
-  animation: ${gradientAnimation} 5s ease infinite;
-  border-radius: 6px;
-  box-shadow: 0 2px 8px rgba(116, 37, 201, 0.3);
-  transition: all 0.3s ease;
-  
-  img {
-    width: 24px;
-    height: 24px;
-    filter: brightness(0) invert(1);
-  }
-  
-  &:hover {
-    transform: scale(1.1);
-    box-shadow: 0 4px 15px rgba(116, 37, 201, 0.5);
-  }
-
-  &:active {
-    transform: scale(0.95);
-  }
+  gap: 5px;
+  width: 100%;
+  margin-top: 5px;
 `;
 
-const SlideIndicator = styled.div`
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: ${props => props.active ? 
-    'linear-gradient(45deg, #7425C9, #B886EE)' : 
-    'rgba(68, 68, 68, 0.5)'};
-  transition: all 0.3s ease;
-  box-shadow: ${props => props.active ? 
-    '0 0 10px rgba(116, 37, 201, 0.5)' : 
-    '0 2px 4px rgba(0, 0, 0, 0.2)'};
-  cursor: pointer;
+const CalendarDay = styled.div`
+  flex: 1;
+  background-color: #252525;
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+  height: 125px;
+  position: relative;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.3);
+  opacity: 0.6;
+  transition: opacity 0.3s ease;
+  box-sizing: border-box;
 
-  &:hover {
-    transform: scale(1.3);
-  }
+  ${props => props.hasData && `
+    opacity: 1;
+  `}
+
+  ${props => props.isToday && `
+    &::after {
+      content: '';
+      position: absolute;
+      inset: -2px;
+      border-radius: 10px;
+      background: linear-gradient(45deg, #7425c9, #b886ee);
+      -webkit-mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      mask: 
+        linear-gradient(#fff 0 0) content-box, 
+        linear-gradient(#fff 0 0);
+      -webkit-mask-composite: xor;
+      mask-composite: exclude;
+    }
+  `}
+
+  ${props => {
+    if (!props.hasData || !props.dayResults) return '';
+    
+    const { totalProfitLoss, results } = props.dayResults;
+    
+    if (totalProfitLoss > 0) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(0, 230, 118, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (totalProfitLoss < 0) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 82, 82, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (results && results.includes('Breakeven')) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(255, 147, 0, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    } else if (results && results.includes('Missed')) {
+      return `
+        &::before {
+          content: '';
+          position: absolute;
+          inset: 0;
+          background: linear-gradient(to bottom, rgba(147, 112, 219, 0.3), transparent);
+          border-radius: 8px;
+        }
+      `;
+    }
+    return '';
+  }}
+`;
+
+const CalendarDayHeader = styled.div`
+  font-size: 1.2em;
+  color: rgb(230, 243, 255);
+  font-weight: bold;
+  margin-bottom: 8px;
+`;
+
+const CalendarDayMetrics = styled.div`
+  font-size: 1em;
+  position: relative;
+  z-index: 1;
+  color: #e0e0e0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+`;
+
+const slideAnim = keyframes`
+  0% { opacity: 0; transform: translateX(-15px) scale(0.95); }
+  100% { opacity: 1; transform: translateX(0) scale(1); }
+`;
+
+const PairContainer = styled.div`
+  height: 20px;
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+`;
+
+const PairText = styled.span`
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  animation: ${slideAnim} 0.5s ease forwards;
+  white-space: nowrap;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  background: linear-gradient(45deg, #b886ee, #ffffff);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+`;
+
+const MetricsValue = styled.span`
+  ${props => {
+    const numericValue = props.type === 'profit' || props.type === 'loss' 
+      ? parseFloat(props.value) || 0 
+      : 0;
+
+    if (numericValue === 0) return 'color: #fff;';
+    
+    if (numericValue > 0) return 'color: #00e676;';
+    if (numericValue < 0) return 'color: #ff5252;';
+    
+    if (props.type === 'breakeven') return 'color: #ff9300;';
+    if (props.type === 'missed') return 'color: #9370db;';
+    return 'color: #fff;';
+  }}
+  font-weight: bold;
 `;
 
 function Home() {
@@ -545,6 +661,8 @@ function Home() {
     narrativeAccuracy: 0
   });
   const [isStatsAnimating, setIsStatsAnimating] = useState(false);
+  const [trades, setTrades] = useState([]); // Добавляем стейт для трейдов
+  const [activePairIndex, setActivePairIndex] = useState({}); // Для анимации пар
   const navigate = useNavigate();
   const executionChartRef = useRef(null);
 
@@ -558,9 +676,111 @@ function Home() {
     { title: 'Learning Section', path: '/learning-section', description: 'Learn new skills.' },
   ];
 
+  // Функция для загрузки трейдов
+  const loadTrades = async () => {
+    try {
+      const loadedTrades = await window.electronAPI.getTrades();
+      setTrades(loadedTrades || []);
+    } catch (error) {
+      console.error('Error loading trades:', error);
+      setTrades([]);
+    }
+  };
+
+  // Функции для календаря - вынесены ПЕРЕД эффектами, чтобы избежать ошибок ReferenceError
+  const getCurrentWeekDates = () => {
+    const curr = new Date();
+    const week = [];
+    
+    // Меняем логику, чтобы воскресенье принадлежало текущей неделе
+    curr.setDate(curr.getDate() - ((curr.getDay() + 6) % 7));
+    
+    for (let i = 0; i < 7; i++) {
+      week.push(new Date(curr));
+      curr.setDate(curr.getDate() + 1);
+    }
+    
+    return week;
+  };
+
+  const getTradesForDate = (date) => {
+    return trades.filter(trade => {
+      if (!trade.date) return false;
+      const tradeDate = new Date(trade.date);
+      return tradeDate.toDateString() === date.toDateString();
+    });
+  };
+
+  const calculateDayResult = (dayTrades) => {
+    if (!dayTrades || dayTrades.length === 0) {
+      return {
+        totalProfitLoss: 0,
+        totalGainedPoints: 0,
+        pairs: [],
+        results: [],
+        hasData: false
+      };
+    }
+
+    let totalProfitLoss = 0;
+    let totalGainedPoints = 0;
+    const results = [];
+    const pairs = [];
+
+    dayTrades.forEach(trade => {
+      const profitValue = trade.profitLoss ? 
+        parseFloat(trade.profitLoss.replace ? trade.profitLoss.replace(/[^-\d.]/g, '') : trade.profitLoss) || 0 : 0;
+      totalProfitLoss += profitValue;
+
+      const gainedValue = trade.gainedPoints ? 
+        parseFloat(trade.gainedPoints.replace ? trade.gainedPoints.replace(/[^-\d.]/g, '') : trade.gainedPoints) || 0 : 0;
+      totalGainedPoints += gainedValue;
+
+      results.push(trade.result);
+      if (trade.pair && !pairs.includes(trade.pair)) {
+        pairs.push(trade.pair);
+      }
+    });
+
+    return {
+      totalProfitLoss: parseFloat(totalProfitLoss.toFixed(2)),
+      totalGainedPoints: parseFloat(totalGainedPoints.toFixed(2)),
+      pairs,
+      results,
+      hasData: true
+    };
+  };
+
+  const formatDate = (date) => {
+    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    return `${days[date.getDay()]}, ${months[date.getMonth()]} ${date.getDate()}`;
+  };
+
   useEffect(() => {
     fetchTradeData();
+    loadTrades(); // Загружаем трейды при монтировании
   }, []);
+
+  // Эффект для анимации пар
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setActivePairIndex(prev => {
+        const newState = { ...prev };
+        getCurrentWeekDates().forEach((date, idx) => {
+          const dayTrades = getTradesForDate(date);
+          const dayResults = calculateDayResult(dayTrades);
+          if (dayResults.pairs && dayResults.pairs.length > 1) {
+            const currentIndex = prev[idx] !== undefined ? prev[idx] : 0;
+            newState[idx] = (currentIndex + 1) % dayResults.pairs.length;
+          }
+        });
+        return newState;
+      });
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [trades]);
 
   const getGreeting = () => {
     const hour = new Date().getHours();
@@ -643,7 +863,16 @@ function Home() {
     const longTrades = validTrades.filter(trade => trade.direction === 'Long');
     const shortTrades = validTrades.filter(trade => trade.direction === 'Short');
     const longWins = longTrades.filter(trade => trade.result === 'Win');
-    const shortWins = shortTrades.filter(trade => trade.result === 'Win');
+    const shortWins = shortTrades.filter(trade => trade.result === 'Short');
+    
+    // Трейди тільки з результатами Win та Loss
+    const winLossTrades = winningTrades.length + losingTrades.length;
+
+    // Метрики для Trades Distribution (% від загальної кількості трейдів)
+    const winDistribution = validTrades.length > 0 ? (winningTrades.length / validTrades.length) * 100 : 0;
+    const missedDistribution = validTrades.length > 0 ? (missedTrades.length / validTrades.length) * 100 : 0;
+    const breakevenDistribution = validTrades.length > 0 ? (breakevenTrades.length / validTrades.length) * 100 : 0;
+    const lossDistribution = validTrades.length > 0 ? (losingTrades.length / validTrades.length) * 100 : 0;
 
     // Рахуємо RR метрики
     const gainedRR = validTrades
@@ -752,7 +981,13 @@ function Home() {
 
     return {
       totalTrades: validTrades.length,
-      winningRatio: validTrades.length > 0 ? (winningTrades.length / validTrades.length) * 100 : 0,
+      winningRatio: winLossTrades > 0 ? (winningTrades.length / winLossTrades) * 100 : 0, // Winrate тільки Win/Loss
+      // Новые метрики для Trades Distribution
+      winDistribution: winDistribution,
+      missedDistribution: missedDistribution,
+      breakevenDistribution: breakevenDistribution,
+      lossDistribution: lossDistribution,
+      // Старые метрики для обратной совместимости
       missedRatio: validTrades.length > 0 ? (missedTrades.length / validTrades.length) * 100 : 0,
       breakevenRatio: validTrades.length > 0 ? (breakevenTrades.length / validTrades.length) * 100 : 0,
       losingRatio: validTrades.length > 0 ? (losingTrades.length / validTrades.length) * 100 : 0,
@@ -834,10 +1069,10 @@ function Home() {
     labels: ['Win', 'Missed', 'Breakeven', 'Loss'],
     datasets: [{
       data: [
-        tradeStats.winningRatio,
-        tradeStats.missedRatio || 0,
-        tradeStats.breakevenRatio || 0,
-        tradeStats.losingRatio || 0
+        tradeStats.winDistribution || 0,
+        tradeStats.missedDistribution || 0,
+        tradeStats.breakevenDistribution || 0,
+        tradeStats.lossDistribution || 0
       ],
       backgroundColor: [
         'rgba(0, 209, 178, 0.8)',  // Win - зелений (00D1B2)
@@ -861,7 +1096,7 @@ function Home() {
       ...chartOptions.plugins,
       title: {
         display: true,
-        text: 'Overall Winrate',
+        text: 'Trades distribution',
         color: 'white',
         font: { size: 14 }
       },
@@ -1116,6 +1351,55 @@ function Home() {
           </IconButton>
         </TopRightButtons>
         
+        <TradeCalendarContainer>
+          {getCurrentWeekDates().map((date, index) => {
+            const dayTrades = getTradesForDate(date);
+            const dayResults = calculateDayResult(dayTrades);
+            const isToday = date.toDateString() === new Date().toDateString();
+            
+            const currentPairIndex = activePairIndex[index] || 0;
+            const currentPair = dayResults.pairs[currentPairIndex];
+
+            return (
+              <CalendarDay 
+                key={index}
+                hasData={dayResults.hasData}
+                isToday={isToday}
+                dayResults={dayResults}
+              >
+                <CalendarDayHeader>{formatDate(date)}</CalendarDayHeader>
+                {dayResults.hasData && (
+                  <CalendarDayMetrics>
+                    <PairContainer>
+                      {currentPair && (
+                        <PairText key={`${index}-${currentPairIndex}`}>
+                          {currentPair}
+                        </PairText>
+                      )}
+                    </PairContainer>
+                    <MetricsValue 
+                      type={dayResults.totalProfitLoss > 0 ? 'profit' : 'loss'}
+                      value={dayResults.totalProfitLoss}
+                    >
+                      {dayResults.totalProfitLoss === 0 ? '0%' :
+                       dayResults.totalProfitLoss > 0 ? `+${dayResults.totalProfitLoss}%` :
+                       `${dayResults.totalProfitLoss}%`}
+                    </MetricsValue>
+                    <MetricsValue 
+                      type={dayResults.totalGainedPoints > 0 ? 'profit' : 'loss'}
+                      value={dayResults.totalGainedPoints}
+                    >
+                      {dayResults.totalGainedPoints === 0 ? '$0.00' :
+                       dayResults.totalGainedPoints > 0 ? `+$${dayResults.totalGainedPoints.toFixed(2)}` :
+                       `$${dayResults.totalGainedPoints.toFixed(2)}`}
+                    </MetricsValue>
+                  </CalendarDayMetrics>
+                )}
+              </CalendarDay>
+            );
+          })}
+        </TradeCalendarContainer>
+        
         <ContentWrapper>
           <StatsContent>
             <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/trade-journal')}>
@@ -1131,15 +1415,17 @@ function Home() {
             <StatCard isAnimating={isStatsAnimating}>
               <StatLabel>Average RR</StatLabel>
               <StatValue>{tradeStats.averageRR.toFixed(2)}R</StatValue>
-            </StatCard>
-
-            <StatCard isAnimating={isStatsAnimating}>
               <StatLabel>Gained & Potential RR</StatLabel>
               <GainedRRContainer>
                 <RRValue type="gained">{tradeStats.gainedRR.toFixed(2)}R</RRValue>
                 <RRSeparator>—</RRSeparator>
                 <RRValue type="potential">{tradeStats.potentialRR.toFixed(2)}R</RRValue>
               </GainedRRContainer>
+            </StatCard>
+
+            <StatCard isAnimating={isStatsAnimating}>
+              <StatLabel>Winrate</StatLabel>
+              <StatValue>{tradeStats.winningRatio.toFixed(2)}%</StatValue>
             </StatCard>
 
             <StatCard isAnimating={isStatsAnimating} onClick={() => navigateTo('/risk-management')}>

@@ -139,7 +139,7 @@ const LoadingScreen = () => {
     // Створюємо часову лінію для анімації
     const timeline = gsap.timeline({
       onComplete: () => {
-        console.log("Анімація завершена");
+       
       }
     });
     
@@ -182,7 +182,6 @@ const LoadingScreen = () => {
     
     // Додаємо логування для відстеження прогресу анімації
     timeline.eventCallback("onUpdate", () => {
-      console.log("Прогрес анімації:", timeline.progress());
     });
     
     return () => {
