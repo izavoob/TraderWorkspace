@@ -36,6 +36,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteAccount: (id) => ipcRenderer.invoke('deleteAccount', id),
   getAccountById: (id) => ipcRenderer.invoke('getAccountById', id),
   updateAccountBalance: (accountId, profitPercent) => ipcRenderer.invoke('updateAccountBalance', accountId, profitPercent),
+  updateAccountWithTrade: (accountId, trade) => ipcRenderer.invoke('updateAccountWithTrade', accountId, trade),
   
   // Execution database methods
   getAllExecutionItems: (section) => ipcRenderer.invoke('getAllExecutionItems', section),

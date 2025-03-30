@@ -237,6 +237,11 @@ const AccountBalance = styled.div`
   gap: 5px;
 `;
 
+const ProfitValue = styled.span`
+  color: ${props => props.value >= 0 ? '#4caf50' : '#f44336'};
+  font-weight: bold;
+`;
+
 const BalanceLabel = styled.span`
   color: #ccc;
   font-size: 0.8em;
@@ -350,6 +355,8 @@ function RiskManagement() {
 
   const handleSaveAccount = async (accountData) => {
     try {
+      accountData.balance = parseFloat(accountData.currentEquity) - parseFloat(accountData.startingEquity);
+      
       if (accountData.id) {
         await AccountService.updateAccount(accountData);
       } else {
@@ -381,6 +388,11 @@ function RiskManagement() {
     }).format(value);
   };
 
+  const calculateProfit = (currentEquity, startingEquity) => {
+    const profit = ((currentEquity - startingEquity) / startingEquity) * 100;
+    return profit.toFixed(2) + '%';
+  };
+
   return (
     <RiskManagementContainer>
       <Header>
@@ -392,29 +404,38 @@ function RiskManagement() {
         <AccountsContainer>
           <SectionTitle>Trading Accounts</SectionTitle>
           <AccountsGrid>
-            {accounts.map(account => (
-              <AccountCard key={account.id} onClick={() => handleEditAccount(account)}>
-                <DeleteButton onClick={(e) => handleDeleteAccount(e, account.id)} />
-                <AccountHeader>
-                  <AccountName>{account.name}</AccountName>
-                  <StatusBadge status={account.status}>{account.status}</StatusBadge>
-                </AccountHeader>
-                <AccountBalance value={parseFloat(account.balance)}>
-                  <BalanceLabel>Balance:</BalanceLabel>
-                  {formatCurrency(account.balance)}
-                </AccountBalance>
-                <AccountInfo>
-                  <InfoRow>
-                    <span>Starting Equity:</span>
-                    <span>{formatCurrency(account.startingEquity)}</span>
-                  </InfoRow>
-                  <InfoRow>
-                    <span>Current Equity:</span>
-                    <span>{formatCurrency(account.currentEquity)}</span>
-                  </InfoRow>
-                </AccountInfo>
-              </AccountCard>
-            ))}
+            {accounts.map(account => {
+              const balance = parseFloat(account.currentEquity) - parseFloat(account.startingEquity);
+              const profitPercent = ((account.currentEquity - account.startingEquity) / account.startingEquity) * 100;
+              
+              return (
+                <AccountCard key={account.id} onClick={() => handleEditAccount(account)}>
+                  <DeleteButton onClick={(e) => handleDeleteAccount(e, account.id)} />
+                  <AccountHeader>
+                    <AccountName>{account.name}</AccountName>
+                    <StatusBadge status={account.status}>{account.status}</StatusBadge>
+                  </AccountHeader>
+                  <AccountBalance value={balance}>
+                    <BalanceLabel>Balance:</BalanceLabel>
+                    {formatCurrency(balance)}
+                  </AccountBalance>
+                  <AccountInfo>
+                    <InfoRow>
+                      <span>Starting Equity:</span>
+                      <span>{formatCurrency(account.startingEquity)}</span>
+                    </InfoRow>
+                    <InfoRow>
+                      <span>Current Equity:</span>
+                      <span>{formatCurrency(account.currentEquity)}</span>
+                    </InfoRow>
+                    <InfoRow>
+                      <span>Profit:</span>
+                      <ProfitValue value={profitPercent}>{profitPercent.toFixed(2)}%</ProfitValue>
+                    </InfoRow>
+                  </AccountInfo>
+                </AccountCard>
+              );
+            })}
             <AddAccountCard onClick={handleAddAccount}>
               <AddIcon>+</AddIcon>
               <AddText>Add Account</AddText>

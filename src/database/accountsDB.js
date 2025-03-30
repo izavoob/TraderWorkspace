@@ -19,6 +19,7 @@ class AccountsDB {
         currentEquity REAL NOT NULL,
         balance REAL NOT NULL,
         status TEXT NOT NULL,
+        relatedTradeId INTEGER,
         createdAt DATETIME DEFAULT CURRENT_TIMESTAMP,
         updatedAt DATETIME DEFAULT CURRENT_TIMESTAMP
       )
@@ -56,8 +57,8 @@ class AccountsDB {
   addAccount(account) {
     return new Promise((resolve, reject) => {
       const query = `
-        INSERT INTO accounts (name, startingEquity, currentEquity, balance, status)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO accounts (name, startingEquity, currentEquity, balance, status, relatedTradeId)
+        VALUES (?, ?, ?, ?, ?, ?)
       `;
 
       this.db.run(
@@ -67,7 +68,8 @@ class AccountsDB {
           account.startingEquity,
           account.currentEquity,
           account.balance,
-          account.status
+          account.status,
+          account.relatedTradeId || null
         ],
         function(err) {
           if (err) {
@@ -89,6 +91,7 @@ class AccountsDB {
             currentEquity = ?,
             balance = ?,
             status = ?,
+            relatedTradeId = ?,
             updatedAt = CURRENT_TIMESTAMP
         WHERE id = ?
       `;
@@ -101,6 +104,7 @@ class AccountsDB {
           account.currentEquity,
           account.balance,
           account.status,
+          account.relatedTradeId || null,
           account.id
         ],
         (err) => {

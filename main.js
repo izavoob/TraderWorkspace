@@ -319,6 +319,62 @@ async function checkExecutionDBContent() {
   }
 }
 
+// Функція для оновлення акаунту на основі даних трейду
+async function updateAccountWithTrade(trade, isDelete = false) {
+  try {
+    if (!trade.account) {
+      console.log('No account associated with trade, skipping account update');
+      return;
+    }
+
+    const accountId = parseInt(trade.account, 10);
+    if (isNaN(accountId)) {
+      console.log('Invalid account ID, skipping account update');
+      return;
+    }
+
+    // Отримуємо акаунт
+    const account = await accountsDB.getAccountById(accountId);
+    if (!account) {
+      console.log(`Account with ID ${accountId} not found, skipping update`);
+      return;
+    }
+
+    // Перевіряємо, чи трейд має результат Win або Loss
+    // (Breakeven та Missed не враховуються)
+    if (trade.result !== 'Win' && trade.result !== 'Loss') {
+      console.log('Trade result is not Win or Loss, skipping equity update');
+      return;
+    }
+
+    // Отримуємо gainedPoints з трейду
+    const gainedPoints = parseFloat(trade.gainedPoints || 0);
+    
+    // Якщо це видалення, то змінюємо знак gainedPoints
+    const pointsToApply = isDelete ? -gainedPoints : gainedPoints;
+    
+    // Оновлюємо currentEquity
+    const newCurrentEquity = parseFloat(account.currentEquity) + pointsToApply;
+    
+    // Оновлюємо баланс як різницю між currentEquity та startingEquity
+    const newBalance = newCurrentEquity - parseFloat(account.startingEquity);
+    
+    // Оновлюємо акаунт з новими значеннями
+    const updatedAccount = {
+      ...account,
+      currentEquity: newCurrentEquity,
+      balance: newBalance,
+      relatedTradeId: isDelete ? null : trade.id
+    };
+
+    await accountsDB.updateAccount(updatedAccount);
+    console.log(`Account ${accountId} updated with trade ${trade.id}, new equity: ${newCurrentEquity}`);
+    return updatedAccount;
+  } catch (error) {
+    console.error('Error updating account with trade:', error);
+  }
+}
+
 // Додаємо перевірку перед збереженням трейду
 ipcMain.handle('save-trade', async (event, trade) => {
   await ensureDatabaseInitialized();
@@ -326,10 +382,13 @@ ipcMain.handle('save-trade', async (event, trade) => {
   console.log('Saving trade with data:', JSON.stringify({
     id: trade.id,
     no: trade.no,
+    account: trade.account,
     pointA: trade.pointA,
     trigger: trade.trigger,
     result: trade.result
   }, null, 2));
+  
+  console.log('Перевірка ID акаунту перед збереженням:', trade.account, typeof trade.account);
   
   // Перевіряємо вміст бази даних execution перед збереженням
   await checkExecutionDBContent();
@@ -365,8 +424,8 @@ ipcMain.handle('save-trade', async (event, trade) => {
         id, no, date, pair, direction, session, positionType, risk, result,
         pointA, trigger, volumeConfirmation, entryModel, entryTF, fta, slPosition,
         topDownAnalysis, execution, management, conclusion, presession_id,
-        rr, profitLoss, gainedPoints, followingPlan, bestTrade, score, parentTradeId
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+        rr, profitLoss, gainedPoints, followingPlan, bestTrade, score, account, parentTradeId
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         trade.id,
         trade.no,
@@ -395,6 +454,7 @@ ipcMain.handle('save-trade', async (event, trade) => {
         trade.followingPlan,
         trade.bestTrade,
         trade.score,
+        trade.account,
         trade.parentTradeId
       ],
       async function(err) {
@@ -437,6 +497,12 @@ ipcMain.handle('save-trade', async (event, trade) => {
             // оскільки трейд був збережений в основній базі даних
           }
           
+          // Оновлюємо акаунт на основі трейду
+          if (trade.account && trade.result) {
+            const savedTrade = { ...trade, id: this.lastID };
+            await updateAccountWithTrade(savedTrade);
+          }
+          
           resolve({
             id: trade.id,
             no: trade.no
@@ -453,10 +519,13 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
   console.log(`Updating trade with ID: ${tradeId}, updated data:`, JSON.stringify({
     id: updatedTrade.id,
     no: updatedTrade.no,
+    account: updatedTrade.account,
     pointA: updatedTrade.pointA,
     trigger: updatedTrade.trigger,
     result: updatedTrade.result
   }, null, 2));
+  
+  console.log('Перевірка ID акаунту перед оновленням:', updatedTrade.account, typeof updatedTrade.account);
   
   // Спочатку отримуємо поточні дані трейду для порівняння
   const currentTrade = await new Promise((resolve, reject) => {
@@ -529,7 +598,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         entryModel = ?, entryTF = ?, fta = ?, slPosition = ?, 
         topDownAnalysis = ?, execution = ?, management = ?, conclusion = ?, 
         presession_id = ?, rr = ?, profitLoss = ?, gainedPoints = ?, 
-        followingPlan = ?, bestTrade = ?, score = ?, updated_at = CURRENT_TIMESTAMP
+        followingPlan = ?, bestTrade = ?, score = ?, account = ?, updated_at = CURRENT_TIMESTAMP
       WHERE id = ?`,
       [
         updatedTrade.no,
@@ -558,6 +627,7 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
         updatedTrade.followingPlan,
         updatedTrade.bestTrade,
         updatedTrade.score,
+        updatedTrade.account,
         tradeId
       ],
       async function(err) {
@@ -658,6 +728,12 @@ ipcMain.handle('update-trade', async (event, tradeId, updatedTrade) => {
             console.log('Execution DB update completed for updated trade');
           } catch (error) {
             console.error('Error updating execution data:', error);
+          }
+          
+          // Оновлюємо акаунт на основі трейду
+          if (updatedTrade.account && updatedTrade.result) {
+            const savedTrade = { ...updatedTrade, id: tradeId };
+            await updateAccountWithTrade(savedTrade);
           }
           
           resolve({
@@ -823,6 +899,11 @@ ipcMain.handle('delete-trade', async (event, tradeId) => {
         }
       });
     });
+    
+    // Оновлюємо акаунт, скасувавши зміни від трейду
+    if (tradeToDelete.account && (tradeToDelete.result === 'Win' || tradeToDelete.result === 'Loss')) {
+      await updateAccountWithTrade(tradeToDelete, true);
+    }
     
     // Повертаємо успішний результат
     return { success: true, message: `Trade with ID ${tradeId} successfully deleted` };
@@ -2868,7 +2949,7 @@ async function archiveRecommendation(recommendation) {
           executionDB.db.run(
             `INSERT INTO recommendation_archive 
             (recommendation_key, title, description, winrate, total_trades, win_trades, loss_trades, breakeven_trades, missed_trades, related_trades, details, archived_at) 
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
             [
               recommendationKey,
               title,
@@ -3094,3 +3175,19 @@ function generateHighWinrateDescription(winrate, totalTrades, winTrades) {
     return `Ця комбінація параметрів має надійний вінрейт ${winrate}%. З ${totalTrades} трейдів, ${winTrades} були прибутковими. Рекомендуємо продовжувати використовувати цю стратегію та шукати можливості для її оптимізації.`;
   }
 }
+
+// Додаємо новий метод IPC для оновлення акаунту на основі трейду
+ipcMain.handle('updateAccountWithTrade', async (event, accountId, trade) => {
+  try {
+    // Отримуємо акаунт
+    const account = await accountsDB.getAccountById(accountId);
+    if (!account) {
+      throw new Error(`Account with ID ${accountId} not found`);
+    }
+
+    return await updateAccountWithTrade({...trade, account: accountId});
+  } catch (error) {
+    console.error('Error updating account with trade:', error);
+    throw error;
+  }
+});

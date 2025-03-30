@@ -4,10 +4,20 @@ class AccountService {
   }
 
   static async addAccount(account) {
+    // Переконаємося, що баланс розраховується правильно
+    const startingEquity = parseFloat(account.startingEquity);
+    const currentEquity = parseFloat(account.currentEquity);
+    account.balance = currentEquity - startingEquity;
+    
     return await window.electronAPI.addAccount(account);
   }
 
   static async updateAccount(account) {
+    // Переконаємося, що баланс розраховується правильно
+    const startingEquity = parseFloat(account.startingEquity);
+    const currentEquity = parseFloat(account.currentEquity);
+    account.balance = currentEquity - startingEquity;
+    
     return await window.electronAPI.updateAccount(account);
   }
 
@@ -15,36 +25,31 @@ class AccountService {
     return await window.electronAPI.deleteAccount(id);
   }
 
-  static async updateAccountBalance(accountId, profitPercent) {
+  static async getAccountById(id) {
+    return await window.electronAPI.getAccountById(id);
+  }
+
+  static async updateAccountWithTrade(accountId, trade) {
     try {
-      // Отримуємо поточний акаунт
-      const account = await window.electronAPI.getAccountById(accountId);
-      
-      if (!account) {
-        throw new Error('Account not found');
+      // Перевіряємо, чи трейд має результат Win або Loss
+      // (Breakeven та Missed не враховуються)
+      if (trade.result !== 'Win' && trade.result !== 'Loss') {
+        console.log('Trade result is not Win or Loss, skipping equity update');
+        return null;
       }
 
-      // Розраховуємо прибуток/збиток в доларах від початкового currentEquity
-      const profitAmount = (account.currentEquity * profitPercent) / 100;
-      
-      // Оновлюємо баланс
-      const newBalance = account.balance + profitAmount;
-      
-      // Оновлюємо акаунт з новим балансом, але залишаємо currentEquity незмінним
-      const updatedAccount = {
-        ...account,
-        balance: newBalance
-      };
-
-      return await window.electronAPI.updateAccount(updatedAccount);
+      // Використовуємо нову функцію з API для оновлення акаунту
+      return await window.electronAPI.updateAccountWithTrade(accountId, trade);
     } catch (error) {
-      console.error('Error updating account balance:', error);
+      console.error('Error updating account with trade:', error);
       throw error;
     }
   }
 
-  static calculateProfitAmount(currentEquity, profitPercent) {
-    return (currentEquity * profitPercent) / 100;
+  static calculateProfit(currentEquity, startingEquity) {
+    const startingEquityValue = parseFloat(startingEquity);
+    const currentEquityValue = parseFloat(currentEquity);
+    return ((currentEquityValue - startingEquityValue) / startingEquityValue) * 100;
   }
 }
 
