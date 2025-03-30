@@ -1322,6 +1322,11 @@ function TradeDetail() {
         // Конвертуємо score в число
         preparedTrade.score = parseFloat(trade.score) || 0;
         
+        // Переконуємося, що ID акаунту збережено як рядок
+        if (preparedTrade.account) {
+          preparedTrade.account = preparedTrade.account.toString();
+        }
+        
         return preparedTrade;
       };
       
@@ -1330,6 +1335,7 @@ function TradeDetail() {
       
       // Логуємо важливі поля для перевірки
       console.log('Важливі поля для оновлення:', {
+        account: preparedTrade.account,
         rr: preparedTrade.rr,
         profitLoss: preparedTrade.profitLoss,
         gainedPoints: preparedTrade.gainedPoints,
@@ -1337,6 +1343,8 @@ function TradeDetail() {
         bestTrade: preparedTrade.bestTrade,
         score: preparedTrade.score
       });
+      
+      console.log('ID акаунту перед збереженням змін:', preparedTrade.account, typeof preparedTrade.account);
       
       // Спочатку отримуємо актуальні нотатки з бази даних для порівняння
       console.log('Отримання поточних нотаток для трейду ID:', trade.id);
@@ -1364,6 +1372,12 @@ function TradeDetail() {
       console.log('Оновлення даних трейду:', preparedTrade);
       await window.electronAPI.updateTrade(trade.id, preparedTrade);
       console.log('Трейд успішно оновлено');
+      
+      // Оновлюємо баланс акаунту, якщо трейд має акаунт та результат
+      if (preparedTrade.account && preparedTrade.result) {
+        console.log('Оновлення балансу акаунту на основі трейду');
+        await window.electronAPI.updateAccountWithTrade(preparedTrade.account, preparedTrade);
+      }
       
       // Оновлюємо нотатки із збереженням їх ID
       console.log('Оновлення нотаток для трейду, filtered notes:', notesToUpdate);
@@ -1992,7 +2006,7 @@ function TradeDetail() {
                         <option value="">Select Account</option>
                         {accounts.map(account => (
                           <option key={account.id} value={account.id}>
-                            {account.name} ({formatCurrency(account.balance)})
+                            {account.name} ({formatCurrency(account.currentEquity)})
                           </option>
                         ))}
                       </FormSelect>

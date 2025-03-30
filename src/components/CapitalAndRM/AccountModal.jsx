@@ -107,6 +107,12 @@ const BalanceInfo = styled.div`
   padding: 15px;
   margin-top: 10px;
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+`;
+
+const BalanceRow = styled.div`
+  display: flex;
   justify-content: space-between;
   align-items: center;
 `;
@@ -128,10 +134,22 @@ const RelatedTradesSection = styled.div`
   padding-top: 20px;
 `;
 
+const TradesListTitle = styled.h3`
+  color: #fff;
+  margin: 20px 0 10px;
+  font-size: 1.2em;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 10px;
+`;
+
 const TradesList = styled.div`
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 20px;
   max-height: 200px;
   overflow-y: auto;
-  margin-top: 10px;
   
   &::-webkit-scrollbar {
     width: 8px;
@@ -148,42 +166,67 @@ const TradesList = styled.div`
 `;
 
 const TradeItem = styled.div`
+  background-color: #1a1a1a;
+  padding: 15px;
+  border-radius: 10px;
+  border: 1px solid #5e2ca5;
+  color: white;
+  text-decoration: none;
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px;
-  background: #3e3e3e;
-  border-radius: 5px;
-  margin-bottom: 8px;
+  transition: all 0.3s ease;
   cursor: pointer;
-  transition: all 0.2s ease;
 
   &:hover {
-    background: #4e4e4e;
     transform: translateX(5px);
+    background-color: #2a2a2a;
+    border-color: #7425c9;
   }
 `;
 
 const TradeInfo = styled.div`
   display: flex;
-  gap: 15px;
+  gap: 20px;
   align-items: center;
 `;
 
-const TradeDate = styled.span`
+const TradeNumber = styled.span`
+  font-weight: bold;
   color: #b886ee;
-  font-size: 0.9em;
+`;
+
+const TradeDate = styled.span`
+  color: #888;
 `;
 
 const TradeResult = styled.span`
-  color: ${props => props.result === 'Win' ? '#4caf50' : '#f44336'};
-  font-weight: bold;
+  padding: 5px 10px;
+  border-radius: 5px;
+  background-color: ${props => {
+    switch(props.result) {
+      case 'Win': return 'rgba(76, 175, 80, 0.2)';
+      case 'Loss': return 'rgba(244, 67, 54, 0.2)';
+      case 'Breakeven': return 'rgba(255, 215, 0, 0.2)';
+      case 'Missed': return 'rgba(156, 39, 176, 0.2)';
+      default: return 'rgba(128, 128, 128, 0.2)';
+    }
+  }};
+  color: ${props => {
+    switch(props.result) {
+      case 'Win': return '#4caf50';
+      case 'Loss': return '#f44336';
+      case 'Breakeven': return '#ffd700';
+      case 'Missed': return '#9c27b0';
+      default: return '#808080';
+    }
+  }};
 `;
 
 const NoTradesMessage = styled.div`
   color: #888;
   text-align: center;
-  padding: 15px;
+  margin: 20px 0;
 `;
 
 const AccountModal = ({ isOpen, onClose, onSave, account }) => {
@@ -195,6 +238,7 @@ const AccountModal = ({ isOpen, onClose, onSave, account }) => {
     status: 'Demo'
   });
   const [balance, setBalance] = useState(0);
+  const [profit, setProfit] = useState(0);
   const [relatedTrades, setRelatedTrades] = useState([]);
 
   useEffect(() => {
@@ -205,7 +249,10 @@ const AccountModal = ({ isOpen, onClose, onSave, account }) => {
         currentEquity: account.currentEquity || '',
         status: account.status || 'Demo'
       });
-      setBalance(account.balance || 0);
+      const calculatedBalance = parseFloat(account.currentEquity) - parseFloat(account.startingEquity);
+      setBalance(calculatedBalance);
+      const calculatedProfit = account.startingEquity ? ((account.currentEquity - account.startingEquity) / account.startingEquity) * 100 : 0;
+      setProfit(calculatedProfit);
       loadRelatedTrades(account.id);
     } else {
       setFormData({
@@ -215,6 +262,7 @@ const AccountModal = ({ isOpen, onClose, onSave, account }) => {
         status: 'Demo'
       });
       setBalance(0);
+      setProfit(0);
       setRelatedTrades([]);
     }
   }, [account]);
@@ -237,8 +285,15 @@ const AccountModal = ({ isOpen, onClose, onSave, account }) => {
         [name]: value
       };
       
-      if (name === 'currentEquity' && !account) {
-        setBalance(parseFloat(value) || 0);
+      if (name === 'startingEquity' || name === 'currentEquity') {
+        const startingEquity = name === 'startingEquity' ? parseFloat(value) || 0 : parseFloat(prev.startingEquity) || 0;
+        const currentEquity = name === 'currentEquity' ? parseFloat(value) || 0 : parseFloat(prev.currentEquity) || 0;
+        
+        const newBalance = currentEquity - startingEquity;
+        setBalance(newBalance);
+        
+        const newProfit = startingEquity ? ((currentEquity - startingEquity) / startingEquity) * 100 : 0;
+        setProfit(newProfit);
       }
       
       return newData;
@@ -258,14 +313,15 @@ const AccountModal = ({ isOpen, onClose, onSave, account }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault();
+    const startingEquityValue = parseFloat(formData.startingEquity);
     const currentEquityValue = parseFloat(formData.currentEquity);
     
-    const balanceValue = account ? balance : currentEquityValue;
+    const balanceValue = currentEquityValue - startingEquityValue;
 
     onSave({
       ...account,
       ...formData,
-      startingEquity: parseFloat(formData.startingEquity),
+      startingEquity: startingEquityValue,
       currentEquity: currentEquityValue,
       balance: balanceValue
     });
@@ -328,23 +384,28 @@ const AccountModal = ({ isOpen, onClose, onSave, account }) => {
             </Select>
           </FormGroup>
           <BalanceInfo>
-            <BalanceLabel>Balance:</BalanceLabel>
-            <BalanceValue value={balance}>{formatCurrency(balance)}</BalanceValue>
+            <BalanceRow>
+              <BalanceLabel>Balance:</BalanceLabel>
+              <BalanceValue value={balance}>{formatCurrency(balance)}</BalanceValue>
+            </BalanceRow>
+            <BalanceRow>
+              <BalanceLabel>Profit:</BalanceLabel>
+              <BalanceValue value={profit}>{profit.toFixed(2)}%</BalanceValue>
+            </BalanceRow>
           </BalanceInfo>
 
           {account && (
             <RelatedTradesSection>
-              <Label>Пов'язані трейди:</Label>
+              <TradesListTitle>Пов'язані трейди:</TradesListTitle>
               <TradesList>
                 {relatedTrades.length > 0 ? (
                   relatedTrades.map(trade => (
                     <TradeItem key={trade.id} onClick={() => handleTradeClick(trade.id)}>
                       <TradeInfo>
+                        <TradeNumber>#{trade.no || 'N/A'}</TradeNumber>
                         <TradeDate>{new Date(trade.date).toLocaleDateString()}</TradeDate>
                       </TradeInfo>
-                      <TradeResult result={trade.result}>
-                        {trade.gainedPoints}
-                      </TradeResult>
+                      <TradeResult result={trade.result}>{trade.result}</TradeResult>
                     </TradeItem>
                   ))
                 ) : (

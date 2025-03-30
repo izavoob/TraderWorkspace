@@ -1474,6 +1474,11 @@ function CreateTrade() {
         // Конвертуємо score в число
         preparedTrade.score = parseFloat(trade.score) || 0;
         
+        // Переконуємося, що ID акаунту збережено як число
+        if (preparedTrade.account) {
+          preparedTrade.account = preparedTrade.account.toString();
+        }
+        
         return preparedTrade;
       };
       
@@ -1486,6 +1491,7 @@ function CreateTrade() {
       
       // Логуємо важливі поля для перевірки
       console.log('Важливі поля для збереження:', {
+        account: tradeData.account,
         rr: tradeData.rr,
         profitLoss: tradeData.profitLoss,
         gainedPoints: tradeData.gainedPoints,
@@ -1495,6 +1501,7 @@ function CreateTrade() {
       });
 
       console.log('Зберігаємо трейд з даними:', tradeData);
+      console.log('ID акаунту перед збереженням:', tradeData.account, typeof tradeData.account);
       
       // Зберігаємо трейд
       await window.electronAPI.saveTrade(tradeData);
@@ -1567,8 +1574,9 @@ function CreateTrade() {
       }
 
       // Оновлюємо баланс акаунту
-      if (trade.account && trade.result && trade.profitLoss) {
-        await window.electronAPI.updateAccountBalance(trade.account, parseFloat(trade.profitLoss));
+      if (trade.account && trade.result) {
+        // Використовуємо новий метод для оновлення акаунту на основі трейду
+        await window.electronAPI.updateAccountWithTrade(trade.account, trade);
       }
 
       // Якщо є presessionId, повертаємося на сторінку пресесії
@@ -1644,7 +1652,7 @@ function CreateTrade() {
                   <option value="">Select Account</option>
                   {accounts.map(account => (
                     <option key={account.id} value={account.id}>
-                      {`${account.name} (${formatCurrency(account.balance)})`}
+                      {`${account.name} (${formatCurrency(account.currentEquity)})`}
                     </option>
                   ))}
                 </FormSelect>
