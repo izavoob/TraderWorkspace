@@ -1575,3 +1575,76 @@ ipcMain.handle('getSTERAssessmentsByPostSessionId', async (event, postSessionId)
       });
   });
 });
+
+// IPC обработчики для причин демонов
+ipcMain.handle('getAllCauses', async () => {
+  try {
+    return await demonsDB.getAllCauses();
+  } catch (error) {
+    console.error('Error in getAllCauses handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getCauseById', async (event, id) => {
+  try {
+    return await demonsDB.getCauseById(id);
+  } catch (error) {
+    console.error('Error in getCauseById handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('addCause', async (event, cause) => {
+  try {
+    return await demonsDB.addCause(cause);
+  } catch (error) {
+    console.error('Error in addCause handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('updateCause', async (event, id, cause) => {
+  try {
+    return await demonsDB.updateCause(id, cause);
+  } catch (error) {
+    console.error('Error in updateCause handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('deleteCause', async (event, id) => {
+  try {
+    return await demonsDB.deleteCause(id);
+  } catch (error) {
+    console.error('Error in deleteCause handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('connectDemonToCause', async (event, demonId, causeId, count) => {
+  try {
+    return await demonsDB.connectDemonToCause(demonId, causeId, count);
+  } catch (error) {
+    console.error('Error in connectDemonToCause handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getCausesForDemon', async (event, demonId) => {
+  try {
+    return await demonsDB.getCausesForDemon(demonId);
+  } catch (error) {
+    console.error('Error in getCausesForDemon handler:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('getCausesStatistics', async () => {
+  try {
+    return await demonsDB.getCausesStatistics();
+  } catch (error) {
+    console.error('Error in getCausesStatistics handler:', error);
+    throw error;
+  }
+});

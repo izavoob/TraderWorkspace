@@ -85,6 +85,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateDemon: (id, demon) => ipcRenderer.invoke('updateDemon', id, demon),
   deleteDemon: (id) => ipcRenderer.invoke('deleteDemon', id),
   
+  // Demon causes methods
+  getAllCauses: () => ipcRenderer.invoke('getAllCauses'),
+  getCauseById: (id) => ipcRenderer.invoke('getCauseById', id),
+  addCause: (cause) => ipcRenderer.invoke('addCause', cause),
+  updateCause: (id, cause) => ipcRenderer.invoke('updateCause', id, cause),
+  deleteCause: (id) => ipcRenderer.invoke('deleteCause', id),
+  connectDemonToCause: (demonId, causeId, count) => ipcRenderer.invoke('connectDemonToCause', demonId, causeId, count),
+  getCausesForDemon: (demonId) => ipcRenderer.invoke('getCausesForDemon', demonId),
+  getCausesStatistics: () => ipcRenderer.invoke('getCausesStatistics'),
+  
   // Методы для работы с постсессиями напрямую
   getAllPostSessions: () => ipcRenderer.invoke('get-all-post-sessions'),
   getPostSessionById: (id) => ipcRenderer.invoke('get-post-session-by-id', id),
