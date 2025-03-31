@@ -36,22 +36,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteAccount: (id) => ipcRenderer.invoke('deleteAccount', id),
   getAccountById: (id) => ipcRenderer.invoke('getAccountById', id),
   updateAccountBalance: (accountId, profitPercent) => ipcRenderer.invoke('updateAccountBalance', accountId, profitPercent),
-  updateAccountWithTrade: (accountId, trade) => ipcRenderer.invoke('updateAccountWithTrade', accountId, trade),
   
   // Execution database methods
   getAllExecutionItems: (section) => ipcRenderer.invoke('getAllExecutionItems', section),
   addExecutionItem: (section, name) => ipcRenderer.invoke('addExecutionItem', section, name),
   updateExecutionItem: (section, id, name) => ipcRenderer.invoke('updateExecutionItem', section, id, name),
   deleteExecutionItem: (section, id) => ipcRenderer.invoke('deleteExecutionItem', section, id),
-  getTradeRecommendations: () => ipcRenderer.invoke('getTradeRecommendations'),
-  
-  // API для роботи з архівом рекомендацій
-  getArchivedRecommendations: () => ipcRenderer.invoke('getArchivedRecommendations'),
-  archiveRecommendation: (recommendation) => ipcRenderer.invoke('archiveRecommendation', recommendation),
-  deleteArchivedRecommendation: (recommendationKey) => ipcRenderer.invoke('deleteArchivedRecommendation', recommendationKey),
-  
-  // API для роботи з патернами високого вінрейту
-  getHighWinratePatterns: () => ipcRenderer.invoke('getHighWinratePatterns'),
   
   // Performance analysis methods
   savePerformanceAnalysis: (analysis) => ipcRenderer.invoke('savePerformanceAnalysis', analysis),
@@ -85,6 +75,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addSTERAssessment: (assessment) => ipcRenderer.invoke('addSTERAssessment', assessment),
   updateSTERAssessment: (id, assessment) => ipcRenderer.invoke('updateSTERAssessment', id, assessment),
   deleteSTERAssessment: (id) => ipcRenderer.invoke('deleteSTERAssessment', id),
+  getSTERAssessmentsByPostSessionId: (postSessionId) => ipcRenderer.invoke('getSTERAssessmentsByPostSessionId', postSessionId),
   
   // Demons methods
   getAllDemons: () => ipcRenderer.invoke('getAllDemons'),

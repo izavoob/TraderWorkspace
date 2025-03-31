@@ -265,11 +265,62 @@ const DeleteButton = styled.button`
   }
 `;
 
+const FilterContainer = styled.div`
+  display: flex;
+  justify-content: center;
+  margin-bottom: 20px;
+  gap: 10px;
+`;
+
+const FilterButton = styled.button`
+  background: ${props => props.active ? 'rgba(94, 44, 165, 0.3)' : 'rgba(94, 44, 165, 0.1)'};
+  border: 1px solid #5e2ca5;
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: #fff;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: rgba(94, 44, 165, 0.2);
+  }
+`;
+
+const Tag = styled.span`
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  background: rgba(94, 44, 165, 0.7);
+  color: white;
+  font-size: 0.7em;
+  padding: 2px 8px;
+  border-radius: 10px;
+`;
+
+const PostSessionInfo = styled.div`
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed rgba(94, 44, 165, 0.3);
+  font-size: 0.85em;
+  color: #aaa;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  
+  &:before {
+    content: "📅";
+    font-size: 1.1em;
+  }
+`;
+
 const MindsetTracker = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [assessments, setAssessments] = useState([]);
+  const [filteredAssessments, setFilteredAssessments] = useState([]);
+  const [activeFilter, setActiveFilter] = useState('all');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedAssessment, setSelectedAssessment] = useState(null);
+  const [postSessions, setPostSessions] = useState({});
 
   const loadAssessments = async () => {
     try {
@@ -277,6 +328,28 @@ const MindsetTracker = () => {
       const sterAssessments = await window.electronAPI.getSTERAssessments();
       console.log('Received assessments:', sterAssessments);
       setAssessments(sterAssessments || []);
+      setFilteredAssessments(sterAssessments || []);
+      
+      // Получаем данные о постсессиях для STER с postSessionId
+      const sessionsWithPostSession = sterAssessments.filter(a => a.post_session_id);
+      const postSessionIds = [...new Set(sessionsWithPostSession.map(a => a.post_session_id))];
+      
+      const postSessionsData = {};
+      for (const postSessionId of postSessionIds) {
+        try {
+          const postSession = await window.electronAPI.getPostSessionById(postSessionId);
+          if (postSession) {
+            postSessionsData[postSessionId] = {
+              date: new Date(postSession.date).toLocaleDateString(),
+              pair: postSession.pair || 'Unknown pair'
+            };
+          }
+        } catch (err) {
+          console.error(`Error fetching post session ${postSessionId}:`, err);
+        }
+      }
+      
+      setPostSessions(postSessionsData);
       setIsLoading(false);
     } catch (error) {
       console.error('Error loading mindset tracker data:', error);
@@ -287,6 +360,17 @@ const MindsetTracker = () => {
   useEffect(() => {
     loadAssessments();
   }, []);
+  
+  useEffect(() => {
+    // Фильтрация оценок при изменении фильтра
+    if (activeFilter === 'all') {
+      setFilteredAssessments(assessments);
+    } else if (activeFilter === 'postsession') {
+      setFilteredAssessments(assessments.filter(a => a.tags === 'postsession'));
+    } else if (activeFilter === 'regular') {
+      setFilteredAssessments(assessments.filter(a => a.tags !== 'postsession'));
+    }
+  }, [activeFilter, assessments]);
 
   const handleAddAssessment = () => {
     setSelectedAssessment(null);
@@ -335,6 +419,11 @@ const MindsetTracker = () => {
     });
   };
 
+  // Добавляем функцию для изменения фильтра
+  const handleFilterChange = (filter) => {
+    setActiveFilter(filter);
+  };
+
   if (isLoading) {
     return <div>Loading...</div>;
   }
@@ -349,12 +438,33 @@ const MindsetTracker = () => {
 
       <Content>
         <Description>
-          Track your psychological state, record insights and work on improving your trading mindset. 
+          Track your psychological state, record insights, and work on improving your trading mindset.
           Use this tool to document your progress and identify areas for improvement.
         </Description>
 
         <TrackerSection>
           <SectionTitle>STER Assessment</SectionTitle>
+          
+          <FilterContainer>
+            <FilterButton 
+              active={activeFilter === 'all'} 
+              onClick={() => handleFilterChange('all')}
+            >
+              All
+            </FilterButton>
+            <FilterButton 
+              active={activeFilter === 'postsession'} 
+              onClick={() => handleFilterChange('postsession')}
+            >
+              Post Session
+            </FilterButton>
+            <FilterButton 
+              active={activeFilter === 'regular'} 
+              onClick={() => handleFilterChange('regular')}
+            >
+              Regular
+            </FilterButton>
+          </FilterContainer>
           
           <AddButton onClick={handleAddAssessment}>
             <AddIcon>+</AddIcon>
@@ -362,7 +472,7 @@ const MindsetTracker = () => {
           </AddButton>
 
           <AssessmentsGrid>
-            {assessments.map((assessment) => (
+            {filteredAssessments.map((assessment) => (
               <AssessmentCard 
                 key={assessment.id}
                 onClick={() => handleEditAssessment(assessment)}
@@ -372,6 +482,9 @@ const MindsetTracker = () => {
                 >
                   ×
                 </DeleteButton>
+                {assessment.tags === 'postsession' && (
+                  <Tag>Post Session</Tag>
+                )}
                 <AssessmentDate>{formatDate(assessment.date)}</AssessmentDate>
                 <AssessmentRatings>
                   <RatingItem>
@@ -399,6 +512,13 @@ const MindsetTracker = () => {
                     </RatingValue>
                   </RatingItem>
                 </AssessmentRatings>
+                
+                {/* Adding post session information if available */}
+                {assessment.post_session_id && postSessions[assessment.post_session_id] && (
+                  <PostSessionInfo>
+                    {postSessions[assessment.post_session_id].date} • {postSessions[assessment.post_session_id].pair}
+                  </PostSessionInfo>
+                )}
               </AssessmentCard>
             ))}
           </AssessmentsGrid>
@@ -410,6 +530,7 @@ const MindsetTracker = () => {
             onClose={() => setIsModalOpen(false)}
             onSave={handleSaveAssessment}
             assessment={selectedAssessment}
+            postSessionInfo={selectedAssessment?.post_session_id ? postSessions[selectedAssessment.post_session_id] : null}
           />
         )}
       </Content>

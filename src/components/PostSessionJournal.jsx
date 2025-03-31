@@ -107,10 +107,11 @@ const DailyRoutineContainer = styled.div`
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
+  position: relative;
   min-height: 100vh;
   overflow-y: auto;
   overflow-x: hidden;
-  bottom: 25px;
+  padding-top: 148px;
 `;
 
 const Header = styled.header`
@@ -118,22 +119,23 @@ const Header = styled.header`
   background-size: 200% 200%;
   animation: ${gradientAnimation} 5s ease infinite;
   padding: 20px 0;
-  border-radius: 8px;
+  border-radius: 10px;
   color: #fff;
-  position: relative;
+  position: fixed;
   top: 0;
   left: 0;
   right: 0;
   z-index: 1000;
-  height: 80px;
+  height: auto;
   min-height: 6.67vh;
-  max-height: 128px;
+  max-height: 100px;
   text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
   box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
+  margin: 20px 40px;
 `;
 
 const BackButton = styled.button`
@@ -142,7 +144,7 @@ const BackButton = styled.button`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -193,12 +195,12 @@ const Subtitle = styled.h2`
 `;
 
 const JournalContent = styled.div`
-  margin-top: 20px;
+  padding: 20px;
   width: 100%;
-  gap: 5px;
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
+  gap: 20px;
 `;
 
 const JournalHeader = styled.div`
@@ -206,6 +208,7 @@ const JournalHeader = styled.div`
   justify-content: space-between;
   align-items: center;
   z-index: 999;
+  min-height: 50px;
   flex-direction: row;
   width: 100%;
 `;
@@ -214,88 +217,42 @@ const ButtonGroup = styled.div`
   display: flex;
   gap: 10px;
   align-items: center;
+  margin: 0 10px;
 `;
 
 const ActionButton = styled.button`
-  background-color: ${props => props.primary ? 'transparent' : '#5e2ca5'};
-  background: ${props => props.primary ? 
-    'linear-gradient(90deg, rgb(232, 137, 0), rgb(184, 134, 238), rgb(255, 140, 0)) 0% 0% / 200% 200%' : 
-    '#5e2ca5'};
-  animation: ${props => props.primary ? gradientAnimation : 'none'} 3s ease infinite;
-  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+  background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
   color: #fff;
   border: none;
   padding: 12px 20px;
   border-radius: 8px;
   cursor: pointer;
-  text-decoration: none;
-  font-size: 1.1em;
-  display: flex;
-  align-items: center;
-  justify-content: flex-start;
+  font-size: 14px;
   transition: all 0.3s ease;
-  position: relative;
-  isolation: isolate;
   
-  &::before {
-    content: '';
-    position: absolute;
-    inset: 0;
-    background: linear-gradient(
-      90deg,
-      transparent,
-      rgba(255, 255, 255, 0.2),
-      transparent
-    );
-    background-size: 200% 100%;
-    border-radius: 8px;
-    opacity: 0;
-    transition: opacity 0.3s ease;
-  }
-
   &:hover {
-    background-color: ${props => props.primary ? 'transparent' : '#4a1a8d'};
-    transform: scale(1.05);
-    
-    &::before {
-      opacity: 1;
-      animation: ${shineEffect} 1.5s linear infinite;
-    }
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   }
 
   &:active {
-    transform: scale(0.95);
+    transform: translateY(0);
   }
 `;
 
 const TableContainer = styled.div`
   flex: 1;
   overflow: auto;
+  margin-top: 20px;
   position: relative;
+  border: 2px solid #5e2ca5;
+  border-radius: 10px;
   
   thead {
     position: sticky;
     top: 0;
     z-index: 1;
     background: #2e2e2e;
-  }
-
-  tbody {
-    overflow-y: auto;
-  }
-  
-  ::-webkit-scrollbar {
-    width: 4px;
-  }
-  ::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  ::-webkit-scrollbar-thumb {
-    background: #7425C9;
-    border-radius: 3px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: #5e2ca5;
   }
 `;
 
@@ -304,40 +261,35 @@ const Table = styled.table`
   border-collapse: separate;
   border-spacing: 0;
   background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
 `;
 
 const Th = styled.th`
-  padding: 12px;
+  padding: 15px;
   text-align: center;
   background: conic-gradient(from 45deg, #7425C9, #B886EE);
   color: #fff;
   font-weight: bold;
-  border: 1px solid #5e2ca5;
   white-space: nowrap;
   position: sticky;
   top: 0;
   z-index: 2;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+  border-bottom: 2px solid #5e2ca5;
 
-  &:after {
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -1px;
-    height: 1px;
-    background: #5e2ca5;
+  &:first-child {
+    border-top-left-radius: 8px;
+  }
+
+  &:last-child {
+    border-top-right-radius: 8px;
   }
 `;
 
 const Td = styled.td`
-  padding: 10px;
-  border: 1px solid #5e2ca5;
-  background: #2e2e2e;
-  position: relative;
-  text-align: center;
+  padding: 12px;
+  border-bottom: 1px solid #5e2ca5;
+  background: transparent;
   color: #fff;
+  transition: background-color 0.2s ease;
 `;
 
 const TableRow = styled.tr`
@@ -410,7 +362,7 @@ const EditableSelect = styled.select`
   border: 1px solid #5e2ca5;
   background: #3e3e3e;
   color: #fff;
-  border-radius: 8px;
+  border-radius: 4px;
 
   &:focus {
     outline: none;
@@ -420,14 +372,14 @@ const EditableSelect = styled.select`
 
 const FilterDropdown = styled.div`
   position: absolute;
-  top: 100%;
+  top: calc(100% + 5px);
   right: 0;
-  width: 200px;
+  width: 250px;
   background: #2e2e2e;
-  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
-  border-radius: 8px;
+  border: 1px solid #5e2ca5;
+  border-radius: 10px;
   padding: 15px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
   z-index: 1000;
 `;
 
@@ -460,6 +412,7 @@ const FilterSelect = styled.select`
   width: 100%;
   padding: 8px;
   background: #3e3e3e;
+  border: 1px solid #5e2ca5;
   border-radius: 8px;
   color: #fff;
   font-size: 14px;
@@ -509,42 +462,31 @@ const StyledDatePicker = styled(DatePicker)`
 const SelectAllContainer = styled.div`
   display: flex;
   align-items: center;
-  padding-bottom: 10px;
-  padding-top: 10px;
   gap: 12px;
+  padding: 10px 0;
   color: #fff;
-
-  > div {
-    display: flex;
-    gap: 12px;
-    align-items: center;
-  }
-
-  > div:last-child {
-    margin-left: auto;
-    display: flex;
-    gap: 12px;
-  }
+  border-bottom: 1px solid #5e2ca5;
+  margin-bottom: 10px;
 `;
 
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   cursor: pointer;
   appearance: none;
-  padding: 7px 0px;
   border: 2px solid #B886EE;
   border-radius: 4px;
   background-color: transparent;
   position: relative;
+  transition: all 0.2s ease;
 
   &:checked {
     background-color: #7425C9;
     &:after {
       content: '';
       position: absolute;
-      left: 4px;
-      top: 1px;
+      left: 5px;
+      top: 2px;
       width: 4px;
       height: 8px;
       border: solid white;
@@ -553,15 +495,13 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
     }
   }
 
-  &:disabled {
-    opacity: 0.6;
-    cursor: not-allowed;
+  &:hover {
+    border-color: #7425C9;
   }
 `;
 
 const DeleteSelectedButton = styled(ActionButton)`
   background: #ff4757;
-  padding: 6px 20px;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
 `;
@@ -572,22 +512,34 @@ const Popup = styled.div`
   left: 50%;
   transform: translate(-50%, -50%);
   background: #2e2e2e;
-  padding: 20px;
-  border-radius: 8px;
+  padding: 25px;
+  border-radius: 15px;
   border: 2px solid #5e2ca5;
   text-align: center;
-  z-index: 1000;
+  z-index: 1100;
   color: white;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  min-width: 300px;
 `;
 
 const PopupButton = styled.button`
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  background: ${props => props.cancel ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
   color: white;
   border: none;
-  padding: 8px 20px;
+  padding: 10px 25px;
   border-radius: 8px;
   cursor: pointer;
-  margin: 0 10px;
+  margin: 10px;
+  transition: all 0.2s ease;
+
+  &:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  }
+
+  &:active {
+    transform: translateY(0);
+  }
 `;
 
 const ActionButtonsContainer = styled.div`
@@ -600,7 +552,6 @@ const ActionButtonsContainer = styled.div`
 
 const AddSubsessionButton = styled(ActionButton)`
   background: #5C9DF5;
-  padding: 6px 20px;
   opacity: ${props => props.disabled ? 0.5 : 1};
   pointer-events: ${props => props.disabled ? 'none' : 'auto'};
 `;
@@ -1133,7 +1084,7 @@ const confirmDelete = async (id) => {
               checked={selectedEntries.length === data.length && data.length > 0}
               onChange={handleSelectAll}
               />
-              <span style={{ padding: '7px 0px' }}>Select All days</span>
+              <span>Select All Entries</span>
               {selectedEntries.length > 0 && (
               <DeleteSelectedButton
                   onClick={() => setShowDeleteConfirmation(true)}
