@@ -247,22 +247,14 @@ function DailyRoutine() {
             <Card to="/daily-routine/pre-session">
               <CardIcon>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <path d="M12 8V12L14.5 14.5" 
+                  <path d="M11 4H7C5.89543 4 5 4.89543 5 6V18C5 19.1046 5.89543 20 7 20H17C18.1046 20 19 19.1046 19 18V14" 
                     stroke="#B886EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <path d="M7 3.33782C8.47087 2.48697 10.1786 2 12 2C17.5228 2 22 6.47715 22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 10.1786 2.48697 8.47087 3.33782 7" 
-                    stroke="#B886EE" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M3 4V7H6" 
+                  <path d="M14 3.5V7.5C14 8.05228 14.4477 8.5 15 8.5H19" 
                     stroke="#7425C9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="12" cy="12" r="1" 
-                    fill="#7425C9"/>
-                  <path d="M12 5V6" 
-                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M12 18V19" 
-                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M5 12H6" 
-                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M18 12H19" 
-                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round"/>
+                  <path d="M15.5 11L9.5 17L7 14.5" 
+                    stroke="#B886EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M14 13L19 8" 
+                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </CardIcon>
               <CardTitle>Pre-Session Journal</CardTitle>
@@ -274,20 +266,22 @@ function DailyRoutine() {
             <Card to="/daily-routine/post-session">
               <CardIcon>
                 <svg viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="3" y="3" width="18" height="18" rx="2" 
-                    stroke="#B886EE" strokeWidth="2"/>
-                  <path d="M3 8H21" 
-                    stroke="#B886EE" strokeWidth="2"/>
-                  <path d="M7 4V2" 
-                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M17 4V2" 
-                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round"/>
-                  <path d="M7 13L10 16L17 11" 
+                  <path d="M4 5C4 4.44772 4.44772 4 5 4H19C19.5523 4 20 4.44772 20 5V19C20 19.5523 19.5523 20 19 20H5C4.44772 20 4 19.5523 4 19V5Z" 
                     stroke="#B886EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
-                  <circle cx="7" cy="16" r="1" 
-                    fill="#7425C9"/>
-                  <circle cx="17" cy="11" r="1" 
-                    fill="#7425C9"/>
+                  <path d="M16 2V6" 
+                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 2V6" 
+                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M4 10H20" 
+                    stroke="#B886EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 15H10" 
+                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M16 15H14" 
+                    stroke="#7425C9" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M8 18H10" 
+                    stroke="#B886EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+                  <path d="M16 18H14" 
+                    stroke="#B886EE" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
                 </svg>
               </CardIcon>
               <CardTitle>Post-Session Journal</CardTitle>
