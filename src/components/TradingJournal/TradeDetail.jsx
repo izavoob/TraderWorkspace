@@ -556,18 +556,19 @@ const ScreenshotTitle = styled.h3`
 const TextArea = styled.textarea`
   width: 100%;
   background-color: #3e3e3e;
-  color: #fff;
+  color: #E0E0E0;
   border: 1px solid #5e2ca5;
   border-radius: 8px;
   min-height: 100px;
-  text-align: justify;
+  text-align: left;
+  font-style: italic;
   font-size: 16px;
-  padding: 5px;
-  font-family: 'Roboto', sans-serif;
-  letter-spacing: 0.3px;
-  line-height: 1.5;
+  padding: 8px;
+  font-family: 'San Francisco', sans-serif;
+  line-height: 1.4;
   resize: none;
   overflow: hidden;
+  text-shadow: 0 2px 4px rgb(0 0 0 / 50%);
   
   &:focus {
     outline: none;
