@@ -428,10 +428,10 @@ const TradeTable = styled.table`
   overflow-x: hidden;
 `;
 
-const TableHeader = styled.th`
-  padding: 12px;
+const Th = styled.th`
+  padding: 15px;
   font-size: 14px;
-  text-align: center
+  text-align: center;
   letter-spacing: 0.5px;
   font-weight: 500;
   text-transform: uppercase;
@@ -2510,9 +2510,9 @@ function TradeJournal() {
                 {headerGroups.map((headerGroup) => (
                   <tr {...headerGroup.getHeaderGroupProps()}>
                     {headerGroup.headers.map((column) => (
-                      <TableHeader {...column.getHeaderProps()} style={{ width: `${column.width}px` }}>
+                      <Th {...column.getHeaderProps()} style={{ width: `${column.width}px` }}>
                         {column.render('Header')}
-                      </TableHeader>
+                      </Th>
                     ))}
                   </tr>
                 ))}

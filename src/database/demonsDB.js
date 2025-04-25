@@ -14,7 +14,8 @@ class DemonsDB {
   }
 
   initializeDatabase() {
-    const query = `
+    const queries = [
+      `
       CREATE TABLE IF NOT EXISTS demons (
         id INTEGER PRIMARY KEY AUTOINCREMENT,
         name TEXT NOT NULL,
@@ -24,28 +25,88 @@ class DemonsDB {
         created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
         updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
       )
-    `;
+      `,
+      `
+      CREATE TABLE IF NOT EXISTS demons_causes (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        name TEXT NOT NULL,
+        description TEXT,
+        created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+        updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+      )
+      `,
+      `
+      CREATE TABLE IF NOT EXISTS demon_cause_relations (
+        demon_id INTEGER,
+        cause_id INTEGER,
+        count INTEGER DEFAULT 0,
+        PRIMARY KEY (demon_id, cause_id),
+        FOREIGN KEY (demon_id) REFERENCES demons (id) ON DELETE CASCADE,
+        FOREIGN KEY (cause_id) REFERENCES demons_causes (id) ON DELETE CASCADE
+      )
+      `
+    ];
 
-    this.db.run(query, (err) => {
-      if (err) {
-        console.error('Error creating demons table:', err);
-      } else {
-        console.log('Demons table created/verified successfully');
-        
-        // Проверяем, есть ли уже демоны в базе данных
-        this.db.get('SELECT COUNT(*) as count FROM demons', [], (err, row) => {
+    // Выполняем запросы последовательно
+    this.db.serialize(() => {
+      this.db.run('BEGIN TRANSACTION');
+      
+      queries.forEach(query => {
+        this.db.run(query, (err) => {
           if (err) {
-            console.error('Error counting demons:', err);
-            return;
-          }
-          
-          // Если демонов нет, добавляем предустановленный список
-          if (row.count === 0) {
-            console.log('Adding default trading demons...');
-            this.addDefaultDemons();
+            console.error('Error creating database tables:', err);
           }
         });
-      }
+      });
+      
+      this.db.run('COMMIT', (err) => {
+        if (err) {
+          console.error('Error committing transaction:', err);
+        } else {
+          console.log('Database tables created/verified successfully');
+          
+          // Проверяем наличие демонов
+          this.db.get('SELECT COUNT(*) as count FROM demons', [], (err, row) => {
+            if (err) {
+              console.error('Error counting demons:', err);
+              return;
+            }
+            
+            // Если демонов нет, добавляем предустановленный список
+            if (row.count === 0) {
+              console.log('Adding default trading demons...');
+              this.addDefaultDemons();
+            }
+          });
+          
+          // Проверяем наличие причин
+          this.db.get('SELECT COUNT(*) as count FROM demons_causes', [], (err, row) => {
+            if (err) {
+              console.error('Error counting causes:', err);
+              return;
+            }
+            
+            // Если причин нет, добавляем предустановленный список
+            if (row.count === 0) {
+              console.log('Adding default demon causes...');
+              this.addDefaultCauses();
+            }
+          });
+
+          // После создания таблиц и добавления демонов и причин
+          this.db.get('SELECT COUNT(*) as count FROM demon_cause_relations', [], (err, row) => {
+            if (err) {
+              console.error('Error counting demon-cause relations:', err);
+              return;
+            }
+            
+            if (row.count === 0) {
+              console.log('Adding sample demon-cause relations...');
+              this.addSampleRelations();
+            }
+          });
+        }
+      });
     });
   }
 
@@ -158,6 +219,84 @@ class DemonsDB {
     });
   }
 
+  addDefaultCauses() {
+    const defaultCauses = [
+      {
+        name: 'Concentration Issues',
+        description: 'Factors that interfere with your ability to focus on market analysis and decision-making'
+      },
+      {
+        name: 'External Distractions',
+        description: 'Disruptive elements in your environment such as noise, notifications, or other people'
+      },
+      {
+        name: 'Challenge Pressure',
+        description: 'Stress from attempting to meet specific trading goals or challenges within a timeframe'
+      },
+      {
+        name: 'Long Period Without Positions',
+        description: 'Extended waiting time when you haven\'t entered the market, creating impatience'
+      },
+      {
+        name: 'Financial Needs',
+        description: 'Pressure to generate income for personal expenses or financial obligations'
+      },
+      {
+        name: 'Poor Sleep',
+        description: 'Insufficient or low-quality sleep before trading sessions affecting cognitive abilities'
+      },
+      {
+        name: 'Chat Influence (External Opinions)',
+        description: 'Being swayed by other traders\' opinions from chat rooms or social media'
+      },
+      {
+        name: 'Chat Influence (Boasting)',
+        description: 'Desire to share successful trades with others, affecting your decision-making'
+      },
+      {
+        name: 'Family Argument',
+        description: 'Emotional disturbances from conflicts with close ones affecting trading psychology'
+      },
+      {
+        name: 'Poor Physical Condition',
+        description: 'Illness, fatigue, or other physical issues compromising your trading performance'
+      },
+      {
+        name: 'Series of Stop Losses',
+        description: 'Psychological impact of consecutive losing trades closed by stop-loss orders'
+      },
+      {
+        name: 'Previous Position Closed with Profit',
+        description: 'Overconfidence following successful trades leading to risky decisions'
+      }
+    ];
+
+    const insertQuery = `
+      INSERT INTO demons_causes (name, description)
+      VALUES (?, ?)
+    `;
+
+    this.db.serialize(() => {
+      this.db.run('BEGIN TRANSACTION');
+      
+      const stmt = this.db.prepare(insertQuery);
+      defaultCauses.forEach(cause => {
+        stmt.run(cause.name, cause.description, err => {
+          if (err) console.error(`Error adding cause ${cause.name}:`, err);
+        });
+      });
+      stmt.finalize();
+      
+      this.db.run('COMMIT', err => {
+        if (err) {
+          console.error('Error committing default causes transaction:', err);
+        } else {
+          console.log('Added default causes successfully');
+        }
+      });
+    });
+  }
+
   getAllDemons() {
     return new Promise((resolve, reject) => {
       const query = 'SELECT * FROM demons ORDER BY name';
@@ -263,6 +402,249 @@ class DemonsDB {
           resolve(true);
         }
       });
+    });
+  }
+
+  // Получение всех причин
+  getAllCauses() {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM demons_causes ORDER BY name';
+      this.db.all(query, [], (err, rows) => {
+        if (err) {
+          console.error('Error getting all causes:', err);
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  // Получение причины по ID
+  getCauseById(id) {
+    return new Promise((resolve, reject) => {
+      const query = 'SELECT * FROM demons_causes WHERE id = ?';
+      this.db.get(query, [id], (err, row) => {
+        if (err) {
+          console.error('Error getting cause by id:', err);
+          reject(err);
+        } else {
+          resolve(row);
+        }
+      });
+    });
+  }
+
+  // Добавление новой причины
+  addCause(cause) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        INSERT INTO demons_causes (name, description)
+        VALUES (?, ?)
+      `;
+      
+      this.db.run(query, [
+        cause.name || '',
+        cause.description || ''
+      ], function(err) {
+        if (err) {
+          console.error('Error adding cause:', err);
+          reject(err);
+        } else {
+          resolve(this.lastID);
+        }
+      });
+    });
+  }
+
+  // Обновление причины
+  updateCause(id, cause) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        UPDATE demons_causes
+        SET name = ?,
+            description = ?,
+            updated_at = CURRENT_TIMESTAMP
+        WHERE id = ?
+      `;
+      
+      this.db.run(query, [
+        cause.name || '',
+        cause.description || '',
+        id
+      ], function(err) {
+        if (err) {
+          console.error('Error updating cause:', err);
+          reject(err);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+  }
+
+  // Удаление причины
+  deleteCause(id) {
+    return new Promise((resolve, reject) => {
+      const query = 'DELETE FROM demons_causes WHERE id = ?';
+      this.db.run(query, [id], function(err) {
+        if (err) {
+          console.error('Error deleting cause:', err);
+          reject(err);
+        } else {
+          resolve(true);
+        }
+      });
+    });
+  }
+
+  // Связывание демона с причиной
+  connectDemonToCause(demonId, causeId, count = 1) {
+    return new Promise((resolve, reject) => {
+      const checkQuery = 'SELECT count FROM demon_cause_relations WHERE demon_id = ? AND cause_id = ?';
+      
+      this.db.get(checkQuery, [demonId, causeId], (err, row) => {
+        if (err) {
+          console.error('Error checking demon-cause relation:', err);
+          reject(err);
+          return;
+        }
+        
+        let query;
+        let params;
+        
+        if (row) {
+          // Обновляем существующую связь
+          query = 'UPDATE demon_cause_relations SET count = count + ? WHERE demon_id = ? AND cause_id = ?';
+          params = [count, demonId, causeId];
+        } else {
+          // Создаем новую связь
+          query = 'INSERT INTO demon_cause_relations (demon_id, cause_id, count) VALUES (?, ?, ?)';
+          params = [demonId, causeId, count];
+        }
+        
+        this.db.run(query, params, function(err) {
+          if (err) {
+            console.error('Error connecting demon to cause:', err);
+            reject(err);
+          } else {
+            resolve(true);
+          }
+        });
+      });
+    });
+  }
+
+  // Получение причин для демона
+  getCausesForDemon(demonId) {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT dc.id, dc.name, dc.description, dcr.count
+        FROM demons_causes dc
+        JOIN demon_cause_relations dcr ON dc.id = dcr.cause_id
+        WHERE dcr.demon_id = ?
+        ORDER BY dcr.count DESC
+      `;
+      
+      this.db.all(query, [demonId], (err, rows) => {
+        if (err) {
+          console.error('Error getting causes for demon:', err);
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  // Получение всей статистики причин
+  getCausesStatistics() {
+    return new Promise((resolve, reject) => {
+      const query = `
+        SELECT 
+          dc.id, 
+          dc.name, 
+          dc.description, 
+          SUM(dcr.count) as total_count
+        FROM 
+          demons_causes dc
+        LEFT JOIN 
+          demon_cause_relations dcr ON dc.id = dcr.cause_id
+        GROUP BY 
+          dc.id
+        ORDER BY 
+          total_count DESC
+      `;
+      
+      this.db.all(query, [], (err, rows) => {
+        if (err) {
+          console.error('Error getting causes statistics:', err);
+          reject(err);
+        } else {
+          resolve(rows);
+        }
+      });
+    });
+  }
+
+  // Добавление примеров связей для тестирования
+  addSampleRelations() {
+    // Связывание нескольких демонов с причинами
+    const sampleRelations = [
+      { demonName: 'FOMO', causeName: 'Financial Needs', count: 5 },
+      { demonName: 'FOMO', causeName: 'Chat Influence (External Opinions)', count: 3 },
+      { demonName: 'Inattentiveness', causeName: 'External Distractions', count: 4 },
+      { demonName: 'Inattentiveness', causeName: 'Poor Sleep', count: 2 },
+      { demonName: 'Overconfidence', causeName: 'Previous Position Closed with Profit', count: 6 },
+      { demonName: 'Fear of missing profits', causeName: 'Financial Needs', count: 3 },
+      { demonName: 'Breaking the plan', causeName: 'Concentration Issues', count: 2 },
+      { demonName: 'Impulsive position opening', causeName: 'Long Period Without Positions', count: 4 }
+    ];
+
+    // Функция для поиска ID демона по имени
+    const findDemonId = (name) => {
+      return new Promise((resolve, reject) => {
+        this.db.get('SELECT id FROM demons WHERE name = ?', [name], (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row ? row.id : null);
+          }
+        });
+      });
+    };
+
+    // Функция для поиска ID причины по имени
+    const findCauseId = (name) => {
+      return new Promise((resolve, reject) => {
+        this.db.get('SELECT id FROM demons_causes WHERE name = ?', [name], (err, row) => {
+          if (err) {
+            reject(err);
+          } else {
+            resolve(row ? row.id : null);
+          }
+        });
+      });
+    };
+
+    // Добавляем связи
+    const addRelation = async (demonName, causeName, count) => {
+      try {
+        const demonId = await findDemonId(demonName);
+        const causeId = await findCauseId(causeName);
+        
+        if (demonId && causeId) {
+          await this.connectDemonToCause(demonId, causeId, count);
+          console.log(`Added relation: ${demonName} -> ${causeName} (${count})`);
+        }
+      } catch (error) {
+        console.error(`Error adding relation for ${demonName} -> ${causeName}:`, error);
+      }
+    };
+
+    // Выполняем добавление связей
+    sampleRelations.forEach(relation => {
+      addRelation(relation.demonName, relation.causeName, relation.count);
     });
   }
 }

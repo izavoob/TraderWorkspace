@@ -55,6 +55,7 @@ const ModalContent = styled.div`
   border: 1px solid rgba(94, 44, 165, 0.3);
   animation: ${slideUp} 0.4s cubic-bezier(0.19, 1, 0.22, 1);
   transform-origin: center;
+  z-index: 1001;
   
   &::-webkit-scrollbar {
     width: 8px;
@@ -458,7 +459,27 @@ const ButtonIcon = styled.span`
   font-size: 1.2em;
 `;
 
-const STERModal = ({ isOpen, onClose, onSave, assessment = null }) => {
+const PostSessionBadge = styled.div`
+  margin-top: 10px;
+  background: rgba(94, 44, 165, 0.1);
+  border: 1px solid rgba(94, 44, 165, 0.3);
+  border-radius: 8px;
+  padding: 10px 15px;
+  font-size: 0.9em;
+  color: #ccc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  
+  &:before {
+    content: "📎";
+    font-size: 1.1em;
+  }
+`;
+
+const STERModal = ({ isOpen, onClose, onSave, assessment = null, postSessionId = null, postSessionInfo = null }) => {
+  if (!isOpen) return null;
+
   const [formData, setFormData] = useState({
     date: new Date().toISOString().split('T')[0],
     situation: '',
@@ -468,7 +489,9 @@ const STERModal = ({ isOpen, onClose, onSave, assessment = null }) => {
     situationRating: 0,
     thoughtsRating: 0,
     emotionsRating: 0,
-    reactionRating: 0
+    reactionRating: 0,
+    postSessionId: null,
+    tags: null
   });
 
   useEffect(() => {
@@ -482,7 +505,9 @@ const STERModal = ({ isOpen, onClose, onSave, assessment = null }) => {
         situationRating: parseInt(assessment.situationRating) || 0,
         thoughtsRating: parseInt(assessment.thoughtsRating) || 0,
         emotionsRating: parseInt(assessment.emotionsRating) || 0,
-        reactionRating: parseInt(assessment.reactionRating) || 0
+        reactionRating: parseInt(assessment.reactionRating) || 0,
+        postSessionId: assessment.post_session_id || null,
+        tags: assessment.tags || null
       });
     } else {
       setFormData({
@@ -494,10 +519,12 @@ const STERModal = ({ isOpen, onClose, onSave, assessment = null }) => {
         situationRating: 0,
         thoughtsRating: 0,
         emotionsRating: 0,
-        reactionRating: 0
+        reactionRating: 0,
+        postSessionId: postSessionId,
+        tags: postSessionId ? 'postsession' : null
       });
     }
-  }, [assessment]);
+  }, [assessment, postSessionId]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -525,8 +552,6 @@ const STERModal = ({ isOpen, onClose, onSave, assessment = null }) => {
     }
   };
 
-  if (!isOpen) return null;
-
   return (
     <ModalOverlay onClick={(e) => e.target === e.currentTarget && onClose()}>
       <ModalContent>
@@ -547,6 +572,12 @@ const STERModal = ({ isOpen, onClose, onSave, assessment = null }) => {
               onChange={handleChange}
             />
           </DateContainer>
+
+          {(assessment?.post_session_id || postSessionId) && postSessionInfo && (
+            <PostSessionBadge>
+              Linked to Post Session: {postSessionInfo.date} • {postSessionInfo.pair}
+            </PostSessionBadge>
+          )}
 
           <FormSection accentColor="#5e2ca5">
             <SectionHeader>

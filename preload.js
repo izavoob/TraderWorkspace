@@ -36,22 +36,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   deleteAccount: (id) => ipcRenderer.invoke('deleteAccount', id),
   getAccountById: (id) => ipcRenderer.invoke('getAccountById', id),
   updateAccountBalance: (accountId, profitPercent) => ipcRenderer.invoke('updateAccountBalance', accountId, profitPercent),
-  updateAccountWithTrade: (accountId, trade) => ipcRenderer.invoke('updateAccountWithTrade', accountId, trade),
   
   // Execution database methods
   getAllExecutionItems: (section) => ipcRenderer.invoke('getAllExecutionItems', section),
   addExecutionItem: (section, name) => ipcRenderer.invoke('addExecutionItem', section, name),
   updateExecutionItem: (section, id, name) => ipcRenderer.invoke('updateExecutionItem', section, id, name),
   deleteExecutionItem: (section, id) => ipcRenderer.invoke('deleteExecutionItem', section, id),
-  getTradeRecommendations: () => ipcRenderer.invoke('getTradeRecommendations'),
-  
-  // API для роботи з архівом рекомендацій
-  getArchivedRecommendations: () => ipcRenderer.invoke('getArchivedRecommendations'),
-  archiveRecommendation: (recommendation) => ipcRenderer.invoke('archiveRecommendation', recommendation),
-  deleteArchivedRecommendation: (recommendationKey) => ipcRenderer.invoke('deleteArchivedRecommendation', recommendationKey),
-  
-  // API для роботи з патернами високого вінрейту
-  getHighWinratePatterns: () => ipcRenderer.invoke('getHighWinratePatterns'),
   
   // Performance analysis methods
   savePerformanceAnalysis: (analysis) => ipcRenderer.invoke('savePerformanceAnalysis', analysis),
@@ -85,6 +75,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addSTERAssessment: (assessment) => ipcRenderer.invoke('addSTERAssessment', assessment),
   updateSTERAssessment: (id, assessment) => ipcRenderer.invoke('updateSTERAssessment', id, assessment),
   deleteSTERAssessment: (id) => ipcRenderer.invoke('deleteSTERAssessment', id),
+  getSTERAssessmentsByPostSessionId: (postSessionId) => ipcRenderer.invoke('getSTERAssessmentsByPostSessionId', postSessionId),
   
   // Demons methods
   getAllDemons: () => ipcRenderer.invoke('getAllDemons'),
@@ -93,6 +84,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   addDemon: (demon) => ipcRenderer.invoke('addDemon', demon),
   updateDemon: (id, demon) => ipcRenderer.invoke('updateDemon', id, demon),
   deleteDemon: (id) => ipcRenderer.invoke('deleteDemon', id),
+  
+  // Demon causes methods
+  getAllCauses: () => ipcRenderer.invoke('getAllCauses'),
+  getCauseById: (id) => ipcRenderer.invoke('getCauseById', id),
+  addCause: (cause) => ipcRenderer.invoke('addCause', cause),
+  updateCause: (id, cause) => ipcRenderer.invoke('updateCause', id, cause),
+  deleteCause: (id) => ipcRenderer.invoke('deleteCause', id),
+  connectDemonToCause: (demonId, causeId, count) => ipcRenderer.invoke('connectDemonToCause', demonId, causeId, count),
+  getCausesForDemon: (demonId) => ipcRenderer.invoke('getCausesForDemon', demonId),
+  getCausesStatistics: () => ipcRenderer.invoke('getCausesStatistics'),
   
   // Методы для работы с постсессиями напрямую
   getAllPostSessions: () => ipcRenderer.invoke('get-all-post-sessions'),
