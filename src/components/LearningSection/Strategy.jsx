@@ -9,7 +9,7 @@ const gradientAnimation = keyframes`
 `;
 
 const StrategyContainer = styled.div`
-  max-width: 1820px;
+ 
   margin: 0 auto;
   padding: 20px;
   height: 100vh;

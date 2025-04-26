@@ -124,7 +124,7 @@ const DatePickerStyles = createGlobalStyle`
 
 // Layout Components
 const Container = styled.div`
-  max-width: 1820px;
+ 
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;

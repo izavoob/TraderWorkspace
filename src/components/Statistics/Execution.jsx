@@ -15,7 +15,7 @@ const fadeIn = keyframes`
 `;
 
 const ExecutionContainer = styled.div`
-  max-width: 1820px;
+ 
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -108,7 +108,7 @@ const Content = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 15px;
-  max-width: 1820px;
+ 
   margin-left: auto;
   margin-right: auto;
 `;

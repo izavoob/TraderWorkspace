@@ -65,7 +65,7 @@ const DatePickerStyles = createGlobalStyle`
 `;
 
 const Container = styled.div`
-  max-width: 1820px;
+ 
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;
@@ -152,7 +152,7 @@ const Content = styled.div`
   display: flex;
   flex-direction: column;
   gap: 30px;
-  max-width: 1820px;
+ 
   margin-top: 20px
 `;
 

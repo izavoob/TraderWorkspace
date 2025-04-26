@@ -103,7 +103,7 @@ const DatePickerStyles = createGlobalStyle`
 `;
 
 const DailyRoutineContainer = styled.div`
-  max-width: 1820px;
+ 
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;

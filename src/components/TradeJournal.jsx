@@ -102,6 +102,17 @@ const fadeInDown = keyframes`
   }
 `;
 
+const fadeOutUp = keyframes`
+  from {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+`;
+
 const TradeJournalContainer = styled.div`
   margin: 0 auto;
   background-color: #1a1a1a;
@@ -269,8 +280,8 @@ const FilterDropdown = styled.div`
   top: 100%;
   right: 0;
   width: 200px;
-  background: #2e2e2e;
-  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
+  background:rgba(46, 46, 46, 0.9);
+  box-shadow: rgba(2, 2, 2, 0.5) 0px 2px 10px;
   border-radius: 10px;
   padding: 15px;
   z-index: 1000;
@@ -333,12 +344,13 @@ const FilterSelect = styled.select`
 const FilterButtonGroup = styled.div`
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 10px;
   margin-top: 15px;
 `;
 
 const FilterButton = styled(ActionButton)`
- 
+ padding: 6px 20px;
 `;
 const SortOption = styled.div`
   display: flex;
@@ -539,18 +551,16 @@ const TableRow = styled.tr`
   `}
 
   ${props => props.isSubtrade && css`    // Стилі для субрядків
-    animation: ${fadeInDown} 0.3s ease-in-out;
-    & > td {                            // Усі клітинки
-      
-      background-color: rgba(80, 100, 160, 0.4);          
+    animation: ${fadeInDown} 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    & > td {
+      background-color: rgba(80, 100, 160, 0.4);
     }
-
-    & > td:first-child::before { 
-      overflow: hidden;           
-      content: '↳';                    // Стрілка
-      position: absolute;              // Абсолютне позиціонування
-      left: 12px;                       // Відступ зліва
-      color: rgb(18, 122, 227);                
+    & > td:first-child::before {
+      overflow: hidden;
+      content: '↳';
+      position: absolute;
+      left: 12px;
+      color: rgb(18, 122, 227);
     }
   `}
 
@@ -564,7 +574,7 @@ const TableRow = styled.tr`
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 8px;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 
   // Стилі для субтрейдів застосовуємо напряму до div, якщо isSubtrade === true
@@ -2540,13 +2550,15 @@ function TradeJournal() {
                     prepareRow(row);
                     const isSelected = selectedTrades.includes(row.original.id);
                     const isSubtrade = row.original.parentTradeId;
-                    
+                    // Для субтрейдів визначаємо видимість через expandedTrades
+                    const isVisible = !isSubtrade || (isSubtrade && expandedTrades.includes(row.original.parentTradeId));
                     return (
                       <TableRow 
                         key={row.original.id}
                         {...row.getRowProps()} 
                         selected={isSelected}
                         isSubtrade={isSubtrade}
+                        isVisible={isVisible}
                         onClick={() => handleRowClick(row.original.id, false)}
                         style={{ cursor: 'pointer' }}
                       >

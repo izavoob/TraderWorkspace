@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
 
 const TrashContainer = styled.div`
-  max-width: 1820px;
+ 
   margin: 20px auto;
   min-height: 100vh;
   background-color: #1a1a1a;

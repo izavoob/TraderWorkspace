@@ -9,7 +9,7 @@ const gradientAnimation = keyframes`
 `;
 
 const ReportingSystemContainer = styled.div`
-  max-width: 1820px;
+ 
   min-height: 100vh;
   background-color: #1a1a1a;
   padding: 20px;

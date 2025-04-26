@@ -377,11 +377,11 @@ const Td = styled.td`
 `;
 
 const TableRow = styled.tr`
-  position: relative;                    // Для позиціонування дочірніх елементів
-  transition: background-color 0.3s ease, transform 0.2s ease;  // Плавні переходи
-  background-color: rgb(37, 37, 37);     // Темно-сірий фон
-  overflow-x: hidden;                    // Приховує горизонтальний overflow
-  cursor: pointer;                       // Курсор-вказівник для кращого UX
+  position: relative;
+  transition: background-color 0.3s ease, transform 0.2s ease;
+  background-color: rgb(37, 37, 37);
+  overflow-x: hidden;
+  cursor: pointer;
   
   &:hover {                              // Стилі при наведенні
     background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
@@ -413,25 +413,23 @@ const TableRow = styled.tr`
 
   }
 
-  ${props => props.selected && css`      // Стилі для вибраного стану
-    && {                                // Підвищена специфічність
-      background-color: #7425c966;      // Фіолетовий фон
-      overflow-x: hidden;               // Приховує горизонтальний overflow
+  ${props => props.selected && css`
+    && {
+      background-color: #7425c966;
+      overflow-x: hidden;
     }
   `}
-
-  ${props => props.isSubsession && css`    // Стилі для субрядків
-    animation: ${props => props.isVisible ? fadeInDown : fadeOutUp} 0.3s ease-in-out forwards;
-    & > td {                            // Усі клітинки      
-      background-color: rgba(80, 100, 160, 0.4);          
+  ${props => props.isSubsession && css`
+    animation: ${fadeInDown} 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    & > td {
+      background-color: rgba(80, 100, 160, 0.4);
     }
-
-    & > td:first-child::before { 
-      overflow: hidden;           
-      content: '↳';                    // Стрілка
-      position: absolute;              // Абсолютне позиціонування
-      left: 12px;                       // Відступ зліва
-      color: rgb(18, 122, 227);                
+    & > td:first-child::before {
+      overflow: hidden;
+      content: '↳';
+      position: absolute;
+      left: 12px;
+      color: rgb(18, 122, 227);
     }
   `}
 
@@ -452,7 +450,7 @@ const HeaderRow = styled.tr`
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 8px;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 
   // Стилі для субтрейдів застосовуємо напряму до div, якщо isSubtrade === true
@@ -464,7 +462,7 @@ const EditableSelect = styled.select`
   width: 100%;
   padding: 5px;
   border: 0px solid #5e2ca5;
-  background: rgba(75, 16, 63, 0.51);
+  background: rgba(239, 218, 56, 0.2);
   color: #fff;
   border-radius: 8px;
   font-family: Roboto, sans-serif;
@@ -485,12 +483,24 @@ const FilterDropdown = styled.div`
   top: 100%;
   right: 0;
   width: 200px;
-  background: #2e2e2e;
-  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
-  border-radius: 8px;
+  background:rgba(46, 46, 46, 0.9);
+  box-shadow: rgba(2, 2, 2, 0.5) 0px 2px 10px;
+  border-radius: 10px;
   padding: 15px;
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
   z-index: 1000;
+  transform-origin: top right;
+  animation: dropDown 0.3s ease;
+
+  @keyframes dropDown {
+    from {
+      transform: scaleY(0);
+      opacity: 0;
+    }
+    to {
+      transform: scaleY(1);
+      opacity: 1;
+    }
+  }
 `;
 
 const SortDropdown = styled(FilterDropdown)`
@@ -498,7 +508,7 @@ const SortDropdown = styled(FilterDropdown)`
 `;
 
 const RangeDropdown = styled(FilterDropdown)`
-  width: 300px;
+
 `;
 
 const FilterGroup = styled.div`
@@ -535,19 +545,14 @@ const FilterSelect = styled.select`
 
 const FilterButtonGroup = styled.div`
   display: flex;
-  justify-content: flex-end;
+  justify-content: center;
   gap: 10px;
   margin-top: 15px;
+  align-items: center;
 `;
 
-const FilterButton = styled.button`
-  background: ${props => props.clear ? '#444' : 'conic-gradient(from 45deg, #7425C9, #B886EE)'};
-  color: #fff;
-  border: none;
-  padding: 6px 12px;
-  border-radius: 8px;
-  cursor: pointer;
-  font-size: 14px;
+const FilterButton = styled(ActionButton)`
+ padding: 6px 20px;
 `;
 
 const StyledDatePicker = styled(DatePicker)`
@@ -704,6 +709,17 @@ function PreSessionJournal() {
     }
     return [];
   });
+  const [allSubsessionsExpanded, setAllSubsessionsExpanded] = useState(() => {
+    try {
+      const savedState = localStorage.getItem('preSession_allSubsessionsExpanded');
+      if (savedState) {
+        return JSON.parse(savedState);
+      }
+    } catch (error) {
+      console.error('Error restoring allSubsessionsExpanded from localStorage:', error);
+    }
+    return false;
+  });
 
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -723,6 +739,10 @@ function PreSessionJournal() {
   useEffect(() => {
     console.log("Data updated:", data);
   }, [data]);
+
+  useEffect(() => {
+    localStorage.setItem('preSession_allSubsessionsExpanded', JSON.stringify(allSubsessionsExpanded));
+  }, [allSubsessionsExpanded]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -820,7 +840,7 @@ function PreSessionJournal() {
 
   const handleSelectAll = (e) => {
     if (e.target.checked) {
-      setSelectedEntries(data.map(entry => entry.id));
+      setSelectedEntries(sortedAndFilteredEntries.map(entry => entry.id));
     } else {
       setSelectedEntries([]);
     }
@@ -1021,11 +1041,7 @@ function PreSessionJournal() {
               </ActionButton>
               {hasSubsessions && !isSubsession && (
                 <ActionButton 
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    console.log("Expand button clicked for id:", row.original.id);
-                    console.log("Current isExpanded:", isExpanded);
+                  onClick={() => {
                     toggleExpand(row.original.id);
                   }}
                   style={{  
@@ -1293,6 +1309,35 @@ function PreSessionJournal() {
     }
   };
 
+  const toggleAllSubsessions = () => {
+    if (allSubsessionsExpanded) {
+      setExpandedSessions([]);
+    } else {
+      // Знаходимо всі основні сесії, які мають хоча б одну субсесію
+      const sessionGroups = filteredEntries.reduce((groups, entry) => {
+        if (!entry.parentSessionId) {
+          if (!groups[entry.id]) {
+            groups[entry.id] = { main: entry, subsessions: [] };
+          } else {
+            groups[entry.id].main = entry;
+          }
+        } else {
+          if (!groups[entry.parentSessionId]) {
+            groups[entry.parentSessionId] = { main: null, subsessions: [entry] };
+          } else {
+            groups[entry.parentSessionId].subsessions.push(entry);
+          }
+        }
+        return groups;
+      }, {});
+      const parentIds = Object.values(sessionGroups)
+        .filter(group => group.subsessions && group.subsessions.length > 0 && group.main)
+        .map(group => group.main.id);
+      setExpandedSessions(parentIds);
+    }
+    setAllSubsessionsExpanded(!allSubsessionsExpanded);
+  };
+
   return (
     <>
       <GlobalStyle />
@@ -1311,6 +1356,12 @@ function PreSessionJournal() {
               </ActionButton>
             </ButtonGroup>
             <ButtonGroup>
+            <ActionButton
+                onClick={toggleAllSubsessions}
+                style={{ backgroundColor: 'rgb(92, 157, 245)', marginLeft: 12, padding: '12px 20px' }}
+              >
+                {allSubsessionsExpanded ? 'Hide Subsessions ▲' : 'Show Subsessions ▼'}
+              </ActionButton>
               <div style={{ position: 'relative' }}>
                 <ActionButton 
                   ref={rangeButtonRef}
@@ -1500,6 +1551,7 @@ function PreSessionJournal() {
                     prepareRow(row);
                     const isSelected = selectedEntries.includes(row.original.id);
                     const isSubsession = Boolean(row.original.parentSessionId);
+                    const isVisible = !isSubsession || (isSubsession && expandedSessions.includes(row.original.parentSessionId));
                     
                     return (
                       <TableRow 
@@ -1507,7 +1559,7 @@ function PreSessionJournal() {
                         {...row.getRowProps()} 
                         selected={isSelected}
                         isSubsession={isSubsession}
-                        isVisible={expandedSessions.includes(row.original.id)}
+                        isVisible={isVisible}
                       >
                         {row.cells.map(cell => (
                           <Td 

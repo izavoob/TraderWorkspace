@@ -11,7 +11,7 @@ const gradientAnimation = keyframes`
 `;
 
 const RecommendationsContainer = styled.div`
-  max-width: 1820px;
+ 
   margin: 0 auto;
   min-height: 100vh;
   background-color: #1a1a1a;
