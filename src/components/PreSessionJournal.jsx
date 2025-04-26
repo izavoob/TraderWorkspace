@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useTable } from 'react-table';
 import styled, { createGlobalStyle, keyframes, css } from 'styled-components';
@@ -19,6 +19,32 @@ const shineEffect = keyframes`
   100% { background-position: 200% 0; }
 `;
 
+const fadeInDown = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 100px;
+  }
+`;
+
+const fadeOutUp = keyframes`
+  from {
+    opacity: 1;
+    transform: translateY(0);
+    max-height: 100px;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+`;
+
 const GlobalStyle = createGlobalStyle`
   body, html {
     margin: 0;
@@ -30,7 +56,7 @@ const GlobalStyle = createGlobalStyle`
     overflow-y: auto;
   }
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 1px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
@@ -104,7 +130,6 @@ const DatePickerStyles = createGlobalStyle`
 `;
 
 const DailyRoutineContainer = styled.div`
-  max-width: 1820px;
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
@@ -143,7 +168,7 @@ const BackButton = styled.button`
   padding: 0;
   width: 200px;
   height: 100%;
-  border-radius: 0;
+  border-radius: 8px;
   cursor: pointer;
   position: absolute;
   left: 0;
@@ -198,8 +223,7 @@ const JournalContent = styled.div`
   height: calc(100vh - 148px);
   display: flex;
   flex-direction: column;
-  gap: 15px;
-  margin-top: 10px;
+  gap: 10px;
 `;
 
 const JournalHeader = styled.div`
@@ -209,6 +233,8 @@ const JournalHeader = styled.div`
   z-index: 999;
   flex-direction: row;
   width: 100%;
+    margin-top: 10px;
+
 `;
 
 const ButtonGroup = styled.div`
@@ -270,30 +296,35 @@ const ActionButton = styled.button`
 `;
 
 const TableContainer = styled.div`
-  flex: 1;
-  overflow: auto;
   position: relative;
+  bottom: 5px;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+  overflow-y: auto;
+  overflow-x: hidden;
   
   thead {
     position: sticky;
     top: 0;
-    z-index: 1;
-    background: #2e2e2e;
+    z-index: 20;
+    background: linear-gradient(45deg, #7425C9, #B886EE, #7425C9);
+    background-size: 200% 200%;
+    animation: ${gradientAnimation} 5s ease infinite;
   }
 
   tbody {
     overflow-y: auto;
+    overflow-x: hidden;
   }
   
   ::-webkit-scrollbar {
-    width: 4px;
+    width: 1px;
   }
   ::-webkit-scrollbar-track {
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
     background: #7425C9;
-    border-radius: 3px;
+    border-radius: 2px;
   }
   ::-webkit-scrollbar-thumb:hover {
     background: #5e2ca5;
@@ -303,23 +334,24 @@ const TableContainer = styled.div`
 const Table = styled.table`
   width: 100%;
   border-collapse: separate;
-  border-spacing: 0;
-  background-color: #2e2e2e;
-  border: 2px solid #5e2ca5;
+  border-spacing: 1px;
+  overflow-y: auto;
+  overflow-x: hidden;
 `;
 
 const Th = styled.th`
-  padding: 12px;
+  padding: 15px;
+  font-size: 14px;
   text-align: center;
-  background: conic-gradient(from 45deg, #7425C9, #B886EE);
+  letter-spacing: 0.5px;
+  font-weight: 500;
+  text-transform: uppercase;
   color: #fff;
   font-weight: bold;
-  border: 1px solid #5e2ca5;
-  white-space: nowrap;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
   position: sticky;
   top: 0;
   z-index: 2;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 
   &:after {
     content: '';
@@ -333,89 +365,118 @@ const Th = styled.th`
 `;
 
 const Td = styled.td`
-  border: 1px solid #5e2ca5;
-  padding: 6px;
+   padding: 6px;
   text-align: center;
   color: #fff;
-  background-color: #2e2e2e;
   position: relative;
+  // Додаємо стилі для першої колонки
+  &:first-child {
+    max-width: 80px !important; // Задаємо фіксовану ширину
+    overflow: hidden; // Обрізаємо вміст, якщо він не вміщається
+  }
 `;
 
 const TableRow = styled.tr`
+  position: relative;                    // Для позиціонування дочірніх елементів
+  transition: background-color 0.3s ease, transform 0.2s ease;  // Плавні переходи
+  background-color: rgb(37, 37, 37);     // Темно-сірий фон
+  overflow-x: hidden;                    // Приховує горизонтальний overflow
+  cursor: pointer;                       // Курсор-вказівник для кращого UX
+  
+  &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);  // Тінь
+  }
+  
+  &:nth-child(even) {                    // Парні рядки
+    background-color: rgb(62, 62, 62);
+    overflow-x: hidden;
+
+     &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);  // Тінь
+  }
+
+    
+  }
+  &:nth-child(odd) {                     // Непарні рядки
+    background-color: rgb(37, 37, 37); 
+    overflow-x: hidden;
+
+   &:hover {                              // Стилі при наведенні
+    background-color:rgba(116, 37, 201, 0.4);   // Фіолетовий напівпрозорий фон
+    transform: translateY(-1px);            // Легке підняття
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);  // Тінь
+  }
+
+  }
+
+  ${props => props.selected && css`      // Стилі для вибраного стану
+    && {                                // Підвищена специфічність
+      background-color: #7425c966;      // Фіолетовий фон
+      overflow-x: hidden;               // Приховує горизонтальний overflow
+    }
+  `}
+
+  ${props => props.isSubsession && css`    // Стилі для субрядків
+    animation: ${props => props.isVisible ? fadeInDown : fadeOutUp} 0.3s ease-in-out forwards;
+    & > td {                            // Усі клітинки      
+      background-color: rgba(80, 100, 160, 0.4);          
+    }
+
+    & > td:first-child::before { 
+      overflow: hidden;           
+      content: '↳';                    // Стрілка
+      position: absolute;              // Абсолютне позиціонування
+      left: 12px;                       // Відступ зліва
+      color: rgb(18, 122, 227);                
+    }
+  `}
+
+  &:hover {                              // Стилі при наведенні для чекбокса
+    .checkbox-container {
+      opacity: ${props => props.selected ? 1 : 0.8};  // Прозорість залежно від стану
+    }
+  }
+`;
+
+// Компонент для рядків у шапці таблиці
+const HeaderRow = styled.tr`
+  background: transparent !important; // Прозорий фон для рядків у заголовку
   position: relative;
-  &:nth-child(even) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#2e2e2e'};
-  }
-  &:nth-child(odd) {
-    background-color: ${props => props.selected ? 'rgba(116, 37, 201, 0.3)' : '#3e3e3e'};
-  }
-
-  ${props => props.selected && css`
-    && {
-      background-color: rgba(116, 37, 201, 0.3) !important;
-    }
-  `}
-
-  ${props => props.isSubsession && css`
-    & > td {
-      background-color: rgba(92, 157, 245, 0.05) !important;
-      border-left: 2px solid #5C9DF5;
-      padding-left: 20px !important;
-    }
-
-    & > td:first-child::before {
-      content: '↳';
-      position: absolute;
-      left: 5px;
-      color: #5C9DF5;
-    }
-  `}
-
-  &:hover {
-    background: rgba(116, 37, 201, 0.3);
-  }
+  z-index: 10;
 `;
 
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 8px;
-  justify-content: flex-start;
-  align-items: center;
-  padding: 0 10px;
-  white-space: nowrap;
-  width: auto;
-`;
-
-const IconButton = styled.button`
-  background: none;
-  border: none;
-  cursor: pointer;
-  padding: 4px;
-  display: flex;
-  align-items: center;
   justify-content: center;
+  align-items: center;
 
-  &:hover {
-    opacity: 0.8;
-  }
-
-  img {
-    width: 20px;
-    height: 20px;
-  }
+  // Стилі для субтрейдів застосовуємо напряму до div, якщо isSubtrade === true
+  ${props => props.isSubsession && css`
+    padding-left: 20px; // Відступ зліва для всього контейнера
+  `}
 `;
-
 const EditableSelect = styled.select`
   width: 100%;
-  padding: 8px;
-  border: 1px solid #5e2ca5;
-  background: #3e3e3e;
+  padding: 5px;
+  border: 0px solid #5e2ca5;
+  background: rgba(75, 16, 63, 0.51);
   color: #fff;
   border-radius: 8px;
+  font-family: Roboto, sans-serif;
+  box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
 
-  &:focus {
-    outline: none;
-    border-color: #B886EE;
+
+
+  option {
+    background: #3e3e3e;
+    color: #fff;
+    padding: 8px;
+    box-shadow: rgba(0, 0, 0, 0.5) 0px 2px 10px;
   }
 `;
 
@@ -531,7 +592,7 @@ const SelectAllContainer = styled.div`
 const Checkbox = styled.input.attrs({ type: 'checkbox' })`
   width: 16px;
   height: 16px;
-  padding: 7px 0px;
+  padding: 6px 0px;
   cursor: pointer;
   appearance: none;
   border: 2px solid #B886EE;
@@ -544,8 +605,8 @@ const Checkbox = styled.input.attrs({ type: 'checkbox' })`
     &:after {
       content: '';
       position: absolute;
-      left: 4px;
-      top: 1px;
+      left: 3px;
+      top: 0px;
       width: 4px;
       height: 8px;
       border: solid white;
@@ -631,6 +692,18 @@ function PreSessionJournal() {
   const [isLoading, setIsLoading] = useState(false);
   const [pairOptions, setPairOptions] = useState([]);
   const [parentSessions, setParentSessions] = useState({});
+  const [expandedSessions, setExpandedSessions] = useState(() => {
+    // Відновлення стану розгорнутих сесій з localStorage
+    try {
+      const savedExpanded = localStorage.getItem('preSession_expandedSessions');
+      if (savedExpanded) {
+        return JSON.parse(savedExpanded);
+      }
+    } catch (error) {
+      console.error('Error restoring expanded sessions from localStorage:', error);
+    }
+    return [];
+  });
 
   const containerRef = useRef(null);
   const filterButtonRef = useRef(null);
@@ -641,6 +714,15 @@ function PreSessionJournal() {
     loadData();
     loadPairOptions();
   }, [location]);
+
+  useEffect(() => {
+    localStorage.setItem('preSession_expandedSessions', JSON.stringify(expandedSessions));
+    console.log("expandedSessions updated:", expandedSessions);
+  }, [expandedSessions]);
+
+  useEffect(() => {
+    console.log("Data updated:", data);
+  }, [data]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -822,6 +904,19 @@ function PreSessionJournal() {
     navigate('/daily-routine');
   };
 
+  const toggleExpand = useCallback((sessionId) => {
+    console.log("toggleExpand called with sessionId:", sessionId);
+    console.log("Current expandedSessions:", expandedSessions);
+    
+    setExpandedSessions(prev => {
+      const newState = prev.includes(sessionId) 
+        ? prev.filter(id => id !== sessionId) 
+        : [...prev, sessionId];
+      console.log("New expandedSessions state:", newState);
+      return newState;
+    });
+  }, []);
+
   const filteredEntries = useMemo(() => {
     return data.filter((entry) => {
       if (!entry) return false;
@@ -876,45 +971,79 @@ function PreSessionJournal() {
         return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
       });
 
-    // Формируем финальный массив, добавляя дочерние сессии после родительских
+    // Формируем финальный массив, добавляя дочерние сессии после родительских только если родительская сессия развернута
     return mainSessions.reduce((result, mainSession) => {
       result.push(mainSession);
-      const subsessions = sessionGroups[mainSession.id]?.subsessions || [];
-      if (subsessions.length > 0) {
-        result.push(...subsessions.sort((a, b) => {
-          const dateA = new Date(a.date);
-          const dateB = new Date(b.date);
-          return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
-        }));
+      
+      // Добавляем дочерние сессии только если родительская сессия развернута
+      const isExpanded = expandedSessions.includes(mainSession.id);
+      if (isExpanded) {
+        const subsessions = sessionGroups[mainSession.id]?.subsessions || [];
+        if (subsessions.length > 0) {
+          result.push(...subsessions.sort((a, b) => {
+            const dateA = new Date(a.date);
+            const dateB = new Date(b.date);
+            return sortConfig.order === 'desc' ? dateB - dateA : dateA - dateB;
+          }));
+        }
       }
+      
       return result;
     }, []);
-  }, [filteredEntries, sortConfig]);
+  }, [filteredEntries, sortConfig, expandedSessions]);
 
   const columns = useMemo(
     () => [
       {
         Header: 'Actions',
         accessor: 'actions',
-        width: 80, // Уменьшаем ширину, так как убрали кнопку
-        Cell: ({ row }) => (
-          <ButtonsContainer>
-            <Checkbox
-              type="checkbox"
-              checked={selectedEntries.includes(row.original.id)}
-              onChange={() => handleSelectEntry(row.original.id)}
-            />
-            <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '8px', minWidth: 'auto' }}>
-              <img src={EditIcon} alt="Edit" style={{ width: '20px', height: '20px' }} />
-            </ActionButton>
-            <ActionButton 
-              onClick={() => handleDelete(row.original.id)} 
-              style={{ padding: '8px', minWidth: 'auto', background: '#ff4757' }}
-            >
-              <img src={DeleteIcon} alt="Delete" style={{ width: '20px', height: '20px' }} />
-            </ActionButton>
-          </ButtonsContainer>
-        )
+        width: 40,
+        Cell: ({ row }) => {
+          // Перевіряємо чи має ця сесія дочірні сесії
+          const hasSubsessions = data.some(entry => entry.parentSessionId === row.original.id);
+          const isExpanded = expandedSessions.includes(row.original.id);
+          console.log(`Row ${row.original.id} isExpanded:`, isExpanded);
+          const isSubsession = Boolean(row.original.parentSessionId);
+          
+          return (
+            <ButtonsContainer isSubsession={isSubsession}>
+              <Checkbox
+                type="checkbox"
+                checked={selectedEntries.includes(row.original.id)}
+                onChange={() => handleSelectEntry(row.original.id)}
+              />
+              <ActionButton onClick={() => handleEdit(row.original.id)} style={{ padding: '6px', minWidth: 'auto' }}>
+              <img src={EditIcon} alt="Edit" style={{ width: '18px', height: '18px' }} />            </ActionButton>
+              <ActionButton 
+                onClick={() => handleDelete(row.original.id)} 
+                style={{ padding: '6px', minWidth: 'auto', background: '#ff4757' }}>
+                <img src={DeleteIcon} alt="Delete" style={{ width: '18px', height: '18px' }} />
+              </ActionButton>
+              {hasSubsessions && !isSubsession && (
+                <ActionButton 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log("Expand button clicked for id:", row.original.id);
+                    console.log("Current isExpanded:", isExpanded);
+                    toggleExpand(row.original.id);
+                  }}
+                  style={{  
+                    padding: '0px',
+                    minWidth: 'auto', 
+                    background: isExpanded ? 'rgb(52, 152, 219, 0)' : 'rgb(52, 152, 219, 0)'
+                  }}
+                >
+                  {isExpanded ? (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold'}}>▲</span>
+                  ) : (
+                    <span style={{ fontSize: '16px', fontWeight: 'bold' }}>▼</span>
+                  )}
+                </ActionButton>
+              )}
+            </ButtonsContainer>
+          );
+        }
       },
       { Header: 'Date', accessor: 'date', width: 120 },
       { Header: 'Week Day', accessor: 'weekDay', width: 120 },
@@ -1099,7 +1228,7 @@ function PreSessionJournal() {
         },
       },
     ],
-    [data, selectedEntries, pairOptions]
+    [data, selectedEntries, pairOptions, expandedSessions]
   );
 
   const {
@@ -1318,31 +1447,45 @@ function PreSessionJournal() {
           </JournalHeader>
 
           <SelectAllContainer>
-            <Checkbox
-              checked={selectedEntries.length === sortedAndFilteredEntries.length && sortedAndFilteredEntries.length > 0}
-              onChange={handleSelectAll}
-            />
-              <span style={{ padding: '7px 0px' }}>Select All days</span>
+            <div style={{ minHeight: '33px'}}>
+              <Checkbox
+                checked={selectedEntries.length === sortedAndFilteredEntries.length && sortedAndFilteredEntries.length > 0}
+                onChange={handleSelectAll}
+              />
+              <span style={{ padding: '6px 0px' }}>Select All days</span>
+            </div>
+            <div>
+              {selectedEntries.length === 1 && (() => {
+                const selectedEntry = data.find(entry => entry.id === selectedEntries[0]);
+                return !selectedEntry?.parentSessionId ? (
+                  <AddSubsessionButton
+                    onClick={() => handleCreateSubsession(selectedEntries[0])}
+                  >
+                    Add Subsession
+                  </AddSubsessionButton>
+                ) : null;
+              })()}
               {selectedEntries.length > 0 && (
-              <DeleteSelectedButton
-                onClick={() => setShowDeleteConfirmation(true)}
-              >
-                Delete Selected ({selectedEntries.length})
-              </DeleteSelectedButton>
-            )}
+                <DeleteSelectedButton
+                  onClick={() => setShowDeleteConfirmation(true)}
+                >
+                  Delete Selected ({selectedEntries.length})
+                </DeleteSelectedButton>
+              )}
+            </div>
           </SelectAllContainer>
 
           <TableContainer>
             <Table {...getTableProps()}>
               <thead>
                 {headerGroups.map(headerGroup => (
-                  <TableRow {...headerGroup.getHeaderGroupProps()}>
+                  <HeaderRow {...headerGroup.getHeaderGroupProps()}>
                     {headerGroup.headers.map(column => (
                       <Th {...column.getHeaderProps()} style={{ width: column.width }}>
                         {column.render('Header')}
                       </Th>
                     ))}
-                  </TableRow>
+                  </HeaderRow>
                 ))}
               </thead>
               <tbody {...getTableBodyProps()}>
@@ -1364,6 +1507,7 @@ function PreSessionJournal() {
                         {...row.getRowProps()} 
                         selected={isSelected}
                         isSubsession={isSubsession}
+                        isVisible={expandedSessions.includes(row.original.id)}
                       >
                         {row.cells.map(cell => (
                           <Td 

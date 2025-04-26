@@ -41,7 +41,7 @@ const GlobalStyle = createGlobalStyle`
     width: 100%;
     background-color: #1a1a1a;
     overflow: ${props => {
-      const noScrollPaths = ['/', '/trade-journal', '/daily-routine/pre-session', '/daily-routine/post-session', '/learning-section/notes', '/learning-section/strategy', '/learning-section'];
+      const noScrollPaths = ['/', '/trade-journal', '/daily-routine/pre-session', '/daily-routine', '/daily-routine/post-session', '/learning-section/notes', '/learning-section/strategy', '/learning-section'];
       return noScrollPaths.includes(props.pathname) ? 'hidden' : 'visible';
     }};
   }
@@ -50,7 +50,7 @@ const GlobalStyle = createGlobalStyle`
     height: 100%;
     position: relative;
     overflow: ${props => {
-      const noScrollPaths = ['/', '/trade-journal', '/daily-routine/pre-session', '/daily-routine/post-session'];
+      const noScrollPaths = ['/', '/trade-journal', '/daily-routine', '/daily-routine/pre-session', '/daily-routine/post-session'];
       return noScrollPaths.includes(props.pathname) ? 'hidden' : 'visible';
     }};
   }

@@ -50,7 +50,6 @@ const GlobalStyle = createGlobalStyle`
 
 // Компоненты стилей
 const Container = styled.div`
-  max-width: 1820px;
   margin: 0 auto;
   min-height: 100vh;
   background-color: #1a1a1a;
@@ -67,9 +66,9 @@ const Header = styled.header`
   border-radius: 8px;
   color: #fff;
   position: relative;
-  margin: 0 auto;
-  width: 95%;
-  max-width: 1700px;
+  top: 0;
+  left: 0;
+  right: 0;
   z-index: 1000;
   height: 80px;
   min-height: 6.67vh;
@@ -150,7 +149,6 @@ const CardsContainer = styled.div`
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 30px;
-  margin-top: 20px;
   width: 100%;
   max-width: 1000px;
 

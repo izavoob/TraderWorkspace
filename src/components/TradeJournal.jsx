@@ -91,8 +91,18 @@ const slideAnim = keyframes`
   100% { opacity: 1; transform: translateX(0) scale(1); }
 `;
 
+const fadeInDown = keyframes`
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+`;
+
 const TradeJournalContainer = styled.div`
-  max-width: 1820px;
   margin: 0 auto;
   background-color: #1a1a1a;
   padding: 20px;
@@ -473,7 +483,7 @@ const TableCell = styled.td`
 
   // Додаємо стилі для першої колонки
   &:first-child {
-    max-width: 105px !important; // Задаємо фіксовану ширину
+    max-width: 80px !important; // Задаємо фіксовану ширину
     overflow: hidden; // Обрізаємо вміст, якщо він не вміщається
   }
 
@@ -529,6 +539,7 @@ const TableRow = styled.tr`
   `}
 
   ${props => props.isSubtrade && css`    // Стилі для субрядків
+    animation: ${fadeInDown} 0.3s ease-in-out;
     & > td {                            // Усі клітинки
       
       background-color: rgba(80, 100, 160, 0.4);          
@@ -553,7 +564,7 @@ const TableRow = styled.tr`
 const ButtonsContainer = styled.div`
   display: flex;
   gap: 8px;
-  justify-content: flex-start;
+  justify-content: center;
   align-items: center;
 
   // Стилі для субтрейдів застосовуємо напряму до div, якщо isSubtrade === true
